@@ -36,28 +36,20 @@ fun MainScreen(navController: NavHostController) {
                 // ACCUEIL
                 NavigationBarItem(
                     icon = {
-                        Icon(painter = painterResource(id = R.drawable.icon_learnity), contentDescription = null, modifier = Modifier.size(24.dp))
+                        Icon(painter = painterResource(id = R.drawable.ic_homepage_1), contentDescription = null, modifier = Modifier.size(24.dp))
                     },
                     label = { Text("Accueil") },
                     selected = false,
                     onClick = { navController.navigate("home") }
                 )
 
-                // COURS
-                NavigationBarItem(
-                    icon = {
-                        Icon(painter = painterResource(id = R.drawable.icon_learnity), contentDescription = null, modifier = Modifier.size(24.dp))
-                    },
-                    label = { Text("Cours") },
-                    selected = false,
-                    onClick = { navController.navigate("courses") }
-                )
+
 
                 // MON ASSO
                 NavigationBarItem(
                     icon = {
                         Icon(
-                            painter = painterResource(id = R.drawable.icon_learnity),
+                            painter = painterResource(id = R.drawable.ic_asso),
                             contentDescription = null,
                             modifier = Modifier.size(28.dp),
                             tint = Color.Unspecified
@@ -67,11 +59,19 @@ fun MainScreen(navController: NavHostController) {
                     selected = false,
                     onClick = { navController.navigate("association") }
                 )
-
+                // COURS
+                NavigationBarItem(
+                    icon = {
+                        Icon(painter = painterResource(id = R.drawable.ic_cours_1), contentDescription = null, modifier = Modifier.size(24.dp))
+                    },
+                    label = { Text("Cours") },
+                    selected = false,
+                    onClick = { navController.navigate("courses") }
+                )
                 // CLASSEMENT
                 NavigationBarItem(
                     icon = {
-                        Icon(painter = painterResource(id = R.drawable.icon_learnity), contentDescription = null, modifier = Modifier.size(24.dp))
+                        Icon(painter = painterResource(id = R.drawable.ic_ranking), contentDescription = null, modifier = Modifier.size(24.dp))
                     },
                     label = { Text("Ranking") },
                     selected = false,
@@ -81,7 +81,7 @@ fun MainScreen(navController: NavHostController) {
                 // PARAMÈTRES
                 NavigationBarItem(
                     icon = {
-                        Icon(painter = painterResource(id = R.drawable.icon_learnity), contentDescription = null, modifier = Modifier.size(24.dp))
+                        Icon(painter = painterResource(id = R.drawable.ic_settings_1), contentDescription = null, modifier = Modifier.size(24.dp))
                     },
                     label = { Text("Outils") },
                     selected = false,

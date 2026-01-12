@@ -10,7 +10,7 @@ import androidx.navigation.compose.composable
 
 // Import de tes écrans (vérifie bien que les noms de packages correspondent)
 import com.miage.learnity.ui.screens.HomeScreen
-import com.miage.learnity.ui.screens.CoursesScreen
+import com.miage.learnity.ui.screens.CoursScreen
 import com.miage.learnity.ui.screens.AssociationScreen
 import com.miage.learnity.ui.screens.RankingScreen
 import com.miage.learnity.ui.screens.SettingsScreen
@@ -24,7 +24,7 @@ fun AppNav(navController: NavHostController, paddingValues: PaddingValues) {
         modifier = Modifier.padding(paddingValues) // Important pour ne pas être sous les barres
     ) {
         composable("home") { HomeScreen() }
-        composable("courses") { CoursesScreen() }
+        composable("courses") { CoursScreen() }
         composable("association") { AssociationScreen() }
         composable("ranking") { RankingScreen() }
         composable("settings") { SettingsScreen() }
