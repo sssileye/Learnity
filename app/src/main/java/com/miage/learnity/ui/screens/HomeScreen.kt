@@ -49,7 +49,7 @@ fun HomeScreen() {
             //.padding(paddingValues) // IMPORTANT : Respecte le padding du Scaffold
             .padding(16.dp) // Marge interne supplémentaire
             .verticalScroll(rememberScrollState()), // Rend l'écran scrollable
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         VirtualDebtCard()
         DailyQuizCard()
