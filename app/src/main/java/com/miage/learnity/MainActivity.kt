@@ -38,14 +38,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// --- SECTION PREVIEW ---
+// --- SECTION PREVIEW ---@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//fun AppPreview() {
+//    LearnityTheme {
+//        // Dans une Preview, on crée un NavController "fictif"
+//        val navController = rememberNavController()
+//        MainScreen(navController = navController)
+//    }
+//}
 // Cette fonction permet de voir ton interface sans lancer l'émulateur
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun AppPreview() {
-    LearnityTheme {
-        // Dans une Preview, on crée un NavController "fictif"
-        val navController = rememberNavController()
-        MainScreen(navController = navController)
-    }
-}

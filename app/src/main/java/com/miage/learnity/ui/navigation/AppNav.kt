@@ -23,7 +23,7 @@ fun AppNav(navController: NavHostController, paddingValues: PaddingValues) {
         startDestination = "home",
         modifier = Modifier.padding(paddingValues) // Important pour ne pas être sous les barres
     ) {
-        composable("home") { HomeScreen() }
+        composable("home") { HomeScreen() }     
         composable("courses") { CoursScreen() }
         composable("association") { AssociationScreen() }
         composable("ranking") { RankingScreen() }

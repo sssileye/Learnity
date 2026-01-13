@@ -6,9 +6,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.R
+import com.miage.learnity.ui.theme.LearnityTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,5 +96,18 @@ fun MainScreen(navController: NavHostController) {
         // ATTENTION : Si ta fonction dans AppNav.kt s'appelle AppNav, change NavGraph par AppNav ici
         AppNav(navController = navController, paddingValues = innerPadding)
     }
+
 }
 
+
+// --- SECTION PREVIEW ---
+// Cette fonction permet de voir ton interface sans lancer l'émulateur
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AppPreview() {
+    LearnityTheme {
+        // Dans une Preview, on crée un NavController "fictif"
+        val navController = rememberNavController()
+        MainScreen(navController = navController)
+    }
+}
