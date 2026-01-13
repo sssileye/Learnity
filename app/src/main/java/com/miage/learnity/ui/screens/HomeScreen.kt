@@ -55,7 +55,6 @@ fun HomeScreen() {
         DailyQuizCard()
         UnityPointsCard()
 
-
     }
 }
 @Composable
@@ -231,15 +230,20 @@ fun DailyQuizCard() {
 @Composable
 fun UnityPointsCard() {
     val gradient = Brush.linearGradient(
-        colors = listOf(Color(0xFF66BB6A), Color(0xFF00897B)) // Vert -> Teal
+        colors = listOf(Color(0xFF66BB6A), Color(0xFF00897B))
     )
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(), // Vérifie que c'est bien présent
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Box(modifier = Modifier.background(gradient).padding(20.dp)) {
+        // AJOUT : .fillMaxWidth() sur le Box pour que le vert occupe tout l'espace
+        Box(modifier = Modifier
+            .background(gradient)
+            .fillMaxWidth() // <--- À AJOUTER ABSOLUMENT
+            .padding(20.dp)
+        ) {
             Column {
                 Text(
                     text = "Tes Unity Points : ✨",
@@ -250,11 +254,14 @@ fun UnityPointsCard() {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Cercle de progression
+                // AJOUT : .fillMaxWidth() sur la Row pour bien répartir le contenu
+                Row(
+                    modifier = Modifier.fillMaxWidth(), // <--- À AJOUTER
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(
-                            progress = { 0.75f }, // 75%
+                            progress = { 0.75f },
                             modifier = Modifier.size(64.dp),
                             color = Color.White,
                             trackColor = Color.White.copy(alpha = 0.3f),
