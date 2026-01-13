@@ -3,6 +3,7 @@ package com.miage.learnity.ui.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -18,19 +19,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontStyle
 import com.miage.learnity.R
 import androidx.compose.ui.tooling.preview.Preview
 import com.miage.learnity.ui.theme.*
 
-// Couleurs de la charte graphique
-val BackgroundColor = Color(0xFFF5F5F5)
-val PrimaryPurple = Color(0xFF9E5ECE)
-val GradientBlue1 = Color(0xFF4E54C8)
-val GradientBlue2 = Color(0xFF8F94FB)
-val GradientOrange1 = Color(0xFFFF4B2B)
-val GradientOrange2 = Color(0xFFFF8C37)
-val TextDark = Color(0xFF1A1A2E)
-val TextGray = Color(0xFF4A4A4A)
 @Composable
 fun AuthScreen(
     onLoginClick: () -> Unit,
@@ -44,38 +37,39 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(50.dp))
 
             // Logo section
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(150.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.icon_learnity),
-                        contentDescription = "Logo Learnity",
-                        modifier = Modifier.size(130.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
+                Text(
+                    text = "Bienvenue à toi, nouvel utilisateur !",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center,
+                    color = TextDark
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Image(
+                    painter = painterResource(id = R.drawable.icon_learnity),
+                    contentDescription = "Logo Learnity",
+                    modifier = Modifier.size(250.dp), // Ajusté à une taille raisonnable
+                    contentScale = ContentScale.Fit
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Titre "LEARNITY"
                 Text(
                     text = "LEARNITY",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = TextDark
                 )
 
@@ -84,28 +78,20 @@ fun AuthScreen(
                 // Slogan
                 Text(
                     text = "Réviser pour soi, donner pour les autres",
-                    fontSize = 16.sp,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontStyle = FontStyle.Italic,
                     color = TextGray,
                     textAlign = TextAlign.Center
                 )
             }
-
-            // Illustration
-            Image(
-                painter = painterResource(R.drawable.pageauth),
-                contentDescription = "Illustration personnages",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentScale = ContentScale.Fit
-            )
 
             // Boutons
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Bouton "Se connecter" (dégradé bleu)
+                // Bouton "Se connecter"
                 Button(
                     onClick = onLoginClick,
                     modifier = Modifier
@@ -117,9 +103,7 @@ fun AuthScreen(
                             ),
                             shape = RoundedCornerShape(28.dp)
                         ),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     contentPadding = PaddingValues(0.dp),
                     shape = RoundedCornerShape(28.dp)
                 ) {
@@ -131,7 +115,7 @@ fun AuthScreen(
                     )
                 }
 
-                // Bouton "S'inscrire" (dégradé orange)
+                // Bouton "S'inscrire"
                 Button(
                     onClick = onSignupClick,
                     modifier = Modifier
@@ -143,9 +127,7 @@ fun AuthScreen(
                             ),
                             shape = RoundedCornerShape(28.dp)
                         ),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     contentPadding = PaddingValues(0.dp),
                     shape = RoundedCornerShape(28.dp)
                 ) {
@@ -157,7 +139,6 @@ fun AuthScreen(
                     )
                 }
             }
-
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -168,6 +149,6 @@ fun AuthScreen(
 fun AuthScreenPreview() {
     AuthScreen(
         onLoginClick = {},
-        onSignupClick = {}
+        onSignupClick = { println("Bouton cliqué !") }
     )
 }
