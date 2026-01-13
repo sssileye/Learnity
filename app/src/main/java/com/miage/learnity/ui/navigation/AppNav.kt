@@ -8,13 +8,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 
-// Import de tes écrans (vérifie bien que les noms de packages correspondent)
-import com.miage.learnity.ui.screens.HomeScreen
-import com.miage.learnity.ui.screens.CoursesScreen
-import com.miage.learnity.ui.screens.AssociationScreen
-import com.miage.learnity.ui.screens.RankingScreen
-import com.miage.learnity.ui.screens.SettingsScreen
-import com.miage.learnity.ui.screens.ProfileScreen
 
 @Composable
 fun AppNav(navController: NavHostController, paddingValues: PaddingValues) {
@@ -23,11 +16,11 @@ fun AppNav(navController: NavHostController, paddingValues: PaddingValues) {
         startDestination = "home",
         modifier = Modifier.padding(paddingValues) // Important pour ne pas être sous les barres
     ) {
-        composable("home") { HomeScreen() }
-        composable("courses") { CoursesScreen() }
-        composable("association") { AssociationScreen() }
-        composable("ranking") { RankingScreen() }
-        composable("settings") { SettingsScreen() }
-        composable("profile") { ProfileScreen() }
+        composable("home") { Screen.HomeScreen.route }
+        composable("courses") { Screen.CoursesScreen.route}
+        composable("association") { Screen.AssociationScreen.route }
+        composable("ranking") { Screen.RankingScreen.route }
+        composable("settings") { Screen.SettingsScreen.route }
+        composable("profile") { Screen.ProfileScreen.route }
     }
 }
