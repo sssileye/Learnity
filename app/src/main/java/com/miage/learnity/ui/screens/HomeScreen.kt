@@ -49,7 +49,7 @@ fun HomeScreen() {
             //.padding(paddingValues) // IMPORTANT : Respecte le padding du Scaffold
             .padding(16.dp) // Marge interne supplémentaire
             .verticalScroll(rememberScrollState()), // Rend l'écran scrollable
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         VirtualDebtCard()
         DailyQuizCard()
@@ -286,7 +286,7 @@ fun UnityPointsCard() {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
                     text = "Voir mon impact",
