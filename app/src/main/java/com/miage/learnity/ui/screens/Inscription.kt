@@ -36,68 +36,88 @@ import com.miage.learnity.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Inscription(
-    onBackClick: () -> Unit,
-    onInscriptionSuccess: () -> Unit
+    onBackClick: () -> Unit = {},
+    onInscriptionSuccess: (String, String) -> Unit = { _, _ -> },
+    isLoading: Boolean = false,
+    error: String? = null
 ) {
-    val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
-    val auth = remember { if (isPreview) null else FirebaseAuth.getInstance() }
     val context = LocalContext.current
 
-    var isLoading by remember { mutableStateOf(false) }
-    var nomPrenom by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
+    var showConfirmPassword by remember { mutableStateOf(false) }
     var acceptCGU by remember { mutableStateOf(false) }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    var nomPrenomError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf("") }
 
-    fun validateForm(): Boolean {
-        var isValid = true
-        if (nomPrenom.isBlank()) { nomPrenomError = "Nom & Prénom obligatoires"; isValid = false } else nomPrenomError = ""
-
+    fun validateEmail(email: String): Boolean {
         val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
-        if (!email.matches(emailRegex)) { emailError = "Format d'email invalide"; isValid = false } else emailError = ""
-
-        if (password.length < 8) { passwordError = "Au moins 8 caractères"; isValid = false }
-        else if (!password.any { it.isDigit() }) { passwordError = "Au moins 1 chiffre"; isValid = false }
-        else passwordError = ""
-
-        if (password != confirmPassword) { confirmPasswordError = "Les mots de passe diffèrent"; isValid = false } else confirmPasswordError = ""
-
-        return isValid
+        return if (!email.matches(emailRegex)) {
+            emailError = "Format d'email invalide"
+            false
+        } else {
+            emailError = ""
+            true
+        }
     }
 
-    val isButtonEnabled = nomPrenom.isNotBlank() && email.isNotBlank() &&
-            password.isNotBlank() && confirmPassword.isNotBlank() &&
-            acceptCGU && !isLoading
+    fun validatePassword(password: String): Boolean {
+        return when {
+            password.length < 8 -> {
+                passwordError = "Au moins 8 caractères"
+                false
+            }
+            !password.any { it.isDigit() } -> {
+                passwordError = "Au moins 1 chiffre"
+                false
+            }
+            else -> {
+                passwordError = ""
+                true
+            }
+        }
+    }
+
+    fun validateConfirmPassword(password: String, confirmPassword: String): Boolean {
+        return if (password != confirmPassword) {
+            confirmPasswordError = "Les mots de passe diffèrent"
+            false
+        } else {
+            confirmPasswordError = ""
+            true
+        }
+    }
+
+    LaunchedEffect(error) {
+        error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val isButtonEnabled = email.isNotBlank() &&
+            password.isNotBlank() &&
+            confirmPassword.isNotBlank() &&
+            acceptCGU &&
+            !isLoading
 
     Box(modifier = Modifier.fillMaxSize().background(BackgroundColor)) {
-        // Décorations radiales
-
         Scaffold(
             topBar = {
-                // La Box définit le fond dégradé pour toute la zone de la TopAppBar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
                             brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Gray1,             // Part du gris en haut
-                                    BackgroundColor    // Vers la couleur de fond en bas
-                                )
+                                colors = listOf(Gray1, BackgroundColor)
                             )
                         )
                 ) {
                     TopAppBar(
                         title = { },
-                        // Garde les insets pour que le dégradé commence bien tout en haut (sous l'heure)
                         windowInsets = WindowInsets.statusBars,
                         navigationIcon = {
                             IconButton(
@@ -112,16 +132,11 @@ fun Inscription(
                                     tint = Color.White,
                                     modifier = Modifier
                                         .size(35.dp)
-                                        .background(
-                                            color = Gray1,
-                                            shape = CircleShape
-                                        )
-                                        // Ajout d'un petit padding pour que la flèche ne touche pas les bords du cercle
+                                        .background(color = Gray1, shape = CircleShape)
                                         .padding(6.dp)
                                 )
                             }
                         },
-                        // On force le container à être transparent pour voir le Brush de la Box
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Transparent
                         )
@@ -129,118 +144,188 @@ fun Inscription(
                 }
             },
             containerColor = Color.Transparent
-
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 24.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier=Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
+
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
-                    contentDescription = "Logo Learnity",
-                    modifier = Modifier.size(140.dp), // Ajusté à une taille raisonnable
-                    contentScale = ContentScale.Fit
-                )
-                Spacer(modifier=Modifier.height(16.dp))
-                Text("Rejoignez Learnity", fontSize = 26.sp, color = TextGray, fontWeight = FontWeight.ExtraBold ,modifier = Modifier.padding(bottom = 32.dp))
-
-                // Champs de saisie
-                OutlinedTextField(
-                    value = nomPrenom, onValueChange = { nomPrenom = it },
-                    label = { Text("Nom et Prénom") }, modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp), isError = nomPrenomError.isNotEmpty(),
-                    supportingText = { if (nomPrenomError.isNotEmpty()) Text(nomPrenomError) }
+                    contentDescription = "Logo",
+                    modifier = Modifier.size(140.dp)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
+                Text(
+                    text = "Rejoignez-nous",
+                    fontSize = 26.sp,
+                    color = TextGray,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(bottom = 32.dp)
+                )
+
+                // Email Field
                 OutlinedTextField(
-                    value = email, onValueChange = { email = it },
-                    label = { Text("Email étudiant") }, modifier = Modifier.fillMaxWidth(),
+                    value = email,
+                    onValueChange = {
+                        email = it
+                        if (emailError.isNotEmpty()) validateEmail(it)
+                    },
+                    label = { Text("Email") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    shape = RoundedCornerShape(16.dp), isError = emailError.isNotEmpty(),
-                    supportingText = { if (emailError.isNotEmpty()) Text(emailError) }
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    isError = emailError.isNotEmpty(),
+                    supportingText = {
+                        if (emailError.isNotEmpty()) Text(emailError)
+                    },
+                    singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
+                // Password Field
                 OutlinedTextField(
-                    value = password, onValueChange = { password = it },
-                    label = { Text("Mot de passe") }, modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    value = password,
+                    onValueChange = {
+                        password = it
+                        if (passwordError.isNotEmpty()) validatePassword(it)
+                    },
+                    label = { Text("Mot de passe") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
+                        IconButton(onClick = { showPassword = !showPassword }) {
+                            Icon(
+                                imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null
+                            )
                         }
                     },
-                    shape = RoundedCornerShape(16.dp), isError = passwordError.isNotEmpty()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    isError = passwordError.isNotEmpty(),
+                    supportingText = {
+                        if (passwordError.isNotEmpty()) Text(passwordError)
+                    },
+                    singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
+                // Confirm Password Field
                 OutlinedTextField(
-                    value = confirmPassword, onValueChange = { confirmPassword = it },
-                    label = { Text("Confirmer le mot de passe") }, modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
+                    value = confirmPassword,
+                    onValueChange = {
+                        confirmPassword = it
+                        if (confirmPasswordError.isNotEmpty()) {
+                            validateConfirmPassword(password, it)
                         }
                     },
-                    shape = RoundedCornerShape(16.dp), isError = confirmPasswordError.isNotEmpty()
+                    label = { Text("Confirmer le mot de passe") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                            Icon(
+                                imageVector = if (showConfirmPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    isError = confirmPasswordError.isNotEmpty(),
+                    supportingText = {
+                        if (confirmPasswordError.isNotEmpty()) Text(confirmPasswordError)
+                    },
+                    singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Checkbox(checked = acceptCGU, onCheckedChange = { acceptCGU = it })
-                    Text("J'accepte les CGU", color = TextGray, fontSize = 14.sp)
+                // Checkbox CGU
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Checkbox(
+                        checked = acceptCGU,
+                        onCheckedChange = { acceptCGU = it }
+                    )
+                    Text(
+                        "J'accepte les CGU",
+                        color = TextGray,
+                        fontSize = 14.sp
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(Modifier.height(32.dp))
 
-                // Bouton avec Firebase
+                // Sign Up Button
                 Button(
                     onClick = {
-                        if (validateForm()&& auth != null) {
-                            isLoading = true
-                            auth.createUserWithEmailAndPassword(email.trim(), password.trim())
-                                .addOnCompleteListener { task ->
-                                    isLoading = false
-                                    if (task.isSuccessful) {
-                                        Toast.makeText(context, "Succès !", Toast.LENGTH_SHORT).show()
-                                        onInscriptionSuccess()
-                                    } else {
-                                        Toast.makeText(context, task.exception?.localizedMessage ?: "Erreur", Toast.LENGTH_LONG).show()
-                                    }
-                                }
+                        val isEmailValid = validateEmail(email)
+                        val isPasswordValid = validatePassword(password)
+                        val isConfirmValid = validateConfirmPassword(password, confirmPassword)
+
+                        if (isEmailValid && isPasswordValid && isConfirmValid) {
+                            onInscriptionSuccess(email.trim(), password.trim())
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                     enabled = isButtonEnabled,
                     shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent, // Fond quand activé
-                        contentColor = Color.White,        // Couleur du texte par défaut
-                        disabledContainerColor = Color.LightGray, // Fond quand isLoading est vrai
-                        disabledContentColor = Color.DarkGray     // Texte quand isLoading est vrai
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
+                        disabledContainerColor = Color.LightGray,
+                        disabledContentColor = Color.DarkGray
                     ),
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxSize().background(
-                            brush = if (isButtonEnabled) Brush.horizontalGradient(listOf(GradientPurple2, GradientPurple1))
-                            else Brush.horizontalGradient(listOf(GradientBlue1, GradientBlue2)),
-                            shape = RoundedCornerShape(28.dp)
-                        ),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = if (isButtonEnabled) {
+                                    Brush.horizontalGradient(
+                                        listOf(GradientPurple2, GradientPurple1)
+                                    )
+                                } else {
+                                    Brush.horizontalGradient(
+                                        listOf(GradientBlue1, GradientBlue2)
+                                    )
+                                },
+                                shape = RoundedCornerShape(28.dp)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                        else Text("S'inscrire", color = Color.White, fontWeight = FontWeight.Bold)
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text(
+                                "S'inscrire",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+
+                Spacer(Modifier.height(24.dp))
             }
         }
     }
@@ -248,11 +333,9 @@ fun Inscription(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun InscriptionPreview() {
-    LearnityTheme {
-        Inscription(
-            onBackClick = {},
-            onInscriptionSuccess = {}
-        )
+fun InscriptionScreenPreview() {
+    MaterialTheme {
+        Inscription()
     }
 }
+
