@@ -1,7 +1,10 @@
 package com.miage.learnity.ui.components
 
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -16,20 +19,21 @@ import com.miage.learnity.R
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
-    val currentRoute by navController.currentBackStackEntryAsState()
+    val currentRoute by navController.currentBackStackEntryAsState();
     val route = currentRoute?.destination?.route
 
     NavigationBar {
+        // ACCUEIL
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.homepage_3),
+                    painter = painterResource(id = R.drawable.ic_homepage_1),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
             },
             label = { Text("Accueil") },
-            selected = route == "home",
+            selected = false,
             onClick = {
                 navController.navigate("home") {
                     popUpTo("home") { inclusive = true }
@@ -38,74 +42,77 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        NavigationBarItem(
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.cours_1),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            label = { Text("Cours") },
-            selected = route == "courses",
-            onClick = {
-                navController.navigate("courses") {
-                    popUpTo("home")
-                    launchSingleTop = true
-                }
-            }
-        )
 
+        // MON ASSO
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.asso),
+                    painter = painterResource(id = R.drawable.ic_asso),
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                     tint = Color.Unspecified
                 )
             },
             label = { Text("Mon Asso") },
-            selected = route == "association",
+            selected = false,
             onClick = {
                 navController.navigate("association") {
-                    popUpTo("home")
+                    popUpTo("home") { inclusive = true }
                     launchSingleTop = true
                 }
             }
         )
-
+        // COURS
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.ranking),
+                    painter = painterResource(id = R.drawable.ic_cours_1),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            label = { Text("Cours") },
+            selected = false,
+            onClick = {
+                navController.navigate("courses") {
+                    popUpTo("home") { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        )
+        // CLASSEMENT
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_ranking),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
             },
             label = { Text("Ranking") },
-            selected = route == "ranking",
+            selected = false,
             onClick = {
                 navController.navigate("ranking") {
-                    popUpTo("home")
+                    popUpTo("home") { inclusive = true }
                     launchSingleTop = true
                 }
             }
         )
 
+        // PARAMÈTRES
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.settings_1),
+                    painter = painterResource(id = R.drawable.ic_settings_1),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
             },
             label = { Text("Outils") },
-            selected = route == "settings",
+            selected = false,
             onClick = {
                 navController.navigate("settings") {
-                    popUpTo("home")
+                    popUpTo("home") { inclusive = true }
                     launchSingleTop = true
                 }
             }
@@ -113,10 +120,11 @@ fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
-@Preview
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun BottomNavigationBarPreview() {
+fun AppPreview() {
     BottomNavigationBar(
         navController = rememberNavController()
     )
 }
+
