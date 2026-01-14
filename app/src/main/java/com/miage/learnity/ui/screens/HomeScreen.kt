@@ -47,8 +47,8 @@ fun HomeScreen() {
             .fillMaxSize()
             .background(Color(0xFFF5F7FA)) // Fond gris clair
             //.padding(paddingValues) // IMPORTANT : Respecte le padding du Scaffold
-            .padding(16.dp) // Marge interne supplémentaire
-            .verticalScroll(rememberScrollState()), // Rend l'écran scrollable
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         VirtualDebtCard()
