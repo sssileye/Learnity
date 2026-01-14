@@ -5,27 +5,33 @@ import com.google.android.gms.dynamite.DynamiteModule
 data class Course(
     val id: String,
     val title: String,
-    val module: String,
-    val chapters: List<Chapter>,
-    val iconRes: Int
+    val description: String,
 )
-
 data class Chapter(
-    val id: String,
-    val title: String,
-    val iconRes: Int,
-    val videoUrl: String? = null, // URL YouTube
-    val contentUrl: String? = null, // URL du contenu à lire
+    val title: String = "",
+    val order: Int = 0,
+    val cours: String? = null,  // URL vers le PDF sur GitHub
+    val fdr: String? = null,    // URL vers la Fiche de Révision
+    val video: String? = null,  // URL YouTube ou autre
+    val quiz: String? = null,    // URL du JSON ou ID du quiz
     val isVideoWatched: Boolean = false,
     val isContentRead: Boolean = false,
     val isQuizCompleted: Boolean = false
-){
-    val isCompleted: Boolean
-        get() = isVideoWatched && isContentRead && isQuizCompleted
+)
+data class Question(
+    val questionText: String = "",
+    val options: List<String> = emptyList(), // Liste des réponses possibles
+    val correctAnswerIndex: Int = 0,        // Index de la bonne réponse (0, 1, 2...)
+    val explanation: String? = null         // Explication affichée après la réponse
+)
 
-    val isQuizUnlocked: Boolean
-        get() = isVideoWatched && isContentRead
-}
+data class Quiz(
+    val quizId: String = "",
+    val title: String = "",
+    val questions: List<Question> = emptyList() // Ta banque de 100 questions
+)
+
+
 data class CourseProgress(
     val completedChapters: Int,
     val totalChapters: Int
