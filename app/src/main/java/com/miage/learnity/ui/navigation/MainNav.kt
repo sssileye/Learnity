@@ -57,7 +57,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 HomeScreen()
             }
             composable("courses") {
-                CoursScreen()
+                //CoursScreen()
             }
             composable("association") {
                 AssociationScreen()

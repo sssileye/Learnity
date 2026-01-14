@@ -1,12 +1,10 @@
 package com.miage.learnity.ui.navigation
 
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -21,7 +19,7 @@ import com.miage.learnity.ui.screens.ProfileScreen
 import com.miage.learnity.ui.screens.RankingScreen
 import com.miage.learnity.ui.screens.SettingsScreen
 import com.miage.learnity.ui.screens.SignInScreen
-import com.miage.learnity.ui.screens.auth.Inscription
+import com.miage.learnity.ui.screens.Inscription
 
 
 @Composable
@@ -74,7 +72,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
         }
 
         composable("home") { HomeScreen() }
-        composable("courses") { CoursScreen() }
+        //composable("courses") { CoursScreen() }
         composable("association") { AssociationScreen() }
         composable("ranking") { RankingScreen() }
         composable("settings") { SettingsScreen() }
