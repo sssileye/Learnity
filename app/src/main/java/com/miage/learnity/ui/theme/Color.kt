@@ -25,16 +25,6 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-// Couleurs de la charte graphique
-val BackgroundColor = Color(0xE8E8E8E8)
-val PrimaryPurple = Color(0xFF9E5ECE)
-val GradientBlue1 = Color(0xFF4E54C8)
-val GradientBlue2 = Color(0xFF8F94FB)
-val GradientOrange1 = Color(0xFFFF4B2B)
-val GradientOrange2 = Color(0xFFFF8C37)
-
 val Gray1 = Color(0xFF757575)
 val GradientPurple1 = Color(0xFF9E5ECE)
 val GradientPurple2 = Color(0xFF635BFF)
-val TextDark = Color(0xFF1A1A2E)
-val TextGray = Color(0xFF4A4A4A)

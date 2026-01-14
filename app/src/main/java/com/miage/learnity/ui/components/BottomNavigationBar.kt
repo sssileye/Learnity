@@ -23,7 +23,7 @@ fun BottomNavigationBar(navController: NavHostController) {
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.icon_learnity),
+                    painter = painterResource(id = R.drawable.homepage_3),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
@@ -41,7 +41,7 @@ fun BottomNavigationBar(navController: NavHostController) {
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.icon_learnity),
+                    painter = painterResource(id = R.drawable.cours_1),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
@@ -59,7 +59,7 @@ fun BottomNavigationBar(navController: NavHostController) {
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.icon_learnity),
+                    painter = painterResource(id = R.drawable.asso),
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                     tint = Color.Unspecified
@@ -78,7 +78,7 @@ fun BottomNavigationBar(navController: NavHostController) {
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.icon_learnity),
+                    painter = painterResource(id = R.drawable.ranking),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
@@ -96,7 +96,7 @@ fun BottomNavigationBar(navController: NavHostController) {
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.icon_learnity),
+                    painter = painterResource(id = R.drawable.settings_1),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
