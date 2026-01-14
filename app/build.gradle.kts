@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.androidx.room.common.jvm)
 
     // Tests
     testImplementation(libs.junit)
