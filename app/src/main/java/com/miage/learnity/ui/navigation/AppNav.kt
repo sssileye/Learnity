@@ -13,7 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.model.AuthViewModel
 import com.miage.learnity.ui.screens.AssociationScreen
 import com.miage.learnity.ui.screens.AuthScreen
-import com.miage.learnity.ui.screens.CoursScreen
+//import com.miage.learnity.ui.screens.CoursScreen
 import com.miage.learnity.ui.screens.HomeScreen
 import com.miage.learnity.ui.screens.ProfileScreen
 import com.miage.learnity.ui.screens.RankingScreen

@@ -80,7 +80,7 @@ fun CoursScreen(
     onQuizClick: () -> Unit = {},
     onBackClick: () -> Unit = {},
     streakDays: Int = 3
-) {
+){
     val progress = remember(course) {
         CourseProgress(
             completedChapters = course.chapters.count { it.isCompleted },
