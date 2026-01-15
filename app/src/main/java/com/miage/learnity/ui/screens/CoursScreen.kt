@@ -1,7 +1,7 @@
 package com.miage.learnity.ui.screens
 
 
-
+/*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -490,4 +490,4 @@ fun CoursScreenPreview() {
     MaterialTheme {
         CoursScreen(course = sampleCourse)
     }
-}
+}*/
