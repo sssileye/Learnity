@@ -20,6 +20,7 @@ import com.miage.learnity.ui.screens.RankingScreen
 import com.miage.learnity.ui.screens.SettingsScreen
 import androidx.compose.ui.tooling.preview.Preview
 import com.miage.learnity.ui.components.BottomNavigationBar
+import com.miage.learnity.ui.components.TopNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,19 +29,9 @@ fun MainNav(onLogout: () -> Unit = {}) {
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text("LEARNITY", color = Color(0xFF635BFF))
-                },
-                actions = {
-                    IconButton(onClick = { navController.navigate("profile") }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.icon_learnity),
-                            contentDescription = "Mon Profil",
-                            modifier = Modifier.size(28.dp),
-                            tint = Color(0xFF635BFF)
-                        )
-                    }
+            TopNavigationBar(
+                onProfileClick = {
+                    navController.navigate("profile")
                 }
             )
         },
