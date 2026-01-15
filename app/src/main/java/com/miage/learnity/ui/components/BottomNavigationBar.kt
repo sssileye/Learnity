@@ -74,7 +74,7 @@ fun BottomNavigationBar(navController: NavHostController) {
             label = { Text("Cours") },
             selected = false,
             onClick = {
-                navController.navigate("courses") {
+                navController.navigate("library") {
                     popUpTo("home") { inclusive = true }
                     launchSingleTop = true
                 }
