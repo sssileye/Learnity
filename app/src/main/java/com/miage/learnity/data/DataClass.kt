@@ -1,7 +1,5 @@
 package com.miage.learnity.data
 
-import com.google.android.gms.dynamite.DynamiteModule
-
 data class Course(
     val id: String,
     val title: String,
@@ -17,7 +15,12 @@ data class Chapter(
     val isVideoWatched: Boolean = false,
     val isContentRead: Boolean = false,
     val isQuizCompleted: Boolean = false
-)
+){
+    val isCompleted: Boolean
+        get() = isVideoWatched && isContentRead && isQuizCompleted
+    val isQuizUnlocked: Boolean
+        get() = isVideoWatched && isContentRead
+}
 data class Question(
     val questionText: String = "",
     val options: List<String> = emptyList(), // Liste des réponses possibles
@@ -31,7 +34,6 @@ data class Quiz(
     val questions: List<Question> = emptyList() // Ta banque de 100 questions
 )
 
-
 data class CourseProgress(
     val completedChapters: Int,
     val totalChapters: Int
@@ -42,4 +44,3 @@ data class CourseProgress(
     val isAllCompleted: Boolean
         get() = completedChapters == totalChapters
 }
-
