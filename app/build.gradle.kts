@@ -62,6 +62,12 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.room.common.jvm)
 
+    // ✅ PdfBox-Android (stable, sur Maven Central)
+    implementation(libs.pdfbox.android)
+
+    // OkHttp pour télécharger
+    implementation(libs.okhttp.v4120)
+
     // Tests
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
