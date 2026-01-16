@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -172,203 +173,215 @@ fun CourseLibraryCard(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    Icon(
-                        painter = painterResource(id = course.iconRes),
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    if (course.iconRes != null && course.iconRes != 0) {
+                        Icon(
+                            painter = painterResource(id = course.iconRes),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.School,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        ) // Icône par défaut }
+
+                    }
+
                 }
-            }
 
-            Spacer(modifier = Modifier.width(16.dp))
 
-            // Contenu texte
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                // Titre du cours
-                Text(
-                    text = course.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Spacer(modifier = Modifier.width(16.dp))
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Description
-                if (course.description.isNotEmpty()) {
+                // Contenu texte
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Titre du cours
                     Text(
-                        text = course.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        text = course.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Description
+                    if (course.description.isNotEmpty()) {
+                        Text(
+                            text = course.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Bouton "Commencer"
+                    Text(
+                        text = "Commencer le cours →",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
                     )
                 }
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Bouton "Commencer"
+    /**
+     * État de chargement
+     */
+    @Composable
+    private fun LoadingState() {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Commencer le cours →",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
+                    text = "Chargement des cours...",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
-}
 
-/**
- * État de chargement
- */
-@Composable
-private fun LoadingState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+    /**
+     * État d'erreur
+     */
+    @Composable
+    private fun ErrorState(
+        message: String,
+        onRetry: () -> Unit
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Chargement des cours...",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-/**
- * État d'erreur
- */
-@Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Text(
-                text = "❌",
-                style = MaterialTheme.typography.displayLarge
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Erreur",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onRetry) {
-                Text("Réessayer")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Text(
+                    text = "❌",
+                    style = MaterialTheme.typography.displayLarge
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Erreur",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(onClick = onRetry) {
+                    Text("Réessayer")
+                }
             }
         }
     }
-}
 
-/**
- * État liste vide
- */
-@Composable
-private fun EmptyState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
+    /**
+     * État liste vide
+     */
+    @Composable
+    private fun EmptyState() {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "📚",
-                style = MaterialTheme.typography.displayLarge
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Aucun cours disponible",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Les cours seront bientôt disponibles",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Text(
+                    text = "📚",
+                    style = MaterialTheme.typography.displayLarge
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Aucun cours disponible",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Les cours seront bientôt disponibles",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
-}
 
 // ============================================
 // PREVIEWS
 // ============================================
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun LibraryScreenPreview() {
-    LearnityTheme {
-        LibraryScreen(
-            onCourseClick = {}
-        )
+    @Preview(showBackground = true, showSystemUi = true)
+    @Composable
+    fun LibraryScreenPreview() {
+        LearnityTheme {
+            LibraryScreen(
+                onCourseClick = {}
+            )
+        }
     }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun CourseLibraryCardPreview() {
-    LearnityTheme {
-        CourseLibraryCard(
-            course = MockData.sampleCourses.first(),
-            onClick = {}
-        )
+    @Preview(showBackground = true)
+    @Composable
+    fun CourseLibraryCardPreview() {
+        LearnityTheme {
+            CourseLibraryCard(
+                course = MockData.sampleCourses.first(),
+                onClick = {}
+            )
+        }
     }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun LoadingStatePreview() {
-    LearnityTheme {
-        LoadingState()
+    @Preview(showBackground = true)
+    @Composable
+    fun LoadingStatePreview() {
+        LearnityTheme {
+            LoadingState()
+        }
     }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun ErrorStatePreview() {
-    LearnityTheme {
-        ErrorState(
-            message = "Impossible de charger les cours. Vérifiez votre connexion.",
-            onRetry = {}
-        )
+    @Preview(showBackground = true)
+    @Composable
+    fun ErrorStatePreview() {
+        LearnityTheme {
+            ErrorState(
+                message = "Impossible de charger les cours. Vérifiez votre connexion.",
+                onRetry = {}
+            )
+        }
     }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun EmptyStatePreview() {
-    LearnityTheme {
-        EmptyState()
+    @Preview(showBackground = true)
+    @Composable
+    fun EmptyStatePreview() {
+        LearnityTheme {
+            EmptyState()
+        }
     }
-}
