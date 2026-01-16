@@ -184,7 +184,7 @@ private fun ChapterContentLayout(
             ContentOptionCard(
                 icon = Icons.Default.MenuBook,
                 title = "Cours Complet",
-                subtitle = "${chapter.pageCount} pages • ${chapter.estimatedReadTime} min",
+                subtitle = "${chapter.pageCount} pages • ${chapter.estimatedReadTime} min", //A supprimer
                 isCompleted = chapter.isContentRead,
                 onClick = onCoursClick
             )

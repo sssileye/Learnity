@@ -146,39 +146,6 @@ private fun PdfViewerBottomBar(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Informations du contenu
-            chapter?.let {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    when (contentType) {
-                        ContentType.VIDEO -> {
-                            Text(
-                                text = "🎥 Vidéo explicative",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = "⏱️ ${it.videoDuration} min",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        else -> {
-                            Text(
-                                text = "📄 ${it.pageCount} pages",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = "⏱️ ${it.estimatedReadTime} min",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
             // Bouton d'action
             if (!isMarkedAsRead) {
                 Button(
