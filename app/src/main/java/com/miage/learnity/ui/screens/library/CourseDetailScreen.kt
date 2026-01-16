@@ -299,7 +299,7 @@ private fun ChapterCard(
             ) {
                 // Numéro du chapitre
                 Text(
-                    text = "Chapitre ${chapter.order}",
+                    text = "Chapitre ${chapter.order +1}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -363,17 +363,7 @@ private fun ChapterInfo(chapter: Chapter) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Description,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "${chapter.pageCount}p • ${chapter.estimatedReadTime}min",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
             }
         }
 
@@ -383,17 +373,6 @@ private fun ChapterInfo(chapter: Chapter) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.PlayCircle,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "${chapter.videoDuration}min",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
