@@ -69,12 +69,6 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
                 }
             )
         }
-
-        composable("home") { HomeScreen() }
-        composable("association") { AssociationScreen() }
-        composable("ranking") { RankingScreen() }
-        composable("settings") { SettingsScreen() }
-        composable("profile") { ProfileScreen() }
     }
 }
 
