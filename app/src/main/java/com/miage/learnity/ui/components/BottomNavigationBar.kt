@@ -33,7 +33,7 @@ fun BottomNavigationBar(navController: NavHostController) {
                 )
             },
             label = { Text("Accueil") },
-            selected = false,
+            selected = route == "home",
             onClick = {
                 navController.navigate("home") {
                     popUpTo("home") { inclusive = true }
@@ -54,7 +54,7 @@ fun BottomNavigationBar(navController: NavHostController) {
                 )
             },
             label = { Text("Mon Asso") },
-            selected = false,
+            selected = route == "association",
             onClick = {
                 navController.navigate("association") {
                     popUpTo("home") { inclusive = true }
@@ -72,7 +72,7 @@ fun BottomNavigationBar(navController: NavHostController) {
                 )
             },
             label = { Text("Cours") },
-            selected = false,
+            selected = route == "library",
             onClick = {
                 navController.navigate("library") {
                     popUpTo("home") { inclusive = true }
@@ -90,7 +90,7 @@ fun BottomNavigationBar(navController: NavHostController) {
                 )
             },
             label = { Text("Ranking") },
-            selected = false,
+            selected = route == "ranking",
             onClick = {
                 navController.navigate("ranking") {
                     popUpTo("home") { inclusive = true }
@@ -109,7 +109,7 @@ fun BottomNavigationBar(navController: NavHostController) {
                 )
             },
             label = { Text("Outils") },
-            selected = false,
+            selected = route == "settings",
             onClick = {
                 navController.navigate("settings") {
                     popUpTo("home") { inclusive = true }
