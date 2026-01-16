@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.compose.runtime)
 
     // Tests
     testImplementation(libs.junit)

@@ -45,7 +45,7 @@ data class CourseProgress(
         get() = completedChapters == totalChapters
 }
 data class Association(
-    val name: String,
-    val logoUrl: String, // Lien vers l'image
-    val websiteUrl: String // Lien vers le site de don
+    val name: String = "",
+    val websiteUrl: String = "", // Lien vers le site de don
+    val logoId: Int // Lien vers l'image
 )
