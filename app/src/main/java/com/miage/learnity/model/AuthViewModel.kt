@@ -37,7 +37,9 @@ class AuthViewModel: ViewModel(){
                     fail(task.exception)
                 }
             }
-
+    }
+    fun clearError() {
+        _state.value = _state.value.copy(error = null)
     }
     fun signUp(email: String, password: String){
         setLoading()

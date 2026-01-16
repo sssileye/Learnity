@@ -41,13 +41,18 @@ fun CourseDetailScreen(
     onChapterClick: (String, String) -> Unit,  // (courseId, chapterId)
     onBackClick: () -> Unit
 ) {
+    println("🔍 CourseDetailScreen - courseId reçu : '$courseId'")
+
     val course by viewModel.course.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
+
+
     // Charger les données au démarrage
     LaunchedEffect(courseId) {
+        println("🔍 LaunchedEffect - Chargement du cours : '$courseId'")
         viewModel.loadCourse(courseId)
     }
 

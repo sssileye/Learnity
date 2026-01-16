@@ -12,26 +12,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Chapter
+import com.miage.learnity.ui.components.PdfViewer
 import com.miage.learnity.ui.theme.LearnityTheme
 
-/**
- * Écran de visualisation du contenu (PDF ou Vidéo)
- *
- * Version actuelle : Placeholder pour le développement front-end
- * TODO: Intégrer un vrai viewer PDF (WebView ou bibliothèque Android PDF)
- *
- * @param courseId ID du cours
- * @param chapterId ID du chapitre
- * @param type Type de contenu (cours, fdr, video)
- * @param viewModel ViewModel pour gérer les données
- * @param onMarkComplete Callback quand l'utilisateur marque le contenu comme terminé
- * @param onBackClick Callback pour retourner
- */
 @Composable
 fun PdfViewerScreen(
     courseId: String,
     chapterId: String,
-    type: String,  // "cours", "fdr", ou "video"
+    type: String,
     viewModel: PdfViewerViewModel = viewModel(),
     onMarkComplete: () -> Unit,
     onBackClick: () -> Unit
@@ -88,12 +76,21 @@ fun PdfViewerScreen(
                 isLoading -> {
                     LoadingContent()
                 }
-                contentUrl != null -> {
-                    ContentPlaceholder(
-                        contentType = typeEnum,
-                        contentUrl = contentUrl!!,
-                        chapter = chapter
+                contentUrl != null && typeEnum != ContentType.VIDEO -> {
+                    // ✅ Afficher le PDF avec le viewer natif
+                    PdfViewer(
+                        url = contentUrl!!,
+                        onError = { error ->
+                            println("❌ Erreur PDF : $error")
+                        },
+                        onLoadComplete = { pages ->
+                            println("✅ PDF chargé : $pages pages")
+                        }
                     )
+                }
+                contentUrl != null && typeEnum == ContentType.VIDEO -> {
+                    // TODO: Implémenter le lecteur YouTube
+                    VideoPlaceholder(contentUrl!!)
                 }
                 else -> {
                     ErrorContent()
@@ -158,7 +155,7 @@ private fun PdfViewerBottomBar(
                     when (contentType) {
                         ContentType.VIDEO -> {
                             Text(
-                                text = "📹 Vidéo explicative",
+                                text = "🎥 Vidéo explicative",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
@@ -233,14 +230,10 @@ private fun PdfViewerBottomBar(
 }
 
 /**
- * Placeholder pour le contenu (en attendant le vrai viewer)
+ * Placeholder pour les vidéos YouTube (à implémenter plus tard)
  */
 @Composable
-private fun ContentPlaceholder(
-    contentType: ContentType,
-    contentUrl: String,
-    chapter: Chapter?
-) {
+private fun VideoPlaceholder(videoUrl: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -248,12 +241,8 @@ private fun ContentPlaceholder(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Icône selon le type
         Icon(
-            imageVector = when (contentType) {
-                ContentType.VIDEO -> Icons.Default.PlayCircle
-                else -> Icons.Default.PictureAsPdf
-            },
+            imageVector = Icons.Default.PlayCircle,
             contentDescription = null,
             modifier = Modifier.size(100.dp),
             tint = MaterialTheme.colorScheme.primary
@@ -262,37 +251,12 @@ private fun ContentPlaceholder(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = when (contentType) {
-                ContentType.VIDEO -> "Lecteur Vidéo"
-                ContentType.FDR -> "Fiche de Révision"
-                ContentType.COURS -> "Cours Complet"
-            },
+            text = "Lecteur Vidéo",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        chapter?.let {
-            when (contentType) {
-                ContentType.VIDEO -> {
-                    Text(
-                        text = "Durée : ${it.videoDuration} minutes",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                else -> {
-                    Text(
-                        text = "${it.pageCount} pages • ${it.estimatedReadTime} min de lecture",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         Card(
             colors = CardDefaults.cardColors(
@@ -304,22 +268,18 @@ private fun ContentPlaceholder(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "📱 Version de développement",
+                    text = "📱 En développement",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = when (contentType) {
-                        ContentType.VIDEO -> "Le lecteur YouTube sera intégré plus tard"
-                        else -> "Le viewer PDF sera intégré plus tard"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    text = "Le lecteur YouTube sera intégré prochainement",
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "URL: ${contentUrl.take(50)}...",
+                    text = "URL: ${videoUrl.take(50)}...",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                 )
@@ -370,17 +330,13 @@ private fun ErrorContent() {
     }
 }
 
-// ============================================
-// PREVIEWS
-// ============================================
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PdfViewerScreenPreview() {
     LearnityTheme {
         PdfViewerScreen(
-            courseId = "extraction_connaissances",
-            chapterId = "ec_chap1",
+            courseId = "test",
+            chapterId = "test",
             type = "cours",
             onMarkComplete = {},
             onBackClick = {}

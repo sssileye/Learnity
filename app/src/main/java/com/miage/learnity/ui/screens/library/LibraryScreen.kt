@@ -128,7 +128,9 @@ private fun CoursesList(
         items(courses) { course ->
             CourseLibraryCard(
                 course = course,
-                onClick = { onCourseClick(course.id) }
+                onClick = {
+                    println("🔍 Clic sur cours - ID : '${course.id}'")
+                    onCourseClick(course.id) }
             )
         }
 

@@ -14,38 +14,76 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Chapter
-import com.miage.learnity.data.mock.MockData
+import com.miage.learnity.repository.CourseRepository
 import com.miage.learnity.ui.theme.LearnityTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+/**
+ * ViewModel pour ChapterContentScreen
+ */
+class ChapterContentViewModel(
+    private val courseRepository: CourseRepository = CourseRepository()
+) : ViewModel() {
+
+    private val _chapter = MutableStateFlow<Chapter?>(null)
+    val chapter: StateFlow<Chapter?> = _chapter.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    fun loadChapter(courseId: String, chapterId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            println("🔍 ChapterContentViewModel - Chargement : $courseId/$chapterId")
+
+            courseRepository.getChapter(courseId, chapterId)
+                .onSuccess { chapter ->
+                    _chapter.value = chapter
+                    println("✅ ChapterContentViewModel - Chapitre chargé : ${chapter.title}")
+                }
+                .onFailure { exception ->
+                    _error.value = exception.message ?: "Chapitre non trouvé"
+                    println("❌ ChapterContentViewModel - Erreur : ${exception.message}")
+                }
+
+            _isLoading.value = false
+        }
+    }
+}
 
 /**
  * Écran de choix du contenu d'un chapitre
- * Permet de choisir entre : Cours PDF, Fiche de Révision, ou Vidéo
- *
- * @param courseId ID du cours
- * @param chapterId ID du chapitre
- * @param viewModel ViewModel pour gérer les données
- * @param onCoursClick Callback pour ouvrir le cours PDF
- * @param onFdrClick Callback pour ouvrir la fiche de révision
- * @param onVideoClick Callback pour ouvrir la vidéo
- * @param onStartQuiz Callback pour démarrer le quiz
- * @param onBackClick Callback pour retourner
  */
 @Composable
 fun ChapterContentScreen(
     courseId: String,
     chapterId: String,
-    viewModel: CourseDetailViewModel = viewModel(),
+    viewModel: ChapterContentViewModel = viewModel(),
     onCoursClick: () -> Unit,
     onFdrClick: () -> Unit,
     onVideoClick: () -> Unit,
     onStartQuiz: () -> Unit,
     onBackClick: () -> Unit
 ) {
-    // Charger le chapitre
-    val chapter = remember(courseId, chapterId) {
-        MockData.getChapter(courseId, chapterId)
+    val chapter by viewModel.chapter.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    // ✅ Charger le chapitre depuis Firebase
+    LaunchedEffect(courseId, chapterId) {
+        viewModel.loadChapter(courseId, chapterId)
     }
 
     Scaffold(
@@ -56,24 +94,32 @@ fun ChapterContentScreen(
             )
         }
     ) { paddingValues ->
-        if (chapter != null) {
-            ChapterContentLayout(
-                chapter = chapter,
-                onCoursClick = onCoursClick,
-                onFdrClick = onFdrClick,
-                onVideoClick = onVideoClick,
-                onStartQuiz = onStartQuiz,
-                modifier = Modifier.padding(paddingValues)
-            )
-        } else {
-            // Erreur : chapitre non trouvé
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Chapitre non trouvé")
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when {
+                // État : Chargement
+                isLoading -> {
+                    LoadingState()
+                }
+
+                // État : Erreur
+                error != null -> {
+                    ErrorState(message = error ?: "Erreur inconnue")
+                }
+
+                // État : Affichage du contenu
+                chapter != null -> {
+                    ChapterContentLayout(
+                        chapter = chapter!!,
+                        onCoursClick = onCoursClick,
+                        onFdrClick = onFdrClick,
+                        onVideoClick = onVideoClick,
+                        onStartQuiz = onStartQuiz
+                    )
+                }
             }
         }
     }
@@ -375,45 +421,70 @@ private fun LockedQuizSection() {
     }
 }
 
-// ============================================
-// PREVIEWS
-// ============================================
+/**
+ * État de chargement
+ */
+@Composable
+private fun LoadingState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Chargement du chapitre...")
+        }
+    }
+}
+
+/**
+ * État d'erreur
+ */
+@Composable
+private fun ErrorState(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Erreur",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ChapterContentScreenPreview() {
     LearnityTheme {
         ChapterContentScreen(
-            courseId = "extraction_connaissances",
-            chapterId = "ec_chap1",
+            courseId = "test",
+            chapterId = "test",
             onCoursClick = {},
             onFdrClick = {},
             onVideoClick = {},
             onStartQuiz = {},
             onBackClick = {}
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ContentOptionCardPreview() {
-    LearnityTheme {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ContentOptionCard(
-                icon = Icons.Default.MenuBook,
-                title = "Cours Complet",
-                subtitle = "15 pages • 20 min",
-                isCompleted = false,
-                onClick = {}
-            )
-            ContentOptionCard(
-                icon = Icons.Default.PlayCircle,
-                title = "Vidéo Explicative",
-                subtitle = "25 min sur YouTube",
-                isCompleted = true,
-                onClick = {}
-            )
-        }
     }
 }
