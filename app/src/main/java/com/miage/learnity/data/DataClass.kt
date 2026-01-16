@@ -7,7 +7,7 @@ data class Course(
     val id: String = "",
     val title: String = "",
     val description: String = "",
-    val iconRes: Int = 0                   // Icon pour l'UI
+    val iconRes: Int? = null                   // Icon pour l'UI
 )
 // ⚠️ PLUS de chapters: List<Chapter> !
 // Les chapitres sont dans une sous-collection Firestore
