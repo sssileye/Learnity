@@ -1,5 +1,7 @@
 package com.miage.learnity.data
 
+import androidx.annotation.DrawableRes
+
 data class Course(
     val id: String,
     val title: String,
@@ -47,5 +49,7 @@ data class CourseProgress(
 data class Association(
     val name: String = "",
     val websiteUrl: String = "", // Lien vers le site de don
-    val logoId: Int // Lien vers l'image
+    //val logoId: String // Lien vers l'image
+    @DrawableRes val logoResId: Int = 0,
+    val logoName: String = ""
 )

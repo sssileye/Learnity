@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.room.common.jvm)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.compose.ui)
 
     // Tests
     testImplementation(libs.junit)
