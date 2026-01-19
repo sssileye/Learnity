@@ -70,6 +70,7 @@ dependencies {
 
     //YouTube Player
     implementation(libs.core)
+    implementation(libs.androidx.compose.ui.geometry)
 
     // Tests
     testImplementation(libs.junit)
