@@ -49,7 +49,6 @@ data class CourseProgress(
 data class Association(
     val name: String = "",
     val websiteUrl: String = "", // Lien vers le site de don
-    //val logoId: String // Lien vers l'image
-    @DrawableRes val logoResId: Int = 0,
-    val logoName: String = ""
+    val logoName: String = "",
+    val description: String = ""
 )

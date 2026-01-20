@@ -1,5 +1,6 @@
+package com.miage.learnity.data
+
 import com.google.firebase.firestore.FirebaseFirestore
-import com.miage.learnity.data.Association
 
 class AssociationRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -9,10 +10,10 @@ class AssociationRepository {
             .get()
             .addOnSuccessListener { result ->
                 val list = result.mapNotNull { doc ->
-                    // On extrait les 3 textes de Firebase
                     Association(
                         name = doc.getString("name") ?: "",
                         websiteUrl = doc.getString("websiteUrl") ?: "",
+                        description = doc.getString("description") ?: "",
                         logoName = doc.getString("logoName") ?: ""
                     )
                 }
