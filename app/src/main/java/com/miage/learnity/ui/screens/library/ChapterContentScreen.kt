@@ -18,13 +18,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.repository.CourseRepository
+import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+// ============================================
+// VIEW MODEL
+// ============================================
+
 class ChapterContentViewModel(
-    private val courseRepository: CourseRepository = CourseRepository()
+    private val courseRepository: CourseRepository = CourseRepository(),
+    private val progressRepository: UserProgressRepository = UserProgressRepository()
 ) : ViewModel() {
 
     private val _chapter = MutableStateFlow<Chapter?>(null)
@@ -36,17 +42,52 @@ class ChapterContentViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private var currentCourseId: String = ""
+    private var currentChapterId: String = ""
+
     fun loadChapter(courseId: String, chapterId: String) {
+        currentCourseId = courseId
+        currentChapterId = chapterId
+
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
+
+            // Charger le chapitre
             courseRepository.getChapter(courseId, chapterId)
-                .onSuccess { _chapter.value = it }
-                .onFailure { _error.value = it.message ?: "Erreur lors du chargement" }
+                .onSuccess { chapter ->
+                    // Charger la progression
+                    progressRepository.getChapterProgress(courseId, chapterId)
+                        .onSuccess { progress ->
+                            _chapter.value = chapter.copy(
+                                isContentRead = progress.isContentRead,
+                                isVideoWatched = progress.isVideoWatched,
+                                isQuizCompleted = progress.isQuizCompleted
+                            )
+                        }
+                        .onFailure {
+                            // Afficher chapitre sans progression
+                            _chapter.value = chapter
+                        }
+                }
+                .onFailure {
+                    _error.value = it.message ?: "Erreur lors du chargement"
+                }
+
             _isLoading.value = false
         }
     }
+
+    fun refresh() {
+        if (currentCourseId.isNotEmpty() && currentChapterId.isNotEmpty()) {
+            loadChapter(currentCourseId, currentChapterId)
+        }
+    }
 }
+
+// ============================================
+// SCREEN
+// ============================================
 
 @Composable
 fun ChapterContentScreen(
@@ -63,8 +104,14 @@ fun ChapterContentScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
+    // Charger les données au démarrage
     LaunchedEffect(courseId, chapterId) {
         viewModel.loadChapter(courseId, chapterId)
+    }
+
+    // Rafraîchir quand on revient sur cet écran (après avoir marqué contenu comme lu)
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
     }
 
     Scaffold(
@@ -75,10 +122,17 @@ fun ChapterContentScreen(
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
             when {
                 isLoading -> LoadingState()
-                error != null -> ErrorState(error!!)
+                error != null -> ErrorState(
+                    message = error!!,
+                    onRetry = { viewModel.refresh() }
+                )
                 chapter != null -> ChapterContentLayout(
                     chapter = chapter!!,
                     onCoursClick = onCoursClick,
@@ -91,18 +145,38 @@ fun ChapterContentScreen(
     }
 }
 
+// ============================================
+// TOP BAR
+// ============================================
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChapterContentTopBar(title: String, onBackClick: () -> Unit) {
+private fun ChapterContentTopBar(
+    title: String,
+    onBackClick: () -> Unit
+) {
     TopAppBar(
-        title = { Text(text = title, fontWeight = FontWeight.Bold, maxLines = 1) },
+        title = {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Retour"
+                )
             }
         }
     )
 }
+
+// ============================================
+// CONTENT LAYOUT
+// ============================================
 
 @Composable
 private fun ChapterContentLayout(
@@ -113,9 +187,12 @@ private fun ChapterContentLayout(
     onStartQuiz: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // En-tête
         Text(
             text = "CONTENU DISPONIBLE",
             style = MaterialTheme.typography.labelLarge,
@@ -124,6 +201,7 @@ private fun ChapterContentLayout(
             modifier = Modifier.padding(bottom = 4.dp)
         )
 
+        // Cours complet
         if (chapter.hasCours) {
             ContentOptionCard(
                 icon = Icons.Default.MenuBook,
@@ -133,6 +211,7 @@ private fun ChapterContentLayout(
             )
         }
 
+        // Fiche de révision
         if (chapter.hasFdr) {
             ContentOptionCard(
                 icon = Icons.Default.Description,
@@ -142,6 +221,7 @@ private fun ChapterContentLayout(
             )
         }
 
+        // Vidéo
         if (chapter.hasVideo) {
             ContentOptionCard(
                 icon = Icons.Default.PlayCircle,
@@ -152,17 +232,35 @@ private fun ChapterContentLayout(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), thickness = 0.5.dp)
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 8.dp),
+            thickness = 0.5.dp
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Section Quiz dynamique
+        // Section Quiz
+        Text(
+            text = "ÉVALUATION",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+
         if (chapter.isQuizUnlocked) {
-            QuizSection(isQuizCompleted = chapter.isQuizCompleted, onStartQuiz = onStartQuiz)
+            QuizSection(
+                isQuizCompleted = chapter.isQuizCompleted,
+                onStartQuiz = onStartQuiz
+            )
         } else {
             LockedQuizSection()
         }
     }
 }
+
+// ============================================
+// CONTENT OPTION CARD
+// ============================================
 
 @Composable
 private fun ContentOptionCard(
@@ -172,11 +270,16 @@ private fun ContentOptionCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            else MaterialTheme.colorScheme.surface
+            containerColor = if (isCompleted) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = CardDefaults.outlinedCardBorder().copy(
@@ -184,21 +287,30 @@ private fun ContentOptionCard(
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Icône
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            // Titre
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
@@ -206,65 +318,186 @@ private fun ContentOptionCard(
                 modifier = Modifier.weight(1f)
             )
 
+            // Indicateur de complétion
             Icon(
-                imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.ChevronRight,
+                imageVector = if (isCompleted) {
+                    Icons.Default.CheckCircle
+                } else {
+                    Icons.Default.ChevronRight
+                },
                 contentDescription = null,
-                tint = if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                tint = if (isCompleted) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
                 modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
+// ============================================
+// QUIZ SECTION
+// ============================================
+
 @Composable
-private fun QuizSection(isQuizCompleted: Boolean, onStartQuiz: () -> Unit) {
+private fun QuizSection(
+    isQuizCompleted: Boolean,
+    onStartQuiz: () -> Unit
+) {
     if (isQuizCompleted) {
+        // Quiz déjà complété
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Quiz validé avec succès !", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "Quiz validé avec succès !",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     } else {
+        // Bouton pour démarrer le quiz
         Button(
             onClick = onStartQuiz,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Icon(Icons.Default.Quiz, contentDescription = null)
+            Icon(
+                imageVector = Icons.Default.Quiz,
+                contentDescription = null
+            )
             Spacer(modifier = Modifier.width(12.dp))
-            Text("Passer le Quiz de Chapitre", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Passer le Quiz de Chapitre",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
+
+// ============================================
+// LOCKED QUIZ SECTION
+// ============================================
 
 @Composable
 private fun LockedQuizSection() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(32.dp)
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Quiz Verrouillé", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Text("Complétez la lecture pour débloquer le test", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Text(
+                text = "Quiz Verrouillé",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Complétez la lecture et/ou la vidéo pour débloquer le test",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline
+            )
         }
     }
 }
 
-@Composable private fun LoadingState() { /* ... identique ... */ }
-@Composable private fun ErrorState(message: String) { /* ... identique ... */ }
+// ============================================
+// LOADING & ERROR STATES
+// ============================================
+
+@Composable
+private fun LoadingState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Chargement du chapitre...",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ErrorState(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text(
+                text = "❌",
+                style = MaterialTheme.typography.displayLarge
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Erreur",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onRetry) {
+                Text("Réessayer")
+            }
+        }
+    }
+}
