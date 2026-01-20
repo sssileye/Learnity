@@ -73,19 +73,22 @@ class PdfViewerViewModel(
 
     fun markAsReadOrWatched() {
         viewModelScope.launch {
-            when (_contentType.value) {
-                ContentType.VIDEO -> {
-                    progressRepository.markVideoAsWatched(currentCourseId, currentChapterId)
-                        .onSuccess {
-                            _isMarkedAsRead.value = true
-                        }
-                }
-                else -> {
-                    progressRepository.markContentAsRead(currentCourseId, currentChapterId)
-                        .onSuccess {
-                            _isMarkedAsRead.value = true
-                        }
-                }
+            val type = _contentType.value
+            val result = if (type == ContentType.VIDEO) {
+                progressRepository.markVideoAsWatched(currentCourseId, currentChapterId)
+            } else {
+                progressRepository.markContentAsRead(currentCourseId, currentChapterId)
+            }
+
+            result.onSuccess {
+                _isMarkedAsRead.value = true
+
+                // 🔥 TRÈS IMPORTANT : Mettre à jour l'objet chapitre local
+                // pour que l'UI réagisse immédiatement si elle observe _chapter
+                _chapter.value = _chapter.value?.copy(
+                    isContentRead = if (type != ContentType.VIDEO) true else _chapter.value?.isContentRead ?: false,
+                    isVideoWatched = if (type == ContentType.VIDEO) true else _chapter.value?.isVideoWatched ?: false
+                )
             }
         }
     }

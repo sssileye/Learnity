@@ -1,5 +1,7 @@
 package com.miage.learnity.repository
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -79,6 +81,7 @@ class QuizRepository {
     // SAUVEGARDE DES RÉSULTATS
     // ============================================
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun saveQuizResult(
         courseId: String,
         chapterId: String,
