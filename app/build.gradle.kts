@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.miage.learnity"
-    compileSdk = 35 // Conseil : Redescends à 35 si le 36 pose des problèmes de compatibilité avec tes librairies actuelles
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.miage.learnity"
@@ -41,44 +41,44 @@ android {
 }
 
 dependencies {
-    // AndroidX & Navigation
+    // --- AndroidX & Lifecycle ---
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
 
-    // Compose (Vérifie bien que ces noms correspondent à ton TOML)
+    // --- Compose (BOM & UI) ---
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui) // Changé : libs.androidx.compose.ui -> libs.androidx.ui
+    implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.text)             // ✅ Corrigé
+    implementation(libs.androidx.compose.foundation)  // ✅ Corrigé
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
 
-    // Firebase (Géré par le BOM pour éviter les conflits de classes)
+    // --- Firebase (BOM & Services) ---
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.database)
-    implementation(libs.firebase.auth)
+    implementation(libs.firebase.auth)                // ✅ Corrigé (doublon supprimé)
     implementation(libs.firebase.firestore)
-    implementation(libs.androidx.room.common.jvm)
-    implementation(libs.google.firebase.auth)
-    implementation(libs.androidx.compose.ui.text)
-    implementation(libs.androidx.compose.foundation)
 
-    // ✅ PdfBox-Android (stable, sur Maven Central)
+    // --- PDF & Networking ---
     implementation(libs.pdfbox.android)
+    implementation(libs.okhttp)                       // ✅ Corrigé (utilise l'alias standard)
+    implementation(libs.gson)                         // ✅ Ajouté pour ton Quiz JSON
 
-    // OkHttp pour télécharger
-    implementation(libs.okhttp.v4120)
+    // --- Autres ---
+    implementation(libs.androidx.room.common.jvm)
 
-    // Tests
+    // --- Tests ---
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
 
-    // Debug
+    // --- Debug ---
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
