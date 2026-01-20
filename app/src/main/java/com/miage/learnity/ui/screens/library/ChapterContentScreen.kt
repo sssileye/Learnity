@@ -2,7 +2,9 @@ package com.miage.learnity.ui.screens.library
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,6 +25,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+// ============================================
+// VIEWMODEL CORRIGÉ
+// ============================================
 class ChapterContentViewModel(
     private val courseRepository: CourseRepository = CourseRepository()
 ) : ViewModel() {
@@ -40,14 +45,21 @@ class ChapterContentViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
+            // On force la récupération fraîche depuis Firestore
             courseRepository.getChapter(courseId, chapterId)
-                .onSuccess { _chapter.value = it }
+                .onSuccess {
+                    _chapter.value = it
+                    println("✅ Chapter Loaded: isContentRead=${it.isContentRead}, isQuizUnlocked=${it.isQuizUnlocked}")
+                }
                 .onFailure { _error.value = it.message ?: "Erreur lors du chargement" }
             _isLoading.value = false
         }
     }
 }
 
+// ============================================
+// ECRAN PRINCIPAL
+// ============================================
 @Composable
 fun ChapterContentScreen(
     courseId: String,
@@ -63,6 +75,7 @@ fun ChapterContentScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
+    // 🔥 Correction majeure : Rechargement systématique à l'affichage
     LaunchedEffect(courseId, chapterId) {
         viewModel.loadChapter(courseId, chapterId)
     }
@@ -78,7 +91,7 @@ fun ChapterContentScreen(
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
                 isLoading -> LoadingState()
-                error != null -> ErrorState(error!!)
+                error != null -> ErrorState(error!!, onRetry = { viewModel.loadChapter(courseId, chapterId) })
                 chapter != null -> ChapterContentLayout(
                     chapter = chapter!!,
                     onCoursClick = onCoursClick,
@@ -113,17 +126,20 @@ private fun ChapterContentLayout(
     onStartQuiz: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
             text = "CONTENU DISPONIBLE",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 4.dp)
+            color = MaterialTheme.colorScheme.primary
         )
 
+        // Option : Cours
         if (chapter.hasCours) {
             ContentOptionCard(
                 icon = Icons.Default.MenuBook,
@@ -133,6 +149,7 @@ private fun ChapterContentLayout(
             )
         }
 
+        // Option : FDR
         if (chapter.hasFdr) {
             ContentOptionCard(
                 icon = Icons.Default.Description,
@@ -142,6 +159,7 @@ private fun ChapterContentLayout(
             )
         }
 
+        // Option : Vidéo
         if (chapter.hasVideo) {
             ContentOptionCard(
                 icon = Icons.Default.PlayCircle,
@@ -152,10 +170,11 @@ private fun ChapterContentLayout(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), thickness = 0.5.dp)
+        HorizontalDivider(thickness = 0.5.dp)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Section Quiz dynamique
+        // SECTION QUIZ : Condition de déblocage
+        // On vérifie isQuizUnlocked défini dans ta DataClass
         if (chapter.isQuizUnlocked) {
             QuizSection(isQuizCompleted = chapter.isQuizCompleted, onStartQuiz = onStartQuiz)
         } else {
@@ -172,13 +191,12 @@ private fun ContentOptionCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            containerColor = if (isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = CardDefaults.outlinedCardBorder().copy(
             width = if (isCompleted) 0.dp else 1.dp
         )
@@ -193,24 +211,15 @@ private fun ContentOptionCard(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
-            )
-
+            Text(text = title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
             Icon(
                 imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(20.dp)
+                tint = if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
             )
         }
     }
@@ -224,14 +233,10 @@ private fun QuizSection(isQuizCompleted: Boolean, onStartQuiz: () -> Unit) {
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
+            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Quiz validé avec succès !", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("Quiz validé !", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
         }
     } else {
@@ -242,7 +247,7 @@ private fun QuizSection(isQuizCompleted: Boolean, onStartQuiz: () -> Unit) {
         ) {
             Icon(Icons.Default.Quiz, contentDescription = null)
             Spacer(modifier = Modifier.width(12.dp))
-            Text("Passer le Quiz de Chapitre", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("Démarrer le Quiz", fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -255,16 +260,25 @@ private fun LockedQuizSection() {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Quiz Verrouillé", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Text("Complétez la lecture pour débloquer le test", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Text("Quiz Verrouillé", fontWeight = FontWeight.Bold)
+            Text("Terminez la lecture pour débloquer", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
-@Composable private fun LoadingState() { /* ... identique ... */ }
-@Composable private fun ErrorState(message: String) { /* ... identique ... */ }
+@Composable
+private fun LoadingState() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+}
+
+@Composable
+private fun ErrorState(message: String, onRetry: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(message)
+        Button(onClick = onRetry) { Text("Réessayer") }
+    }
+}

@@ -12,16 +12,23 @@ import kotlinx.coroutines.launch
 
 class QuizViewModel(private val repository: QuizRepository = QuizRepository()) : ViewModel() {
 
-    // On garde l'objet Quiz complet pour le titre et les IDs
     private val _quiz = MutableStateFlow<Quiz?>(null)
     val quiz: StateFlow<Quiz?> = _quiz.asStateFlow()
 
-    // Liste des questions extraites (pour faciliter l'accès dans le Screen)
     private val _questions = MutableStateFlow<List<Question>>(emptyList())
     val questions: StateFlow<List<Question>> = _questions.asStateFlow()
 
     private val _currentQuestionIndex = MutableStateFlow(0)
     val currentQuestionIndex: StateFlow<Int> = _currentQuestionIndex.asStateFlow()
+
+    private val _userAnswers = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    val userAnswers: StateFlow<Map<Int, Int>> = _userAnswers.asStateFlow()
+
+    private val _maxIndexReached = MutableStateFlow(0)
+    val maxIndexReached: StateFlow<Int> = _maxIndexReached.asStateFlow()
+
+    private val _isCurrentAnswerRevealed = MutableStateFlow(false)
+    val isCurrentAnswerRevealed: StateFlow<Boolean> = _isCurrentAnswerRevealed.asStateFlow()
 
     private val _score = MutableStateFlow(0)
     val score: StateFlow<Int> = _score.asStateFlow()
@@ -32,57 +39,87 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
-
     fun loadQuiz(courseId: String, chapterId: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            _error.value = null
-
             repository.getQuizForChapter(courseId, chapterId).onSuccess { loadedQuiz ->
                 _quiz.value = loadedQuiz
                 _questions.value = loadedQuiz.questions
                 _isLoading.value = false
-            }.onFailure { e ->
-                _error.value = e.message ?: "Erreur lors du chargement"
+            }.onFailure {
                 _isLoading.value = false
             }
         }
     }
 
-    /**
-     * Logique de validation de réponse et progression
-     */
-    fun onAnswerSelected(selectedIndex: Int) {
-        val currentQuestions = _questions.value
-        if (currentQuestions.isEmpty() || _currentQuestionIndex.value >= currentQuestions.size) return
-
-        // 1. Vérifier si la réponse est correcte
-        val correctIndex = currentQuestions[_currentQuestionIndex.value].correctAnswerIndex
-        if (selectedIndex == correctIndex) {
-            _score.value += 1
+    fun selectAnswer(selectedIndex: Int) {
+        // On ne peut sélectionner que si la réponse n'est pas encore révélée
+        // et qu'on n'est pas en train de revoir une question passée.
+        if (!_isCurrentAnswerRevealed.value && _currentQuestionIndex.value >= _maxIndexReached.value) {
+            _userAnswers.value = _userAnswers.value + (_currentQuestionIndex.value to selectedIndex)
         }
+    }
 
-        // 2. Passer à la question suivante ou finir
-        if (_currentQuestionIndex.value < currentQuestions.size - 1) {
-            _currentQuestionIndex.value += 1
+    fun validateAnswer() {
+        _isCurrentAnswerRevealed.value = true
+        val currentIndex = _currentQuestionIndex.value
+        if (currentIndex >= _maxIndexReached.value) {
+            _maxIndexReached.value = currentIndex + 1
+        }
+    }
+
+    fun nextQuestion() {
+        if (_currentQuestionIndex.value < _questions.value.size - 1) {
+            _currentQuestionIndex.value++
+            // Si la question suivante a déjà été validée auparavant, on montre direct la réponse
+            _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
         } else {
             finishQuiz()
         }
     }
 
-    private fun finishQuiz() {
+    fun previousQuestion() {
+        if (_currentQuestionIndex.value > 0) {
+            _currentQuestionIndex.value--
+            _isCurrentAnswerRevealed.value = true // Toujours révélé en mode navigation arrière
+        }
+    }
+
+    /**
+     * Appelé depuis le récapitulatif pour revoir une question précise
+     */
+    fun goToQuestionForReview(index: Int) {
+        _currentQuestionIndex.value = index
+        _isCurrentAnswerRevealed.value = true
+        _isQuizFinished.value = false
+    }
+
+    /**
+     * Appelé par le bouton "Retour au récapitulatif" dans l'interface de Review
+     */
+    fun returnToSummary() {
         _isQuizFinished.value = true
-        // Optionnel : Sauvegarder le résultat dans Firebase ici
+    }
+
+    private fun finishQuiz() {
+        val questions = _questions.value
+        val answers = _userAnswers.value
+        var finalScore = 0
+
+        questions.forEachIndexed { index, q ->
+            if (answers[index] == q.correctAnswerIndex) finalScore++
+        }
+
+        _score.value = finalScore
+        _isQuizFinished.value = true
+
         viewModelScope.launch {
-            val q = _quiz.value
-            if (q != null) {
+            _quiz.value?.let {
                 repository.saveQuizResult(
-                    courseId = q.courseId,
-                    chapterId = q.chapterId,
-                    score = _score.value,
-                    total = _questions.value.size
+                    courseId = it.courseId,
+                    chapterId = it.chapterId,
+                    score = finalScore,
+                    total = questions.size
                 )
             }
         }
@@ -90,7 +127,10 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
 
     fun resetQuiz() {
         _currentQuestionIndex.value = 0
-        _score.value = 0
+        _maxIndexReached.value = 0
+        _userAnswers.value = emptyMap()
+        _isCurrentAnswerRevealed.value = false
         _isQuizFinished.value = false
+        _score.value = 0
     }
 }
