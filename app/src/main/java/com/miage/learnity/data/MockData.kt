@@ -3,6 +3,9 @@ package com.miage.learnity.data.mock
 import com.miage.learnity.R
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.data.Course
+import com.miage.learnity.data.Quiz
+import com.miage.learnity.data.Question
+import com.miage.learnity.data.QuestionDifficulty
 
 /**
  * Données mockées pour le développement front-end
@@ -303,5 +306,68 @@ object MockData {
      */
     fun getCourse(courseId: String): Course? {
         return sampleCourses.find { it.id == courseId }
+    }
+
+    // ============================================
+    // QUIZZES
+    // ============================================
+    private val sampleQuizzes = mapOf(
+        "quiz_ec_chap1" to Quiz(
+            quizId = "quiz_ec_chap1",
+            courseId = "extraction_connaissances",
+            chapterId = "ec_chap1",
+            title = "Quiz - Introduction",
+            questions = listOf(
+                Question(
+                    questionId = "q1",
+                    questionText = "Quelle est la principale différence entre l'apprentissage supervisé et non supervisé ?",
+                    options = listOf(
+                        "La présence d'étiquettes dans les données",
+                        "Le nombre de variables",
+                        "La vitesse de calcul",
+                        "Le langage utilisé"
+                    ),
+                    correctAnswerIndex = 0,
+                    explanation = "L'apprentissage supervisé utilise des données étiquetées.",
+                    difficulty = QuestionDifficulty.EASY
+                ),
+                Question(
+                    questionId = "q2",
+                    questionText = "Quel algorithme est utilisé pour la classification binaire ?",
+                    options = listOf(
+                        "K-means",
+                        "Régression logistique",
+                        "PCA",
+                        "DBSCAN"
+                    ),
+                    correctAnswerIndex = 1,
+                    explanation = "La régression logistique est un algorithme classique pour la classification binaire.",
+                    difficulty = QuestionDifficulty.MEDIUM
+                ),
+                Question(
+                    questionId = "q3",
+                    questionText = "Qu'est-ce que le surapprentissage ?",
+                    options = listOf(
+                        "Un modèle qui généralise trop",
+                        "Un modèle qui mémorise trop les données d'entraînement",
+                        "Un modèle trop simple",
+                        "Une erreur de code"
+                    ),
+                    correctAnswerIndex = 1,
+                    explanation = "Le surapprentissage se produit quand le modèle s'adapte trop aux données d'entraînement.",
+                    difficulty = QuestionDifficulty.MEDIUM
+                )
+            ),
+            timeLimit = 180
+        )
+    )
+
+    fun getQuiz(quizId: String): Quiz? {
+        return sampleQuizzes[quizId]
+    }
+
+    fun getQuizForChapter(courseId: String, chapterId: String): Quiz? {
+        val chapter = getChapter(courseId, chapterId)
+        return chapter?.quizId?.let { getQuiz(it) }
     }
 }
