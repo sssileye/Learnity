@@ -21,6 +21,7 @@ import com.miage.learnity.ui.screens.library.ChapterContentScreen
 import com.miage.learnity.ui.screens.library.CourseDetailScreen
 import com.miage.learnity.ui.screens.library.LibraryScreen
 import com.miage.learnity.ui.screens.library.PdfViewerScreen
+import com.miage.learnity.ui.screens.quiz.QuizScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,8 +98,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                         navController.navigate("pdf/$courseId/$chapterId/video")
                     },
                     onStartQuiz = {
-                        // TODO: Navigation vers quiz (Étape 5)
-                        println("Start quiz: $courseId/$chapterId")
+                        navController.navigate("quiz/$courseId/$chapterId")
                     },
                     onBackClick = {
                         navController.popBackStack()
@@ -131,6 +131,24 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     onBackClick = {
                         navController.popBackStack()
                     }
+                )
+            }
+            // Route Quiz
+            composable(
+                route = "quiz/{courseId}/{chapterId}",
+                arguments = listOf(
+                    navArgument("courseId") { type = NavType.StringType },
+                    navArgument("chapterId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val courseId = backStackEntry.arguments?.getString("courseId") ?: return@composable
+                val chapterId = backStackEntry.arguments?.getString("chapterId") ?: return@composable
+
+                QuizScreen(
+                    courseId = courseId,
+                    chapterId = chapterId,
+                    onQuizComplete = { score, total -> },
+                    onBackClick = { navController.popBackStack() }
                 )
             }
             composable("association") {
