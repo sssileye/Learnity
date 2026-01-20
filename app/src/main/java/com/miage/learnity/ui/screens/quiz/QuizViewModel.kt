@@ -36,6 +36,10 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     private val _isQuizFinished = MutableStateFlow(false)
     val isQuizFinished: StateFlow<Boolean> = _isQuizFinished.asStateFlow()
 
+    // ⭐ NOUVEAU : Suit si l'utilisateur a déjà consulté le récapitulatif
+    private val _hasSeenSummary = MutableStateFlow(false)
+    val hasSeenSummary: StateFlow<Boolean> = _hasSeenSummary.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -53,8 +57,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     }
 
     fun selectAnswer(selectedIndex: Int) {
-        // On ne peut sélectionner que si la réponse n'est pas encore révélée
-        // et qu'on n'est pas en train de revoir une question passée.
         if (!_isCurrentAnswerRevealed.value && _currentQuestionIndex.value >= _maxIndexReached.value) {
             _userAnswers.value = _userAnswers.value + (_currentQuestionIndex.value to selectedIndex)
         }
@@ -71,7 +73,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     fun nextQuestion() {
         if (_currentQuestionIndex.value < _questions.value.size - 1) {
             _currentQuestionIndex.value++
-            // Si la question suivante a déjà été validée auparavant, on montre direct la réponse
             _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
         } else {
             finishQuiz()
@@ -81,22 +82,21 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     fun previousQuestion() {
         if (_currentQuestionIndex.value > 0) {
             _currentQuestionIndex.value--
-            _isCurrentAnswerRevealed.value = true // Toujours révélé en mode navigation arrière
+            _isCurrentAnswerRevealed.value = true
         }
     }
 
-    /**
-     * Appelé depuis le récapitulatif pour revoir une question précise
-     */
+    // ⭐ Appelé dans QuizScreen via LaunchedEffect quand on affiche FinalResultContent
+    fun markSummaryAsSeen() {
+        _hasSeenSummary.value = true
+    }
+
     fun goToQuestionForReview(index: Int) {
         _currentQuestionIndex.value = index
         _isCurrentAnswerRevealed.value = true
         _isQuizFinished.value = false
     }
 
-    /**
-     * Appelé par le bouton "Retour au récapitulatif" dans l'interface de Review
-     */
     fun returnToSummary() {
         _isQuizFinished.value = true
     }
@@ -131,6 +131,7 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         _userAnswers.value = emptyMap()
         _isCurrentAnswerRevealed.value = false
         _isQuizFinished.value = false
+        _hasSeenSummary.value = false // ⭐ Reset indispensable ici
         _score.value = 0
     }
 }

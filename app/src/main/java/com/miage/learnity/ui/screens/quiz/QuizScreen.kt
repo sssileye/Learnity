@@ -3,6 +3,7 @@ package com.miage.learnity.ui.screens.quiz
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -12,8 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,10 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Question
 
@@ -41,9 +44,9 @@ fun QuizScreen(
     val currentQuestionIndex by viewModel.currentQuestionIndex.collectAsState()
     val userAnswers by viewModel.userAnswers.collectAsState()
     val isAnswerRevealed by viewModel.isCurrentAnswerRevealed.collectAsState()
-    val maxIndexReached by viewModel.maxIndexReached.collectAsState()
     val score by viewModel.score.collectAsState()
     val isQuizFinished by viewModel.isQuizFinished.collectAsState()
+    val hasSeenSummary by viewModel.hasSeenSummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     LaunchedEffect(courseId, chapterId) {
@@ -62,28 +65,24 @@ fun QuizScreen(
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
                 isLoading -> LoadingState()
-
                 questions.isEmpty() && !isLoading -> ErrorState(
                     msg = "Aucun quiz trouvé",
                     onRetry = { viewModel.loadQuiz(courseId, chapterId) }
                 )
-
-                isQuizFinished -> FinalResultContent(
-                    questions = questions,
-                    userAnswers = userAnswers,
-                    score = score,
-                    onReviewQuestion = { index -> viewModel.goToQuestionForReview(index) },
-                    onRetry = { viewModel.resetQuiz() },
-                    onBackToCourse = onBackClick
-                )
-
+                isQuizFinished -> {
+                    LaunchedEffect(Unit) { viewModel.markSummaryAsSeen() }
+                    FinalResultContent(
+                        questions = questions,
+                        userAnswers = userAnswers,
+                        score = score,
+                        onReviewQuestion = { index -> viewModel.goToQuestionForReview(index) },
+                        onRetry = { viewModel.resetQuiz() },
+                        onBackToCourse = onBackClick
+                    )
+                }
                 else -> {
                     val currentQuestion = questions.getOrNull(currentQuestionIndex)
                     if (currentQuestion != null) {
@@ -93,8 +92,7 @@ fun QuizScreen(
                             totalQuestions = questions.size,
                             userAnswerIndex = userAnswers[currentQuestionIndex],
                             isAnswerRevealed = isAnswerRevealed,
-                            // Le bouton retour apparaît si on a déjà fini le quiz (maxIndex >= size)
-                            showReturnToSummary = maxIndexReached >= questions.size,
+                            showReturnToSummary = hasSeenSummary,
                             onAnswerSelected = { index -> viewModel.selectAnswer(index) },
                             onValidate = { viewModel.validateAnswer() },
                             onNext = { viewModel.nextQuestion() },
@@ -131,10 +129,7 @@ private fun QuizContent(
     ) {
         LinearProgressIndicator(
             progress = { (currentIndex + 1).toFloat() / totalQuestions },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
+            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
             color = MaterialTheme.colorScheme.primary
         )
 
@@ -153,47 +148,62 @@ private fun QuizContent(
                 Text(
                     text = currentQuestion.questionText,
                     color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        currentQuestion.options.forEachIndexed { index, option ->
-            QuizOptionCard(
-                text = option,
-                id = index + 1,
-                isSelected = userAnswerIndex == index,
-                isCorrect = isAnswerRevealed && index == currentQuestion.correctAnswerIndex,
-                isWrong = isAnswerRevealed && userAnswerIndex == index && index != currentQuestion.correctAnswerIndex,
-                onClick = { if (!isAnswerRevealed) onAnswerSelected(index) }
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+        val chunks = currentQuestion.options.chunked(2)
+        chunks.forEachIndexed { rowIndex, pair ->
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                pair.forEachIndexed { columnIndex, option ->
+                    val actualIndex = rowIndex * 2 + columnIndex
+                    val isSelected = userAnswerIndex == actualIndex
+
+                    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        QuizOptionCard(
+                            text = option,
+                            id = actualIndex + 1,
+                            isSelected = isSelected,
+                            isCorrect = isAnswerRevealed && actualIndex == currentQuestion.correctAnswerIndex,
+                            isWrong = isAnswerRevealed && isSelected && actualIndex != currentQuestion.correctAnswerIndex,
+                            onClick = { if (!isAnswerRevealed) onAnswerSelected(actualIndex) }
+                        )
+                    }
+                }
+                if (pair.size < 2) { Spacer(modifier = Modifier.weight(1f)) }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         if (isAnswerRevealed) {
+            Spacer(modifier = Modifier.height(12.dp))
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                )
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9).copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "💡 Explication",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "💡 Explication", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF2E7D32))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = currentQuestion.explanation ?: "Pas d'explication disponible.",
-                        fontSize = 13.sp
+                        fontSize = 14.sp,
+                        color = Color(0xFF1B5E20),
+                        lineHeight = 20.sp
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -202,10 +212,7 @@ private fun QuizContent(
             if (showReturnToSummary) {
                 OutlinedButton(
                     onClick = onReturnToSummary,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .height(48.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).height(48.dp),
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Icon(Icons.Default.List, contentDescription = null)
@@ -214,31 +221,132 @@ private fun QuizContent(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextButton(
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                // Bouton Précédent: Bordure violette, fond blanc
+                OutlinedButton(
                     onClick = onPrevious,
-                    enabled = currentIndex > 0
+                    enabled = currentIndex > 0,
+                    modifier = Modifier.width(150.dp).height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(2.dp, if (currentIndex > 0) Color(0xFF673AB7) else Color.LightGray),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF673AB7),
+                        disabledContentColor = Color.LightGray
+                    )
                 ) {
-                    Text("Précédent")
+                    Text("Précédent", fontWeight = FontWeight.Bold)
                 }
 
+                // Bouton Suivant: Violet plein
                 Button(
                     onClick = { if (!isAnswerRevealed) onValidate() else onNext() },
                     enabled = userAnswerIndex != null,
-                    modifier = Modifier
-                        .width(150.dp)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(24.dp)
+                    modifier = Modifier.width(150.dp).height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF673AB7),
+                        contentColor = Color.White
+                    )
                 ) {
                     Text(
                         text = when {
                             !isAnswerRevealed -> "Valider"
                             currentIndex == totalQuestions - 1 && !showReturnToSummary -> "Terminer"
                             else -> "Suivant"
-                        }
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuizOptionCard(
+    text: String,
+    id: Int,
+    isSelected: Boolean,
+    isCorrect: Boolean,
+    isWrong: Boolean,
+    onClick: () -> Unit
+) {
+    var showPreview by remember { mutableStateOf(false) }
+
+    val backgroundColor = when {
+        isCorrect -> Color(0xFFE8F5E9)
+        isWrong -> Color(0xFFFFEBEE)
+        isSelected -> Color(0xFFE3F2FD)
+        else -> Color.White
+    }
+    val borderColor = when {
+        isCorrect -> Color(0xFF4CAF50)
+        isWrong -> Color(0xFFF44336)
+        isSelected -> Color(0xFF3F51B5)
+        else -> Color.Transparent
+    }
+
+    Box(contentAlignment = Alignment.Center) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(110.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = { showPreview = true },
+                        onTap = { onClick() }
+                    )
+                },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(backgroundColor),
+            border = BorderStroke(
+                width = if (isSelected || isCorrect || isWrong) 3.dp else 1.dp,
+                color = borderColor.copy(alpha = if (isSelected || isCorrect || isWrong) 1f else 0.2f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF5E35B1),
+                    modifier = Modifier.size(22.dp).align(Alignment.TopEnd)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(text = id.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+                Text(
+                    text = text,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 16.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 4.dp)
+                )
+            }
+        }
+
+        if (showPreview) {
+            Popup(
+                alignment = Alignment.Center,
+                onDismissRequest = { showPreview = false }
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(0.85f).padding(16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF323232)),
+                    elevation = CardDefaults.cardElevation(8.dp)
+                ) {
+                    Text(
+                        text = text,
+                        color = Color.White,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = TextAlign.Center,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -251,91 +359,99 @@ private fun FinalResultContent(
     questions: List<Question>,
     userAnswers: Map<Int, Int>,
     score: Int,
-    onReviewQuestion: (Int) -> Unit, // Rebranché ici
+    onReviewQuestion: (Int) -> Unit,
     onRetry: () -> Unit,
     onBackToCourse: () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F7FA))
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().background(Color(0xFFF5F7FA)).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Quiz Terminé",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
-
+        Text(text = "Quiz Terminé", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp)
-        ) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
             Column(
-                modifier = Modifier
-                    .background(Brush.verticalGradient(listOf(Color(0xFF42A5F5), Color(0xFF7E57C2))))
-                    .padding(16.dp)
-                    .fillMaxWidth(),
+                modifier = Modifier.background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF42A5F5),
+                            Color(0xFF7E57C2)
+                        )
+                    )
+                )
+                    .padding(16.dp).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("Ton Score", color = Color.White, fontSize = 14.sp)
                 Text(
                     text = "${(score.toFloat() / questions.size * 100).toInt()}%",
-                    fontSize = 36.sp,
+                    fontSize = 22.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
-                Text("$score / ${questions.size}", color = Color.White, fontSize = 14.sp)
+                Text(
+                    "$score / ${questions.size}",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "RÉCAPITULATIF (Clique pour les détails)",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.Gray
+            text = "RÉCAPITULATIF",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.DarkGray,
+            letterSpacing = 2.sp
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 12.dp)
         ) {
-            questions.forEachIndexed { index, question ->
+            itemsIndexed(questions) { index, question ->
                 val userChoice = userAnswers[index]
                 val isCorrect = userChoice == question.correctAnswerIndex
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onReviewQuestion(index) }, // Action de review
+                    modifier = Modifier.fillMaxWidth().clickable { onReviewQuestion(index) },
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isCorrect) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                        containerColor = if (isCorrect) Color(
+                            0xFFE8F5E9
+                        ) else Color(0xFFFFEBEE)
                     ),
-                    border = BorderStroke(1.dp, if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336))
+                    border = BorderStroke(
+                        1.dp,
+                        if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
+                    )
                 ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = "Q${index + 1}: ${question.questionText}",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            // Affichage complet sans points de suspension
+                            softWrap = true
                         )
                         Text(
                             text = "Ta réponse : ${question.options.getOrNull(userChoice ?: -1) ?: "Aucune"}",
                             fontSize = 12.sp,
-                            color = Color.DarkGray
+                            color = Color.DarkGray,
+                            fontWeight = FontWeight.Bold,
+                            textDecoration = TextDecoration.Underline
                         )
                         if (!isCorrect) {
                             Text(
                                 text = "Correct : ${question.options[question.correctAnswerIndex]}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32)
+                                color = Color(0xFF2E7D32),
+                                softWrap = true
                             )
                         }
                     }
@@ -345,42 +461,47 @@ private fun FinalResultContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(
+        // Bouton Recommencer : Bordure violette, fond blanc, police violette
+        OutlinedButton(
             onClick = onRetry,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            border = BorderStroke(2.dp, Color(0xFF673AB7)),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.White,
+                contentColor = Color(0xFF673AB7)
+            )
         ) {
-            Text("Recommencer le quiz")
+            Text("Recommencer le quiz", fontWeight = FontWeight.Bold)
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
+        // Bouton Retour au cours : Violet plein, texte blanc (Action principale)
         Button(
             onClick = onBackToCourse,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            shape = RoundedCornerShape(25.dp)
+            shape = RoundedCornerShape(25.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF673AB7),
+                contentColor = Color.White
+            )
         ) {
-            Text("Retour au cours")
+            Text("Retour au cours", fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuizTopBar(
-    title: String,
-    currentQuestion: Int,
-    totalQuestions: Int,
-    onBackClick: () -> Unit
-) {
+private fun QuizTopBar(title: String, currentQuestion: Int, totalQuestions: Int, onBackClick: () -> Unit) {
     TopAppBar(
         title = { Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBack, contentDescription = null)
-            }
-        },
+        navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.Default.ArrowBack, contentDescription = null) } },
         actions = {
             Surface(
                 shape = RoundedCornerShape(16.dp),
@@ -399,86 +520,13 @@ private fun QuizTopBar(
 }
 
 @Composable
-fun QuizOptionCard(
-    text: String,
-    id: Int,
-    isSelected: Boolean,
-    isCorrect: Boolean,
-    isWrong: Boolean,
-    onClick: () -> Unit
-) {
-    val backgroundColor = when {
-        isCorrect -> Color(0xFFE8F5E9)
-        isWrong -> Color(0xFFFFEBEE)
-        isSelected -> Color(0xFFE3F2FD)
-        else -> Color.White
-    }
-    val borderColor = when {
-        isCorrect -> Color(0xFF4CAF50)
-        isWrong -> Color(0xFFF44336)
-        isSelected -> Color(0xFF3F51B5)
-        else -> Color.Transparent
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(backgroundColor),
-        border = BorderStroke(2.dp, borderColor)
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = borderColor.copy(alpha = 0.2f),
-                modifier = Modifier.size(26.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(text = id.toString(), fontSize = 11.sp)
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = text,
-                fontSize = 14.sp,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
+private fun LoadingState() { Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
 
 @Composable
-private fun LoadingState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun ErrorState(
-    msg: String,
-    onRetry: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = msg,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error
-        )
+private fun ErrorState(msg: String, onRetry: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text(text = msg, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text("Réessayer")
-        }
+        Button(onClick = onRetry) { Text("Réessayer") }
     }
 }
