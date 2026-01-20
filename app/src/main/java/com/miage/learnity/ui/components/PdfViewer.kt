@@ -41,20 +41,38 @@ fun PdfViewer(
 
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var pdfPages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
 
-    // État de la page actuelle
+    // ✅ ON STOCKE LE RENDERER, PAS TOUTES LES PAGES
+    var pdfRenderer by remember { mutableStateOf<PdfRenderer?>(null) }
+    var parcelFileDescriptor by remember { mutableStateOf<ParcelFileDescriptor?>(null) }
+    var totalPages by remember { mutableIntStateOf(0) }
+
+    // Page courante
     var currentPageIndex by remember { mutableIntStateOf(0) }
+    var currentBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
+    // Télécharger et initialiser le renderer
     LaunchedEffect(url) {
         isLoading = true
         scope.launch {
             try {
                 val file = downloadPdf(url, context.cacheDir)
-                val pages = renderPdfPages(file)
-                pdfPages = pages
-                onLoadComplete(pages.size)
-                isLoading = false
+
+                withContext(Dispatchers.IO) {
+                    val fd = ParcelFileDescriptor.open(
+                        file,
+                        ParcelFileDescriptor.MODE_READ_ONLY
+                    )
+                    val renderer = PdfRenderer(fd)
+
+                    withContext(Dispatchers.Main) {
+                        parcelFileDescriptor = fd
+                        pdfRenderer = renderer
+                        totalPages = renderer.pageCount
+                        onLoadComplete(renderer.pageCount)
+                        isLoading = false
+                    }
+                }
             } catch (e: Exception) {
                 errorMessage = e.message
                 onError(e.message ?: "Erreur inconnue")
@@ -63,22 +81,72 @@ fun PdfViewer(
         }
     }
 
+    // ✅ CHARGER UNIQUEMENT LA PAGE COURANTE
+    LaunchedEffect(pdfRenderer, currentPageIndex) {
+        pdfRenderer?.let { renderer ->
+            scope.launch(Dispatchers.IO) {
+                try {
+                    // Libérer l'ancien bitmap
+                    currentBitmap?.recycle()
+
+                    val page = renderer.openPage(currentPageIndex)
+
+                    // ✅ HAUTE RÉSOLUTION pour texte net
+                    val scaleFactor = 3 // Ajuste selon tes besoins (2-4)
+                    val bitmap = Bitmap.createBitmap(
+                        page.width * scaleFactor,
+                        page.height * scaleFactor,
+                        Bitmap.Config.ARGB_8888
+                    )
+
+                    page.render(
+                        bitmap,
+                        null,
+                        null,
+                        PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+                    )
+                    page.close()
+
+                    withContext(Dispatchers.Main) {
+                        currentBitmap = bitmap
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        onError("Erreur de rendu: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    // Cleanup
+    DisposableEffect(Unit) {
+        onDispose {
+            currentBitmap?.recycle()
+            pdfRenderer?.close()
+            parcelFileDescriptor?.close()
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         when {
             isLoading -> LoadingView()
             errorMessage != null -> ErrorView(errorMessage!!)
-            pdfPages.isNotEmpty() -> {
+            currentBitmap != null -> {
                 Column(modifier = Modifier.fillMaxSize()) {
-
-                    // 1. Barre de navigation (Boutons + Indicateur)
+                    // Barre de contrôle
                     PdfControlBar(
                         currentPage = currentPageIndex + 1,
-                        totalPages = pdfPages.size,
-                        onPrevious = { if (currentPageIndex > 0) currentPageIndex-- },
-                        onNext = { if (currentPageIndex < pdfPages.size - 1) currentPageIndex++ }
+                        totalPages = totalPages,
+                        onPrevious = {
+                            if (currentPageIndex > 0) currentPageIndex--
+                        },
+                        onNext = {
+                            if (currentPageIndex < totalPages - 1) currentPageIndex++
+                        }
                     )
 
-                    // 2. Zone d'affichage de la page (Une seule page à la fois)
+                    // Zone d'affichage
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -86,7 +154,7 @@ fun PdfViewer(
                             .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        PdfPageRenderer(bitmap = pdfPages[currentPageIndex])
+                        PdfPageRenderer(bitmap = currentBitmap!!)
                     }
                 }
             }
@@ -172,8 +240,7 @@ private fun PdfControlBar(
     }
 }
 
-// --- Fonctions utilitaires (Download & Render) ---
-
+// Fonctions utilitaires inchangées
 private suspend fun downloadPdf(url: String, cacheDir: File): File = withContext(Dispatchers.IO) {
     val client = OkHttpClient()
     val request = Request.Builder().url(url).build()
@@ -186,20 +253,35 @@ private suspend fun downloadPdf(url: String, cacheDir: File): File = withContext
     file
 }
 
-private suspend fun renderPdfPages(file: File): List<Bitmap> = withContext(Dispatchers.IO) {
-    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-    val renderer = PdfRenderer(fd)
-    val pages = (0 until renderer.pageCount).map { i ->
-        val page = renderer.openPage(i)
-        val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
-        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-        page.close()
-        bitmap
+@Composable
+private fun LoadingView() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Chargement du PDF...")
+        }
     }
-    renderer.close()
-    fd.close()
-    pages
 }
 
-@Composable private fun LoadingView() { /* Ton code existant */ }
-@Composable private fun ErrorView(msg: String) { /* Ton code existant */ }
+@Composable
+private fun ErrorView(msg: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text("❌", style = MaterialTheme.typography.displayLarge)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Erreur de chargement", fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(msg, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
