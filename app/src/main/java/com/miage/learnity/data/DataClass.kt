@@ -1,5 +1,5 @@
 package com.miage.learnity.data
-
+import com.google.gson.annotations.SerializedName
 // ============================================
 // COURSE (Cours - Sans les chapitres)
 // ============================================
@@ -73,22 +73,23 @@ data class Quiz(
     val courseId: String = "",
     val chapterId: String = "",
     val title: String = "",
-    val questions: List<Question> = emptyList(),
-    val timeLimit: Int? = null
+    val questions: List<Question> = emptyList()
 )
 
 data class Question(
-    val questionId: String = "",
+    @SerializedName("text")
     val questionText: String = "",
+
+    @SerializedName("options")
     val options: List<String> = emptyList(),
+
+    @SerializedName("correct")
     val correctAnswerIndex: Int = 0,
-    val explanation: String? = null,
-    val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM
+
+    @SerializedName("explanation")
+    val explanation: String? = null
 )
 
-enum class QuestionDifficulty {
-    EASY, MEDIUM, HARD
-}
 
 // ============================================
 // PROGRESSION

@@ -23,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.data.Course
 import com.miage.learnity.data.CourseProgress
-import com.miage.learnity.data.mock.MockData
 import com.miage.learnity.ui.theme.LearnityTheme
 
 /**

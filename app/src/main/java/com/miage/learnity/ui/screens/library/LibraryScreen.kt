@@ -21,8 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.miage.learnity.R
 import com.miage.learnity.data.Course
-import com.miage.learnity.data.mock.MockData
 import com.miage.learnity.ui.theme.LearnityTheme
 
 /**
@@ -344,16 +344,24 @@ fun CourseLibraryCard(
         }
     }
 
-    @Preview(showBackground = true)
-    @Composable
-    fun CourseLibraryCardPreview() {
-        LearnityTheme {
-            CourseLibraryCard(
-                course = MockData.sampleCourses.first(),
-                onClick = {}
-            )
-        }
+@Preview(showBackground = true)
+@Composable
+fun CourseLibraryCardPreview() {
+    // Création d'un objet Course factice pour la preview
+    val previewCourse = Course(
+        id = "preview_id",
+        title = "Extraction des Connaissances",
+        description = "Apprenez les bases de l'extraction de données et du machine learning.",
+        iconRes = R.drawable.ic_homepage_1 // Assure-toi que cette ressource existe
+    )
+
+    LearnityTheme {
+        CourseLibraryCard(
+            course = previewCourse,
+            onClick = {}
+        )
     }
+}
 
     @Preview(showBackground = true)
     @Composable
