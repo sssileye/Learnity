@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.androidx.room.common.jvm)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.foundation)
 
     // Tests
     testImplementation(libs.junit)
