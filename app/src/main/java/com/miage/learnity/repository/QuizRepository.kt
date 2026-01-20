@@ -1,5 +1,6 @@
 package com.miage.learnity.repository
 
+import android.icu.text.SimpleDateFormat
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.google.firebase.auth.FirebaseAuth
@@ -14,6 +15,8 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
 
 class QuizRepository {
 
@@ -82,6 +85,10 @@ class QuizRepository {
     // ============================================
 
     @RequiresApi(Build.VERSION_CODES.O)
+    // Dans la fonction saveQuizResult, ajoute après le merge:
+
+    // Dans saveQuizResult, après le set Firestore:
+
     suspend fun saveQuizResult(
         courseId: String,
         chapterId: String,
@@ -89,8 +96,10 @@ class QuizRepository {
         total: Int
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
-            val today = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
+            val userId = auth.currentUser?.uid
+                ?: return@withContext Result.failure(Exception("Non connecté"))
+
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
             val result = mapOf(
                 "courseId" to courseId,
@@ -109,7 +118,7 @@ class QuizRepository {
                 .add(result)
                 .await()
 
-            // Marquer comme complété dans la progression utilisateur
+            // Marquer comme complété
             firestore.collection("user_progress")
                 .document(userId)
                 .collection("courses")
@@ -118,6 +127,13 @@ class QuizRepository {
                 .document(chapterId)
                 .set(mapOf("isQuizCompleted" to true), SetOptions.merge())
                 .await()
+
+            // ✅ Notification
+            ProgressManager.notifyProgressChanged(
+                courseId,
+                chapterId,
+                ProgressManager.ProgressType.QUIZ_COMPLETED
+            )
 
             Result.success(Unit)
         } catch (e: Exception) {

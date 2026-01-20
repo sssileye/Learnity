@@ -25,7 +25,6 @@ import com.miage.learnity.data.Course
 import com.miage.learnity.data.CourseProgress
 import com.miage.learnity.ui.theme.LearnityTheme
 
-
 /**
  * Écran de détail d'un cours : affiche les chapitres
  *
@@ -41,18 +40,16 @@ fun CourseDetailScreen(
     onChapterClick: (String, String) -> Unit,  // (courseId, chapterId)
     onBackClick: () -> Unit
 ) {
-    println("🔍 CourseDetailScreen - courseId reçu : '$courseId'")
+    println("📍 CourseDetailScreen - courseId reçu : '$courseId'")
 
     val course by viewModel.course.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-
-
     // Charger les données au démarrage
     LaunchedEffect(courseId) {
-        println("🔍 LaunchedEffect - Chargement du cours : '$courseId'")
+        println("📍 LaunchedEffect - Chargement du cours : '$courseId'")
         viewModel.loadCourse(courseId)
     }
 
@@ -197,7 +194,7 @@ private fun CourseHeader(
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
-            // Description (si présente)
+            // Description
             if (course.description.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -216,12 +213,12 @@ private fun CourseHeader(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Progression",
+                        text = "Progression du contenu",  // ✅ Préciser
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
                     Text(
-                        text = "${progress.completedChapters}/${progress.totalChapters}",
+                        text = "${progress.completedChapters}/${progress.totalChapters} chapitres",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -230,6 +227,7 @@ private fun CourseHeader(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // ✅ Barre de progression
                 LinearProgressIndicator(
                     progress = { progress.percentage },
                     modifier = Modifier
@@ -238,6 +236,15 @@ private fun CourseHeader(
                         .clip(RoundedCornerShape(4.dp)),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                )
+
+                // ✅ Pourcentage en texte
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${(progress.percentage * 100).toInt()}% complété",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.End)
                 )
             }
         }
@@ -299,7 +306,7 @@ private fun ChapterCard(
             ) {
                 // Numéro du chapitre
                 Text(
-                    text = "Chapitre ${chapter.order +1}",
+                    text = "Chapitre ${chapter.order + 1}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -314,7 +321,7 @@ private fun ChapterCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Informations du chapitre (pages, temps, etc.)
+                // Informations du chapitre
                 ChapterInfo(chapter = chapter)
 
                 // État du quiz si complété
@@ -334,13 +341,14 @@ private fun ChapterCard(
             Icon(
                 imageVector = when {
                     chapter.isCompleted -> Icons.Default.CheckCircle
-                    chapter.isContentRead || chapter.isVideoWatched -> Icons.Default.Edit
+                    // ✅ CORRECTION : Vérifier au moins un contenu lu
+                    chapter.isCoursRead || chapter.isFdrRead || chapter.isVideoWatched -> Icons.Default.Edit
                     else -> Icons.Default.ChevronRight
                 },
                 contentDescription = null,
                 tint = when {
                     chapter.isCompleted -> MaterialTheme.colorScheme.primary
-                    chapter.isContentRead || chapter.isVideoWatched -> MaterialTheme.colorScheme.secondary
+                    chapter.isCoursRead || chapter.isFdrRead || chapter.isVideoWatched -> MaterialTheme.colorScheme.secondary
                     else -> MaterialTheme.colorScheme.outline
                 }
             )
@@ -349,32 +357,29 @@ private fun ChapterCard(
 }
 
 /**
- * Informations détaillées du chapitre (pages, temps, vidéo)
+ * Informations détaillées du chapitre (contenu disponible)
  */
 @Composable
 private fun ChapterInfo(chapter: Chapter) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Cours PDF
-        if (chapter.hasCours || chapter.hasFdr) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+    val contentParts = mutableListOf<String>()
 
-            }
-        }
+    // ✅ Afficher les types de contenu disponibles
+    if (chapter.hasCours) {
+        contentParts.add("📄 Cours")
+    }
+    if (chapter.hasFdr) {
+        contentParts.add("📋 FDR")
+    }
+    if (chapter.hasVideo) {
+        contentParts.add("🎥 Vidéo")
+    }
 
-        // Vidéo
-        if (chapter.hasVideo) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-            }
-        }
+    if (contentParts.isNotEmpty()) {
+        Text(
+            text = contentParts.joinToString(" • "),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -457,8 +462,9 @@ private fun ErrorState(
 @Composable
 fun CourseDetailScreenPreview() {
     LearnityTheme {
+        // Preview avec données factices
         CourseDetailScreen(
-            courseId = "extraction_connaissances",
+            courseId = "test_course",
             onChapterClick = { _, _ -> },
             onBackClick = {}
         )
@@ -468,17 +474,13 @@ fun CourseDetailScreenPreview() {
 @Preview(showBackground = true)
 @Composable
 fun CourseHeaderPreview() {
-    // Objet Course manuel pour la preview
-    val previewCourse = Course(
-        id = "preview_course",
-        title = "Extraction des Connaissances",
-        description = "Description du cours pour la preview",
-        iconRes = 0
-    )
-
     LearnityTheme {
         CourseHeader(
-            course = previewCourse,
+            course = Course(
+                id = "test",
+                title = "Extraction de Connaissances",
+                description = "Cours sur l'extraction de connaissances à partir de données"
+            ),
             progress = CourseProgress(completedChapters = 2, totalChapters = 5)
         )
     }
@@ -487,39 +489,60 @@ fun CourseHeaderPreview() {
 @Preview(showBackground = true)
 @Composable
 fun ChapterCardPreview() {
-    // Création de chapitres manuels avec différents états
-    val chapter1 = Chapter(
-        chapterId = "1",
-        title = "Introduction au Data Mining",
-        order = 1,
-        isQuizCompleted = true, // État complété
-        isContentRead = true
-    )
-
-    val chapter2 = Chapter(
-        chapterId = "2",
-        title = "Prétraitement des données",
-        order = 2,
-        isQuizCompleted = false, // État en cours
-        isContentRead = true
-    )
-
-    val chapter3 = Chapter(
-        chapterId = "3",
-        title = "Algorithmes de Clustering",
-        order = 3,
-        isQuizCompleted = false, // État non commencé
-        isContentRead = false
-    )
-
     LearnityTheme {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(16.dp)
         ) {
-            ChapterCard(chapter = chapter1, onClick = {})
-            ChapterCard(chapter = chapter2, onClick = {})
-            ChapterCard(chapter = chapter3, onClick = {})
+            // Chapitre non commencé
+            ChapterCard(
+                chapter = Chapter(
+                    chapterId = "ch1",
+                    title = "Introduction",
+                    order = 0,
+                    coursUrl = "https://example.com/cours.pdf",
+                    fdrUrl = "https://example.com/fdr.pdf",
+                    videoUrl = "https://youtube.com/watch?v=test",
+                    isCoursRead = false,
+                    isFdrRead = false,
+                    isVideoWatched = false,
+                    isQuizCompleted = false
+                ),
+                onClick = {}
+            )
+
+            // Chapitre en cours (cours lu)
+            ChapterCard(
+                chapter = Chapter(
+                    chapterId = "ch2",
+                    title = "Les bases du machine learning",
+                    order = 1,
+                    coursUrl = "https://example.com/cours.pdf",
+                    videoUrl = "https://youtube.com/watch?v=test",
+                    isCoursRead = true,
+                    isFdrRead = false,
+                    isVideoWatched = false,
+                    isQuizCompleted = false
+                ),
+                onClick = {}
+            )
+
+            // Chapitre complété
+            ChapterCard(
+                chapter = Chapter(
+                    chapterId = "ch3",
+                    title = "TP - Extraction de features",
+                    order = 2,
+                    coursUrl = "https://example.com/cours.pdf",
+                    fdrUrl = "https://example.com/fdr.pdf",
+                    videoUrl = "https://youtube.com/watch?v=test",
+                    isCoursRead = true,
+                    isFdrRead = true,
+                    isVideoWatched = true,
+                    isQuizCompleted = true
+                ),
+                onClick = {}
+            )
         }
     }
 }

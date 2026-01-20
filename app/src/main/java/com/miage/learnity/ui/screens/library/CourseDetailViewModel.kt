@@ -29,7 +29,12 @@ class CourseDetailViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private var baseChapters: List<Chapter> = emptyList()
+    private var currentCourseId: String = ""
+
     fun loadCourse(courseId: String) {
+        currentCourseId = courseId
+
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -46,24 +51,11 @@ class CourseDetailViewModel(
             // Charger les chapitres
             courseRepository.getChapters(courseId)
                 .onSuccess { chapters ->
-                    // Charger la progression pour chaque chapitre
-                    val chapterIds = chapters.map { it.chapterId }
-                    progressRepository.getCourseProgress(courseId, chapterIds)
-                        .onSuccess { progressMap ->
-                            // Fusionner chapitres + progression
-                            _chapters.value = chapters.map { chapter ->
-                                val progress = progressMap[chapter.chapterId]
-                                chapter.copy(
-                                    isContentRead = progress?.isContentRead ?: false,
-                                    isVideoWatched = progress?.isVideoWatched ?: false,
-                                    isQuizCompleted = progress?.isQuizCompleted ?: false
-                                )
-                            }
-                        }
-                        .onFailure {
-                            // Afficher chapitres sans progression
-                            _chapters.value = chapters
-                        }
+                    baseChapters = chapters
+                    _chapters.value = chapters
+
+                    // 🔥 DÉMARRER LE LISTENER TEMPS RÉEL
+                    startProgressListener(courseId)
                 }
                 .onFailure { exception ->
                     _error.value = exception.message ?: "Erreur de chargement des chapitres"
@@ -73,10 +65,48 @@ class CourseDetailViewModel(
         }
     }
 
+    /**
+     * 🔥 Observe la progression du cours en temps réel
+     */
+    private fun startProgressListener(courseId: String) {
+        viewModelScope.launch {
+            progressRepository.observeCourseProgress(courseId)
+                .collect { progressMap ->
+                    // Fusionner les chapitres avec la progression
+                    _chapters.value = baseChapters.map { chapter ->
+                        val progress = progressMap[chapter.chapterId]
+                        chapter.copy(
+                            isCoursRead = progress?.isCoursRead ?: false,
+                            isFdrRead = progress?.isFdrRead ?: false,
+                            isVideoWatched = progress?.isVideoWatched ?: false,
+                            isQuizCompleted = progress?.isQuizCompleted ?: false
+                        )
+                    }
+                    println("🔥 CourseDetailVM - Progress updated from Firebase (${progressMap.size} chapters)")
+                }
+        }
+    }
+
+
     fun getCourseProgress(): CourseProgress {
         val chapters = _chapters.value
+
+        // Option 1 : Progression stricte (quiz obligatoire)
+        val strictCompleted = chapters.count { it.isCompleted }
+
+        // Option 2 : Progression du contenu (sans quiz)
+        val contentCompleted = chapters.count { it.isContentCompleted }
+
+        // Option 3 : Progression moyenne en pourcentage
+        val avgProgress = if (chapters.isNotEmpty()) {
+            chapters.sumOf { it.progressPercentage.toDouble() }.toFloat() / chapters.size
+        } else {
+            0f
+        }
+
+        // ✅ Utilise la progression du contenu (plus encourageante)
         return CourseProgress(
-            completedChapters = chapters.count { it.isCompleted },
+            completedChapters = contentCompleted,  // ✅ Sans quiz obligatoire
             totalChapters = chapters.size
         )
     }
@@ -85,4 +115,3 @@ class CourseDetailViewModel(
         loadCourse(courseId)
     }
 }
-

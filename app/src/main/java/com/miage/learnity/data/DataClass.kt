@@ -1,5 +1,5 @@
 package com.miage.learnity.data
-import com.google.gson.annotations.SerializedName
+
 // ============================================
 // COURSE (Cours - Sans les chapitres)
 // ============================================
@@ -7,10 +7,8 @@ data class Course(
     val id: String = "",
     val title: String = "",
     val description: String = "",
-    val iconRes: Int? = null                   // Icon pour l'UI
+    val iconRes: Int? = null
 )
-// ⚠️ PLUS de chapters: List<Chapter> !
-// Les chapitres sont dans une sous-collection Firestore
 
 // ============================================
 // CHAPTER (Chapitre avec contenu flexible)
@@ -21,32 +19,94 @@ data class Chapter(
     val order: Int = 0,
 
     // === CONTENU PÉDAGOGIQUE ===
-    val coursUrl: String? = null,          // URL PDF cours complet
-    val fdrUrl: String? = null,            // URL Fiche de Révision
-    val videoUrl: String? = null,          // URL YouTube
+    val coursUrl: String? = null,
+    val fdrUrl: String? = null,
+    val videoUrl: String? = null,
 
     // === MÉTADONNÉES ===
     val pageCount: Int = 0,
-    val estimatedReadTime: Int = 0,        // minutes
-    val videoDuration: Int = 0,            // minutes
+    val estimatedReadTime: Int = 0,
+    val videoDuration: Int = 0,
 
     // === QUIZ ===
     val quizId: String? = null,
 
     // === ÉTATS DE PROGRESSION ===
     val isVideoWatched: Boolean = false,
-    val isContentRead: Boolean = false,
+    val isCoursRead: Boolean = false,
+    val isFdrRead: Boolean = false,
     val isQuizCompleted: Boolean = false
 ) {
+    /**
+     * ✅ Chapitre 100% complété (tout fait y compris quiz)
+     */
     val isCompleted: Boolean
         get() {
             val videoRequired = videoUrl != null
             val contentRequired = coursUrl != null || fdrUrl != null
 
             val videoOk = if (videoRequired) isVideoWatched else true
-            val contentOk = if (contentRequired) isContentRead else true
+            val contentOk = if (contentRequired) {
+                (coursUrl != null && isCoursRead) || (fdrUrl != null && isFdrRead)
+            } else {
+                true
+            }
 
             return videoOk && contentOk && isQuizCompleted
+        }
+
+    /**
+     * ✅ NOUVEAU - Progression en pourcentage (0.0 à 1.0)
+     * Compte tout le contenu indépendamment du quiz
+     */
+    val progressPercentage: Float
+        get() {
+            var completed = 0f
+            var total = 0f
+
+            // Compter cours
+            if (coursUrl != null) {
+                total += 1f
+                if (isCoursRead) completed += 1f
+            }
+
+            // Compter FDR
+            if (fdrUrl != null) {
+                total += 1f
+                if (isFdrRead) completed += 1f
+            }
+
+            // Compter vidéo
+            if (videoUrl != null) {
+                total += 1f
+                if (isVideoWatched) completed += 1f
+            }
+
+            // Compter quiz
+            if (quizId != null) {
+                total += 1f
+                if (isQuizCompleted) completed += 1f
+            }
+
+            return if (total > 0) completed / total else 0f
+        }
+
+    /**
+     * ✅ NOUVEAU - Contenu terminé (lecture + vidéo, sans quiz)
+     */
+    val isContentCompleted: Boolean
+        get() {
+            val videoRequired = videoUrl != null
+            val contentRequired = coursUrl != null || fdrUrl != null
+
+            val videoOk = if (videoRequired) isVideoWatched else true
+            val contentOk = if (contentRequired) {
+                (coursUrl != null && isCoursRead) || (fdrUrl != null && isFdrRead)
+            } else {
+                true
+            }
+
+            return videoOk && contentOk
         }
 
     val isQuizUnlocked: Boolean
@@ -55,7 +115,11 @@ data class Chapter(
             val contentRequired = coursUrl != null || fdrUrl != null
 
             val videoOk = if (videoRequired) isVideoWatched else true
-            val contentOk = if (contentRequired) isContentRead else true
+            val contentOk = if (contentRequired) {
+                (coursUrl != null && isCoursRead) || (fdrUrl != null && isFdrRead)
+            } else {
+                true
+            }
 
             return videoOk && contentOk
         }
@@ -64,7 +128,6 @@ data class Chapter(
     val hasCours: Boolean get() = coursUrl != null
     val hasFdr: Boolean get() = fdrUrl != null
 }
-
 // ============================================
 // QUIZ & QUESTIONS
 // ============================================
@@ -73,23 +136,22 @@ data class Quiz(
     val courseId: String = "",
     val chapterId: String = "",
     val title: String = "",
-    val questions: List<Question> = emptyList()
+    val questions: List<Question> = emptyList(),
+    val timeLimit: Int? = null
 )
 
 data class Question(
-    @SerializedName("text")
+    val questionId: String = "",
     val questionText: String = "",
-
-    @SerializedName("options")
     val options: List<String> = emptyList(),
-
-    @SerializedName("correct")
     val correctAnswerIndex: Int = 0,
-
-    @SerializedName("explanation")
-    val explanation: String? = null
+    val explanation: String? = null,
+    val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM
 )
 
+enum class QuestionDifficulty {
+    EASY, MEDIUM, HARD
+}
 
 // ============================================
 // PROGRESSION

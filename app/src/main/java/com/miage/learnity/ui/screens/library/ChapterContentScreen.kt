@@ -18,76 +18,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.repository.CourseRepository
+import com.miage.learnity.repository.ProgressManager
 import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-
-// ============================================
-// VIEW MODEL
-// ============================================
-
-class ChapterContentViewModel(
-    private val courseRepository: CourseRepository = CourseRepository(),
-    private val progressRepository: UserProgressRepository = UserProgressRepository()
-) : ViewModel() {
-
-    private val _chapter = MutableStateFlow<Chapter?>(null)
-    val chapter: StateFlow<Chapter?> = _chapter.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
-
-    private var currentCourseId: String = ""
-    private var currentChapterId: String = ""
-
-    fun loadChapter(courseId: String, chapterId: String) {
-        currentCourseId = courseId
-        currentChapterId = chapterId
-
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-
-            // Charger le chapitre
-            courseRepository.getChapter(courseId, chapterId)
-                .onSuccess { chapter ->
-                    // Charger la progression
-                    progressRepository.getChapterProgress(courseId, chapterId)
-                        .onSuccess { progress ->
-                            _chapter.value = chapter.copy(
-                                isContentRead = progress.isContentRead,
-                                isVideoWatched = progress.isVideoWatched,
-                                isQuizCompleted = progress.isQuizCompleted
-                            )
-                        }
-                        .onFailure {
-                            // Afficher chapitre sans progression
-                            _chapter.value = chapter
-                        }
-                }
-                .onFailure {
-                    _error.value = it.message ?: "Erreur lors du chargement"
-                }
-
-            _isLoading.value = false
-        }
-    }
-
-    fun refresh() {
-        if (currentCourseId.isNotEmpty() && currentChapterId.isNotEmpty()) {
-            loadChapter(currentCourseId, currentChapterId)
-        }
-    }
-}
-
-// ============================================
-// SCREEN
-// ============================================
 
 @Composable
 fun ChapterContentScreen(
@@ -192,7 +128,6 @@ private fun ChapterContentLayout(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // En-tête
         Text(
             text = "CONTENU DISPONIBLE",
             style = MaterialTheme.typography.labelLarge,
@@ -201,22 +136,22 @@ private fun ChapterContentLayout(
             modifier = Modifier.padding(bottom = 4.dp)
         )
 
-        // Cours complet
+        // ✅ Cours complet - FLAG SÉPARÉ
         if (chapter.hasCours) {
             ContentOptionCard(
                 icon = Icons.Default.MenuBook,
                 title = "Cours Complet",
-                isCompleted = chapter.isContentRead,
+                isCompleted = chapter.isCoursRead,  // ✅ FLAG SÉPARÉ
                 onClick = onCoursClick
             )
         }
 
-        // Fiche de révision
+        // ✅ Fiche de révision - FLAG SÉPARÉ
         if (chapter.hasFdr) {
             ContentOptionCard(
                 icon = Icons.Default.Description,
                 title = "Fiche de Révision",
-                isCompleted = chapter.isContentRead,
+                isCompleted = chapter.isFdrRead,    // ✅ FLAG SÉPARÉ
                 onClick = onFdrClick
             )
         }
@@ -238,7 +173,6 @@ private fun ChapterContentLayout(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Section Quiz
         Text(
             text = "ÉVALUATION",
             style = MaterialTheme.typography.labelLarge,
@@ -258,6 +192,7 @@ private fun ChapterContentLayout(
     }
 }
 
+// Garde tous les autres composables (ContentOptionCard, QuizSection, etc.) tels quels
 // ============================================
 // CONTENT OPTION CARD
 // ============================================

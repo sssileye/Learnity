@@ -12,6 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Chapter
+import com.miage.learnity.repository.UserProgressRepository
 import com.miage.learnity.ui.components.PdfViewer
 import com.miage.learnity.ui.components.YouTubePlayer
 import com.miage.learnity.ui.theme.LearnityTheme
@@ -33,11 +34,12 @@ fun PdfViewerScreen(
 
     var videoEnded by remember { mutableStateOf(false) }
 
+    // ✅ Conversion String → ContentType
     val typeEnum = remember(type) {
         when (type) {
-            "fdr" -> ContentType.FDR
-            "video" -> ContentType.VIDEO
-            else -> ContentType.COURS
+            "fdr" -> UserProgressRepository.ContentType.FDR
+            "video" -> UserProgressRepository.ContentType.VIDEO
+            else -> UserProgressRepository.ContentType.COURS
         }
     }
 
@@ -45,7 +47,7 @@ fun PdfViewerScreen(
         viewModel.loadContent(courseId, chapterId, typeEnum)
     }
 
-    // Marquer automatiquement comme vu si la vidéo se termine
+    // Reste du code inchangé...
     LaunchedEffect(videoEnded) {
         if (videoEnded && !isMarkedAsRead) {
             viewModel.markAsReadOrWatched()
@@ -56,9 +58,9 @@ fun PdfViewerScreen(
         topBar = {
             PdfViewerTopBar(
                 title = when (typeEnum) {
-                    ContentType.COURS -> "Cours"
-                    ContentType.FDR -> "Fiche de Révision"
-                    ContentType.VIDEO -> "Vidéo"
+                    UserProgressRepository.ContentType.COURS -> "Cours"
+                    UserProgressRepository.ContentType.FDR -> "Fiche de Révision"
+                    UserProgressRepository.ContentType.VIDEO -> "Vidéo"
                 },
                 onBackClick = onBackClick
             )
@@ -84,8 +86,7 @@ fun PdfViewerScreen(
                 isLoading -> {
                     LoadingContent()
                 }
-                contentUrl != null && typeEnum == ContentType.VIDEO -> {
-                    // ✅ Lecteur YouTube
+                contentUrl != null && typeEnum == UserProgressRepository.ContentType.VIDEO -> {
                     YouTubePlayer(
                         videoUrl = contentUrl!!,
                         onVideoEnd = {
@@ -96,8 +97,7 @@ fun PdfViewerScreen(
                         }
                     )
                 }
-                contentUrl != null && typeEnum != ContentType.VIDEO -> {
-                    // Viewer PDF
+                contentUrl != null && typeEnum != UserProgressRepository.ContentType.VIDEO -> {
                     PdfViewer(
                         url = contentUrl!!,
                         onError = { error ->
@@ -115,7 +115,6 @@ fun PdfViewerScreen(
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PdfViewerTopBar(
@@ -143,7 +142,7 @@ private fun PdfViewerTopBar(
 @Composable
 private fun PdfViewerBottomBar(
     chapter: Chapter?,
-    contentType: ContentType,
+    contentType: UserProgressRepository.ContentType,
     isMarkedAsRead: Boolean,
     onMarkComplete: () -> Unit
 ) {
@@ -156,8 +155,6 @@ private fun PdfViewerBottomBar(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // ✅ On a retiré le bloc Row qui affichait it.pageCount et it.estimatedReadTime
-
             if (!isMarkedAsRead) {
                 Button(
                     onClick = onMarkComplete,
@@ -167,7 +164,7 @@ private fun PdfViewerBottomBar(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         when (contentType) {
-                            ContentType.VIDEO -> "Marquer la vidéo comme vue"
+                            UserProgressRepository.ContentType.VIDEO -> "Marquer la vidéo comme vue"
                             else -> "J'ai terminé la lecture"
                         }
                     )
@@ -194,7 +191,7 @@ private fun PdfViewerBottomBar(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = when (contentType) {
-                                ContentType.VIDEO -> "Vidéo vue ✓"
+                                UserProgressRepository.ContentType.VIDEO -> "Vidéo vue ✓"
                                 else -> "Lecture terminée ✓"
                             },
                             fontWeight = FontWeight.Bold,

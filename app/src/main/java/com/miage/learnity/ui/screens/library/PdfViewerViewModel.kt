@@ -10,10 +10,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-enum class ContentType {
-    COURS, FDR, VIDEO
-}
-
 class PdfViewerViewModel(
     private val courseRepository: CourseRepository = CourseRepository(),
     private val progressRepository: UserProgressRepository = UserProgressRepository()
@@ -22,8 +18,10 @@ class PdfViewerViewModel(
     private val _chapter = MutableStateFlow<Chapter?>(null)
     val chapter: StateFlow<Chapter?> = _chapter.asStateFlow()
 
-    private val _contentType = MutableStateFlow<ContentType>(ContentType.COURS)
-    val contentType: StateFlow<ContentType> = _contentType.asStateFlow()
+    private val _contentType = MutableStateFlow<UserProgressRepository.ContentType>(
+        UserProgressRepository.ContentType.COURS
+    )
+    val contentType: StateFlow<UserProgressRepository.ContentType> = _contentType.asStateFlow()
 
     private val _contentUrl = MutableStateFlow<String?>(null)
     val contentUrl: StateFlow<String?> = _contentUrl.asStateFlow()
@@ -37,7 +35,7 @@ class PdfViewerViewModel(
     private var currentCourseId: String = ""
     private var currentChapterId: String = ""
 
-    fun loadContent(courseId: String, chapterId: String, type: ContentType) {
+    fun loadContent(courseId: String, chapterId: String, type: UserProgressRepository.ContentType) {
         currentCourseId = courseId
         currentChapterId = chapterId
 
@@ -50,19 +48,20 @@ class PdfViewerViewModel(
                 .onSuccess { chapter ->
                     _chapter.value = chapter
 
-                    // Déterminer l'URL
+                    // Déterminer l'URL selon le type
                     _contentUrl.value = when (type) {
-                        ContentType.COURS -> chapter.coursUrl
-                        ContentType.FDR -> chapter.fdrUrl
-                        ContentType.VIDEO -> chapter.videoUrl
+                        UserProgressRepository.ContentType.COURS -> chapter.coursUrl
+                        UserProgressRepository.ContentType.FDR -> chapter.fdrUrl
+                        UserProgressRepository.ContentType.VIDEO -> chapter.videoUrl
                     }
 
                     // Charger la progression
                     progressRepository.getChapterProgress(courseId, chapterId)
                         .onSuccess { progress ->
                             _isMarkedAsRead.value = when (type) {
-                                ContentType.VIDEO -> progress.isVideoWatched
-                                else -> progress.isContentRead
+                                UserProgressRepository.ContentType.VIDEO -> progress.isVideoWatched
+                                UserProgressRepository.ContentType.COURS -> progress.isCoursRead
+                                UserProgressRepository.ContentType.FDR -> progress.isFdrRead
                             }
                         }
                 }
@@ -73,24 +72,32 @@ class PdfViewerViewModel(
 
     fun markAsReadOrWatched() {
         viewModelScope.launch {
-            val type = _contentType.value
-            val result = if (type == ContentType.VIDEO) {
-                progressRepository.markVideoAsWatched(currentCourseId, currentChapterId)
-            } else {
-                progressRepository.markContentAsRead(currentCourseId, currentChapterId)
-            }
-
-            result.onSuccess {
-                _isMarkedAsRead.value = true
-
-                // 🔥 TRÈS IMPORTANT : Mettre à jour l'objet chapitre local
-                // pour que l'UI réagisse immédiatement si elle observe _chapter
-                _chapter.value = _chapter.value?.copy(
-                    isContentRead = if (type != ContentType.VIDEO) true else _chapter.value?.isContentRead ?: false,
-                    isVideoWatched = if (type == ContentType.VIDEO) true else _chapter.value?.isVideoWatched ?: false
-                )
+            when (_contentType.value) {
+                UserProgressRepository.ContentType.VIDEO -> {
+                    progressRepository.markVideoAsWatched(currentCourseId, currentChapterId)
+                        .onSuccess {
+                            _isMarkedAsRead.value = true
+                            println("✅ Vidéo marquée comme vue")
+                        }
+                        .onFailure {
+                            println("❌ Erreur marquage vidéo: ${it.message}")
+                        }
+                }
+                UserProgressRepository.ContentType.COURS,
+                UserProgressRepository.ContentType.FDR -> {
+                    // ✅ Passer le type de contenu
+                    progressRepository.markContentAsRead(
+                        currentCourseId,
+                        currentChapterId,
+                        _contentType.value
+                    ).onSuccess {
+                        _isMarkedAsRead.value = true
+                        println("✅ Contenu marqué comme lu (${_contentType.value})")
+                    }.onFailure {
+                        println("❌ Erreur marquage contenu: ${it.message}")
+                    }
+                }
             }
         }
     }
 }
-
