@@ -25,6 +25,7 @@ import com.miage.learnity.data.Course
 import com.miage.learnity.data.CourseProgress
 import com.miage.learnity.ui.theme.LearnityTheme
 
+
 /**
  * Écran de détail d'un cours : affiche les chapitres
  *
@@ -467,9 +468,17 @@ fun CourseDetailScreenPreview() {
 @Preview(showBackground = true)
 @Composable
 fun CourseHeaderPreview() {
+    // Objet Course manuel pour la preview
+    val previewCourse = Course(
+        id = "preview_course",
+        title = "Extraction des Connaissances",
+        description = "Description du cours pour la preview",
+        iconRes = 0
+    )
+
     LearnityTheme {
         CourseHeader(
-            course = MockData.sampleCourses.first(),
+            course = previewCourse,
             progress = CourseProgress(completedChapters = 2, totalChapters = 5)
         )
     }
@@ -478,20 +487,39 @@ fun CourseHeaderPreview() {
 @Preview(showBackground = true)
 @Composable
 fun ChapterCardPreview() {
+    // Création de chapitres manuels avec différents états
+    val chapter1 = Chapter(
+        chapterId = "1",
+        title = "Introduction au Data Mining",
+        order = 1,
+        isQuizCompleted = true, // État complété
+        isContentRead = true
+    )
+
+    val chapter2 = Chapter(
+        chapterId = "2",
+        title = "Prétraitement des données",
+        order = 2,
+        isQuizCompleted = false, // État en cours
+        isContentRead = true
+    )
+
+    val chapter3 = Chapter(
+        chapterId = "3",
+        title = "Algorithmes de Clustering",
+        order = 3,
+        isQuizCompleted = false, // État non commencé
+        isContentRead = false
+    )
+
     LearnityTheme {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ChapterCard(
-                chapter = MockData.getChaptersForCourse("extraction_connaissances")[0],
-                onClick = {}
-            )
-            ChapterCard(
-                chapter = MockData.getChaptersForCourse("extraction_connaissances")[1],
-                onClick = {}
-            )
-            ChapterCard(
-                chapter = MockData.getChaptersForCourse("extraction_connaissances")[3],
-                onClick = {}
-            )
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ChapterCard(chapter = chapter1, onClick = {})
+            ChapterCard(chapter = chapter2, onClick = {})
+            ChapterCard(chapter = chapter3, onClick = {})
         }
     }
 }
