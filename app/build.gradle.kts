@@ -72,6 +72,8 @@ dependencies {
     implementation(libs.core)
     implementation(libs.androidx.compose.ui.geometry)
 
+    implementation(libs.androidx.core.splashscreen)
+
     // Tests
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Splash natif personnalisé Learnity -->
+    <style name="Theme.Learnity.SplashScreen" parent="Theme.SplashScreen">
+        <!-- Couleur de fond (ton BackgroundColor) -->
+        <item name="windowSplashScreenBackground">#F5F7FA</item>
 
-    <style name="Theme.Learnity" parent="android:Theme.Material.Light.NoActionBar" />
+        <!-- Logo Learnity au centre -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/icon_learnity</item>
+
+        <!-- Durée de l'animation (en millisecondes) -->
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+
+        <!-- Transition vers le thème principal -->
+        <item name="postSplashScreenTheme">@style/Theme.Learnity</item>
+    </style>
+
+    <!-- Thème principal -->
+    <style name="Theme.Learnity" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>
