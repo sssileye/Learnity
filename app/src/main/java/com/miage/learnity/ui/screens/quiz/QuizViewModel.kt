@@ -29,12 +29,16 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     private val _userAnswers = MutableStateFlow<Map<Int, Int>>(emptyMap())
     val userAnswers: StateFlow<Map<Int, Int>> = _userAnswers.asStateFlow()
 
-    // --- États d'Affichage ---
+    // --- États d'Affichage & Chargement ---
     private val _isCurrentAnswerRevealed = MutableStateFlow(false)
     val isCurrentAnswerRevealed: StateFlow<Boolean> = _isCurrentAnswerRevealed.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // ⭐ État pour la barre de progression (0.0 à 1.0)
+    private val _loadingProgress = MutableStateFlow(0f)
+    val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
 
     private val _isQuizFinished = MutableStateFlow(false)
     val isQuizFinished: StateFlow<Boolean> = _isQuizFinished.asStateFlow()
@@ -61,9 +65,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         }
     }
 
-    /**
-     * ⭐ Charge les anciennes réponses pour le mode "Revoir"
-     */
     fun loadOldAnswers() {
         viewModelScope.launch {
             repository.getDailyQuizAnswers().onSuccess { oldAnswers ->
@@ -87,13 +88,24 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         }
     }
 
+    /**
+     * ⭐ MISE À JOUR : Charge le Quiz du Jour avec progression
+     */
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
         resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
-            repository.getDailyQuiz(isDiscoveryMode).onSuccess { dailyQuiz ->
+            _loadingProgress.value = 0f
+
+            // Appel au repository avec le callback de progression
+            repository.getDailyQuiz(isDiscoveryMode) { progress ->
+                _loadingProgress.value = progress
+            }.onSuccess { dailyQuiz ->
                 _quiz.value = dailyQuiz
                 _questions.value = dailyQuiz.questions
+                _loadingProgress.value = 1f
+            }.onFailure {
+                _isLoading.value = false
             }
             _isLoading.value = false
         }
@@ -140,7 +152,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     fun finishQuiz() {
         val currentQuiz = _quiz.value ?: return
 
-        // On calcule le score final avant de sauvegarder
         calculateAndSetScore(_userAnswers.value)
 
         viewModelScope.launch {
@@ -155,9 +166,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         }
     }
 
-    /**
-     * Helper pour calculer le score à partir d'une map de réponses
-     */
     private fun calculateAndSetScore(answers: Map<Int, Int>) {
         var finalScore = 0
         _questions.value.forEachIndexed { index, question ->
@@ -196,6 +204,7 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         _score.value = 0
         _quiz.value = null
         _questions.value = emptyList()
+        _loadingProgress.value = 0f
     }
 
     fun resetQuiz() {

@@ -50,6 +50,9 @@ fun QuizScreen(
     val hasSeenSummary by viewModel.hasSeenSummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    // ⭐ Nouveau : Récupérer la progression du chargement
+    val loadingProgress by viewModel.loadingProgress.collectAsState()
+
     // Chargement initial des questions
     LaunchedEffect(courseId, chapterId) {
         when (chapterId) {
@@ -60,11 +63,10 @@ fun QuizScreen(
         }
     }
 
-    // ⭐ MISE À JOUR : Logique pour le mode "Revoir"
-    // On attend que les questions soient chargées, puis on charge les réponses sauvegardées
+    // Logique pour le mode "Revoir"
     LaunchedEffect(questions, isReviewMode) {
         if (isReviewMode && questions.isNotEmpty() && !isQuizFinished) {
-            viewModel.loadOldAnswers() // Nouvelle fonction dans ton ViewModel
+            viewModel.loadOldAnswers()
             viewModel.returnToSummary()
         }
     }
@@ -87,7 +89,8 @@ fun QuizScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
-                isLoading -> LoadingState()
+                // ⭐ Passage du progrès à la vue de chargement
+                isLoading -> LoadingState(progress = loadingProgress)
 
                 questions.isEmpty() && !isLoading -> ErrorState(
                     msg = "Aucun quiz trouvé pour cette sélection.",
@@ -475,7 +478,53 @@ private fun QuizTopBar(title: String, currentQuestion: Int, totalQuestions: Int,
 }
 
 @Composable
-private fun LoadingState() { Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Color(0xFF673AB7)) } }
+private fun LoadingState(progress: Float) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F7FA)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Analyse de tes cours...",
+            style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFF673AB7),
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ⭐ Barre de progression horizontale dynamique
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(6.dp)),
+            color = Color(0xFF673AB7),
+            trackColor = Color(0xFFE1BEE7)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Affichage du pourcentage textuel
+        Text(
+            text = "${(progress * 100).toInt()}%",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Préparation de ton quiz personnalisé",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.LightGray
+        )
+    }
+}
 
 @Composable
 private fun ErrorState(msg: String, onRetry: () -> Unit) {

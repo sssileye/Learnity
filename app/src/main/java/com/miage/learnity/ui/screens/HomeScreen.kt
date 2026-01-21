@@ -134,7 +134,7 @@ fun DailyQuizCard(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Bouton REVOIR (👁️)
+                            // Bouton REVOIR
                             Button(
                                 onClick = { onAction(true) },
                                 modifier = Modifier.weight(1f).height(48.dp),
@@ -142,16 +142,16 @@ fun DailyQuizCard(
                                 shape = RoundedCornerShape(12.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
                             ) {
-                                Text("Revoir 👁️", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("Revoir", color = Color.White, fontWeight = FontWeight.Bold)
                             }
-                            // Bouton REFAIRE (🔄)
+                            // Bouton REFAIRE
                             Button(
                                 onClick = { onAction(false) },
                                 modifier = Modifier.weight(1f).height(48.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Refaire 🔄", color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text("Refaire", color = Color.Black, fontWeight = FontWeight.Bold)
                             }
                         }
                     } else {
