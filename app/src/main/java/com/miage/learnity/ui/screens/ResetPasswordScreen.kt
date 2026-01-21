@@ -2,17 +2,13 @@ package com.miage.learnity.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,13 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,20 +27,17 @@ import com.miage.learnity.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignInScreen(
+fun ResetPasswordScreen(
     onBackClick: () -> Unit = {},
-    onSignIn: (String, String) -> Unit = { _, _ -> },
-    onForgotPassword: () -> Unit = {},
-    onNavigateToSignUp: () -> Unit = {},
+    onResetPassword: (String) -> Unit = {},
+    onResetSuccess: () -> Unit = {},
     isLoading: Boolean = false,
-    error: String? = null
+    error: String? = null,
+    success: Boolean = false
 ) {
     val context = LocalContext.current
 
     var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var showPassword by remember { mutableStateOf(false) }
-
     var emailError by remember { mutableStateOf("") }
 
     fun validateEmail(email: String): Boolean {
@@ -62,15 +51,26 @@ fun SignInScreen(
         }
     }
 
+    // Afficher le toast d'erreur
     LaunchedEffect(error) {
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
         }
     }
 
-    val isButtonEnabled = email.isNotBlank() &&
-            password.isNotBlank() &&
-            !isLoading
+    // Si succès, afficher message et retourner
+    LaunchedEffect(success) {
+        if (success) {
+            Toast.makeText(
+                context,
+                "Email de réinitialisation envoyé ! Vérifiez votre boîte mail.",
+                Toast.LENGTH_LONG
+            ).show()
+            onResetSuccess()
+        }
+    }
+
+    val isButtonEnabled = email.isNotBlank() && !isLoading
 
     Scaffold(
         topBar = {
@@ -102,7 +102,7 @@ fun SignInScreen(
         ) {
             Spacer(Modifier.height(32.dp))
 
-            // Logo réduit
+            // Logo
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo",
@@ -113,10 +113,22 @@ fun SignInScreen(
 
             // Titre
             Text(
-                text = "Connexion",
-                fontSize = 28.sp,
+                text = "Mot de passe oublié ?",
+                fontSize = 26.sp,
                 color = TextDark,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Description
+            Text(
+                text = "Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+                fontSize = 14.sp,
+                color = TextGray,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
             Spacer(Modifier.height(40.dp))
@@ -143,59 +155,14 @@ fun SignInScreen(
                 )
             )
 
-            Spacer(Modifier.height(16.dp))
-
-            // Password Field
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Mot de passe") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(
-                            imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = null
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF635BFF),
-                    focusedLabelColor = Color(0xFF635BFF)
-                )
-            )
-
-            // Mot de passe oublié
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-            ) {
-                TextButton(
-                    onClick = onForgotPassword,
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                ) {
-                    Text(
-                        text = "Mot de passe oublié ?",
-                        color = Color(0xFF635BFF),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
             Spacer(Modifier.height(32.dp))
 
-            // Bouton Connexion
+            // Bouton Réinitialiser
             Button(
                 onClick = {
                     val isEmailValid = validateEmail(email)
                     if (isEmailValid) {
-                        onSignIn(email.trim(), password.trim())
+                        onResetPassword(email.trim())
                     }
                 },
                 modifier = Modifier
@@ -215,7 +182,7 @@ fun SignInScreen(
                     )
                 } else {
                     Text(
-                        "Se connecter",
+                        "Envoyer le lien",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -225,36 +192,22 @@ fun SignInScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // Lien vers inscription
-            val annotated = buildAnnotatedString {
-                append("Pas encore de compte ? ")
-                pushStringAnnotation(tag = "signup", annotation = "signup")
-                withStyle(SpanStyle(color = Color(0xFF635BFF), fontWeight = FontWeight.Bold)) {
-                    append("S'inscrire")
-                }
-                pop()
+            // Lien retour connexion
+            TextButton(onClick = onBackClick) {
+                Text(
+                    text = "Retour à la connexion",
+                    color = Color(0xFF635BFF),
+                    fontWeight = FontWeight.Medium
+                )
             }
-            ClickableText(
-                text = annotated,
-                onClick = { offset ->
-                    annotated.getStringAnnotations(
-                        tag = "signup",
-                        start = offset,
-                        end = offset
-                    ).firstOrNull()?.let {
-                        onNavigateToSignUp()
-                    }
-                },
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
         }
     }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun SignInScreenPreview() {
+fun ResetPasswordScreenPreview() {
     LearnityTheme {
-        SignInScreen()
+        ResetPasswordScreen()
     }
 }

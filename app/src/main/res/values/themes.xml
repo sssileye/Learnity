@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Splash natif personnalisé Learnity -->
+    <!-- Splash natif invisible (fond seulement) -->
     <style name="Theme.Learnity.SplashScreen" parent="Theme.SplashScreen">
-        <!-- Couleur de fond (ton BackgroundColor) -->
+        <!-- ✅ Même couleur que le splash Composable -->
         <item name="windowSplashScreenBackground">#F5F7FA</item>
 
-        <!-- Logo Learnity au centre -->
-        <item name="windowSplashScreenAnimatedIcon">@drawable/icon_learnity</item>
+        <!-- ✅ PAS D'ICÔNE = invisible -->
+        <!-- <item name="windowSplashScreenAnimatedIcon">@drawable/icon_learnity</item> -->
 
-        <!-- Durée de l'animation (en millisecondes) -->
-        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <!-- Durée 0 = transition immédiate -->
+        <item name="windowSplashScreenAnimationDuration">0</item>
 
-        <!-- Transition vers le thème principal -->
         <item name="postSplashScreenTheme">@style/Theme.Learnity</item>
     </style>
 

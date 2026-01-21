@@ -14,7 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 data class AuthUiState(
     val isLoading: Boolean = false,
     val user: FirebaseUser? = FirebaseAuth.getInstance().currentUser,
-    val error: String? = null
+    val error: String? = null,
+    val resetPasswordSuccess: Boolean = false  // ✅ NOUVEAU
 ){
     val isAuthenticated: Boolean
         get() = user != null
@@ -38,9 +39,11 @@ class AuthViewModel: ViewModel(){
                 }
             }
     }
+
     fun clearError() {
         _state.value = _state.value.copy(error = null)
     }
+
     fun signUp(email: String, password: String){
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
@@ -53,6 +56,29 @@ class AuthViewModel: ViewModel(){
             }
     }
 
+    // ✅ NOUVEAU - Réinitialisation du mot de passe
+    fun resetPassword(email: String) {
+        setLoading()
+        auth.sendPasswordResetEmail(email)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        error = null,
+                        resetPasswordSuccess = true
+                    )
+                    println("✅ Email de réinitialisation envoyé à : $email")
+                } else {
+                    fail(task.exception)
+                }
+            }
+    }
+
+    // ✅ NOUVEAU - Reset du flag de succès
+    fun clearResetPasswordSuccess() {
+        _state.value = _state.value.copy(resetPasswordSuccess = false)
+    }
+
     fun signOut(){
         auth.signOut()
         _state.value = _state.value.copy(user = null)
@@ -61,12 +87,15 @@ class AuthViewModel: ViewModel(){
     private fun setLoading(){
         _state.value = _state.value.copy(isLoading = true, error = null)
     }
+
     private fun ok(){
         _state.value = _state.value.copy(isLoading = false, user=auth.currentUser, error = null)
     }
+
     private fun fail(ex: Exception?){
         _state.value = _state.value.copy(isLoading = false, error = mapError(ex))
     }
+
     private fun mapError(ex: Exception?): String {
         val e = ex ?: return "Authentication failed. Please try again."
         return when (e) {

@@ -17,20 +17,26 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
     val nav = rememberNavController()
     val state by vm.state.collectAsState()
 
-    // ✅ Vérification au démarrage : si déjà connecté, aller à Homepage
-    LaunchedEffect(state.user) {
-        if (state.user != null) {
-            nav.navigate(Screen.Homepage.route) {
-                popUpTo(0) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-    }
-
     NavHost(
         navController = nav,
-        startDestination = Screen.Authentication.route
+        startDestination = Screen.Splash.route
     ) {
+        composable(Screen.Splash.route) {
+            SplashScreen(
+                onSplashFinished = {
+                    if (state.user != null) {
+                        nav.navigate(Screen.Homepage.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    } else {
+                        nav.navigate(Screen.Authentication.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
         composable(Screen.Authentication.route) {
             AuthScreen(
                 onLoginClick = { nav.navigate(Screen.SignIn.route) },
@@ -54,7 +60,9 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             SignInScreen(
                 onBackClick = { nav.popBackStack() },
                 onSignIn = { email, password -> vm.signIn(email, password) },
-                onForgotPassword = { /* TODO */ },
+                onForgotPassword = {  // ✅ CONNECTÉ
+                    nav.navigate(Screen.ResetPassword.route)
+                },
                 onNavigateToSignUp = { nav.navigate(Screen.Inscription.route) },
                 isLoading = state.isLoading,
                 error = state.error
@@ -62,6 +70,23 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             LaunchedEffect(state.user) {
                 if (state.user != null) goToHomepage(nav)
             }
+        }
+
+        // ✅ NOUVELLE ROUTE - Reset Password
+        composable(Screen.ResetPassword.route) {
+            ResetPasswordScreen(
+                onBackClick = { nav.popBackStack() },
+                onResetPassword = { email ->
+                    vm.resetPassword(email)
+                },
+                onResetSuccess = {
+                    vm.clearResetPasswordSuccess()
+                    nav.popBackStack()
+                },
+                isLoading = state.isLoading,
+                error = state.error,
+                success = state.resetPasswordSuccess
+            )
         }
 
         composable(Screen.Homepage.route) {
