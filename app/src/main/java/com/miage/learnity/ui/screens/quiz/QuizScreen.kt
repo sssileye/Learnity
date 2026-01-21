@@ -49,15 +49,21 @@ fun QuizScreen(
     val hasSeenSummary by viewModel.hasSeenSummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    // ⭐ CORRECTION : Sélection de la méthode de chargement
     LaunchedEffect(courseId, chapterId) {
-        viewModel.loadQuiz(courseId, chapterId)
+        if (chapterId == "ALL_CHAPTERS") {
+            viewModel.loadMegaQuiz(courseId)
+        } else {
+            viewModel.loadQuiz(courseId, chapterId)
+        }
     }
 
     Scaffold(
         topBar = {
             if (questions.isNotEmpty() && !isQuizFinished) {
                 QuizTopBar(
-                    title = "Quiz de chapitre",
+                    // Dynamiser le titre selon le mode
+                    title = if (chapterId == "ALL_CHAPTERS") "Synthèse de l'UE" else "Quiz de chapitre",
                     currentQuestion = currentQuestionIndex + 1,
                     totalQuestions = questions.size,
                     onBackClick = onBackClick
@@ -68,10 +74,16 @@ fun QuizScreen(
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
                 isLoading -> LoadingState()
+
+                // ⭐ CORRECTION : Gestion de l'état vide
                 questions.isEmpty() && !isLoading -> ErrorState(
-                    msg = "Aucun quiz trouvé",
-                    onRetry = { viewModel.loadQuiz(courseId, chapterId) }
+                    msg = "Aucun quiz trouvé pour cette sélection.",
+                    onRetry = {
+                        if (chapterId == "ALL_CHAPTERS") viewModel.loadMegaQuiz(courseId)
+                        else viewModel.loadQuiz(courseId, chapterId)
+                    }
                 )
+
                 isQuizFinished -> {
                     LaunchedEffect(Unit) { viewModel.markSummaryAsSeen() }
                     FinalResultContent(
@@ -83,6 +95,7 @@ fun QuizScreen(
                         onBackToCourse = onBackClick
                     )
                 }
+
                 else -> {
                     val currentQuestion = questions.getOrNull(currentQuestionIndex)
                     if (currentQuestion != null) {

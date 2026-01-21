@@ -13,8 +13,6 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
@@ -25,18 +23,15 @@ class QuizRepository {
     private val gson = Gson()
 
     // ============================================
-    // QUIZ PAR CHAPITRE (LOGIQUE JSON)
+    // RÉCUPÉRATION DES QUIZ
     // ============================================
 
     /**
-     * Récupère le quiz stocké en JSON dans le document du chapitre
+     * Récupère le quiz d'un chapitre (5 questions aléatoires parmi le JSON du chapitre)
      */
     suspend fun getQuizForChapter(courseId: String, chapterId: String): Result<Quiz> =
         withContext(Dispatchers.IO) {
             try {
-                println("🔍 QuizRepository - Lecture du JSON pour: $courseId/$chapterId")
-
-                // 1. Accéder au document du chapitre dans la sous-collection
                 val chapterDoc = firestore.collection("courses")
                     .document(courseId)
                     .collection("chapters")
@@ -44,38 +39,66 @@ class QuizRepository {
                     .get()
                     .await()
 
-                if (!chapterDoc.exists()) {
-                    return@withContext Result.failure(Exception("Chapitre non trouvé"))
-                }
+                if (!chapterDoc.exists()) return@withContext Result.failure(Exception("Chapitre non trouvé"))
 
-                // 2. Récupérer la String JSON du champ "quiz"
                 val quizJson = chapterDoc.getString("quiz")
-                if (quizJson.isNullOrEmpty()) {
-                    return@withContext Result.failure(Exception("Aucun quiz JSON configuré pour ce chapitre"))
-                }
+                if (quizJson.isNullOrEmpty()) return@withContext Result.failure(Exception("Pas de quiz pour ce chapitre"))
 
-                // 3. Parser le JSON vers une liste de Questions
-                val listType = object : TypeToken<List<Question>>() {}.type
-                val allQuestions: List<Question> = gson.fromJson(quizJson, listType)
-
-                if (allQuestions.isEmpty()) {
-                    return@withContext Result.failure(Exception("Le quiz est vide"))
-                }
-
-                // 4. Mélanger et prendre 5 questions
+                val allQuestions = parseQuestions(quizJson)
                 val selectedQuestions = allQuestions.shuffled().take(5)
 
-                val quiz = Quiz(
-                    quizId = "${chapterId}_quiz",
-                    courseId = courseId,
-                    chapterId = chapterId,
-                    title = chapterDoc.getString("title") ?: "Quiz de chapitre",
-                    questions = selectedQuestions
+                Result.success(
+                    Quiz(
+                        quizId = "${chapterId}_quiz",
+                        courseId = courseId,
+                        chapterId = chapterId,
+                        title = chapterDoc.getString("title") ?: "Quiz de chapitre",
+                        questions = selectedQuestions
+                    )
                 )
-
-                Result.success(quiz)
             } catch (e: Exception) {
-                println("❌ QuizRepository Erreur JSON: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+    /**
+     * NOUVEAU : Récupère 20 questions aléatoires parmi TOUS les chapitres d'une UE
+     */
+    suspend fun getMegaQuizForCourse(courseId: String): Result<Quiz> =
+        withContext(Dispatchers.IO) {
+            try {
+                // 1. Récupérer tous les documents de la sous-collection "chapters"
+                val chaptersSnapshot = firestore.collection("courses")
+                    .document(courseId)
+                    .collection("chapters")
+                    .get()
+                    .await()
+
+                val allUEQuestions = mutableListOf<Question>()
+
+                // 2. Extraire et fusionner les questions de chaque chapitre
+                for (doc in chaptersSnapshot.documents) {
+                    val quizJson = doc.getString("quiz")
+                    if (!quizJson.isNullOrEmpty()) {
+                        allUEQuestions.addAll(parseQuestions(quizJson))
+                    }
+                }
+
+                if (allUEQuestions.isEmpty()) return@withContext Result.failure(Exception("Aucune question trouvée dans l'UE"))
+
+                // 3. Shuffle et sélection de 20
+                val selectedQuestions = allUEQuestions.shuffled().take(20)
+
+                Result.success(
+                    Quiz(
+                        quizId = "MEGA_$courseId",
+                        courseId = courseId,
+                        chapterId = "ALL_CHAPTERS", // ID spécial pour le mode synthèse
+                        title = "Grand Quiz de Synthèse",
+                        questions = selectedQuestions
+                    )
+                )
+            } catch (e: Exception) {
                 Result.failure(e)
             }
         }
@@ -84,11 +107,6 @@ class QuizRepository {
     // SAUVEGARDE DES RÉSULTATS
     // ============================================
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    // Dans la fonction saveQuizResult, ajoute après le merge:
-
-    // Dans saveQuizResult, après le set Firestore:
-
     suspend fun saveQuizResult(
         courseId: String,
         chapterId: String,
@@ -96,12 +114,10 @@ class QuizRepository {
         total: Int
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val userId = auth.currentUser?.uid
-                ?: return@withContext Result.failure(Exception("Non connecté"))
-
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-            val result = mapOf(
+            val resultData = mapOf(
                 "courseId" to courseId,
                 "chapterId" to chapterId,
                 "score" to score,
@@ -111,29 +127,31 @@ class QuizRepository {
                 "date" to today
             )
 
-            // Sauvegarder dans l'historique
+            // 1. Enregistrement dans l'historique global
             firestore.collection("quiz_results")
                 .document(userId)
                 .collection("history")
-                .add(result)
+                .add(resultData)
                 .await()
 
-            // Marquer comme complété
-            firestore.collection("user_progress")
-                .document(userId)
-                .collection("courses")
-                .document(courseId)
-                .collection("chapters")
-                .document(chapterId)
-                .set(mapOf("isQuizCompleted" to true), SetOptions.merge())
-                .await()
+            // 2. Mise à jour de la progression (UNIQUEMENT si ce n'est pas un Mega Quiz)
+            if (chapterId != "ALL_CHAPTERS") {
+                firestore.collection("user_progress")
+                    .document(userId)
+                    .collection("courses")
+                    .document(courseId)
+                    .collection("chapters")
+                    .document(chapterId)
+                    .set(mapOf("isQuizCompleted" to true), SetOptions.merge())
+                    .await()
 
-            // ✅ Notification
-            ProgressManager.notifyProgressChanged(
-                courseId,
-                chapterId,
-                ProgressManager.ProgressType.QUIZ_COMPLETED
-            )
+                // Notification pour la barre de progression UI
+                ProgressManager.notifyProgressChanged(
+                    courseId,
+                    chapterId,
+                    ProgressManager.ProgressType.QUIZ_COMPLETED
+                )
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -141,5 +159,16 @@ class QuizRepository {
         }
     }
 
-    // Les autres méthodes (getQuizStats, etc.) peuvent être conservées si besoin
+    // ============================================
+    // HELPER
+    // ============================================
+
+    private fun parseQuestions(json: String): List<Question> {
+        return try {
+            val listType = object : TypeToken<List<Question>>() {}.type
+            gson.fromJson(json, listType)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }

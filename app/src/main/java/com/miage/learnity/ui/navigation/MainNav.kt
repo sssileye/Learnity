@@ -25,11 +25,12 @@ import com.miage.learnity.ui.screens.quiz.QuizScreen
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
 
-    // On observe la route actuelle pour savoir si on doit afficher les barres
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // On cache les barres de navigation pendant le quiz et le visionnage de PDF
+    // On cache les barres pendant le quiz et le PDF
+    // Le "contains" permet de détecter "quiz/{courseId}/{chapterId}"
+    // MAIS AUSSI notre futur "quiz_mega/{courseId}"
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf")
@@ -51,33 +52,40 @@ fun MainNav(onLogout: () -> Unit = {}) {
         NavHost(
             navController = navController,
             startDestination = "home",
-            // Si on cache les bars, on ignore le padding pour utiliser tout l'écran
             modifier = Modifier.padding(if (showBars) paddingValues else PaddingValues(0.dp))
         ) {
-            // --- Destinations Standards ---
+            // ... Destinations Standards (Identiques) ...
             composable("home") { HomeScreen() }
             composable("association") { AssociationScreen() }
             composable("ranking") { RankingScreen() }
             composable("settings") { SettingsScreen() }
             composable("profile") { ProfileScreen(onLogout = onLogout) }
 
-            // --- Bibliothèque et Cours ---
+            // --- Bibliothèque ---
             composable("library") {
                 LibraryScreen(onCourseClick = { id -> navController.navigate("course/$id") })
             }
 
+            // --- Détail du Cours (UE) ---
             composable(
                 route = "course/{courseId}",
                 arguments = listOf(navArgument("courseId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
+
                 CourseDetailScreen(
                     courseId = courseId,
                     onChapterClick = { cId, chapId -> navController.navigate("chapter/$cId/$chapId") },
+                    // ✅ AJOUT : Action pour le Mega Quiz
+                    onMegaQuizClick = {
+                        // On navigue vers l'écran quiz en passant "ALL_CHAPTERS" comme ID de chapitre
+                        navController.navigate("quiz/$courseId/ALL_CHAPTERS")
+                    },
                     onBackClick = { navController.popBackStack() }
                 )
             }
 
+            // --- Contenu du Chapitre ---
             composable(
                 route = "chapter/{courseId}/{chapterId}",
                 arguments = listOf(
@@ -93,13 +101,13 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     chapterId = chapterId,
                     onCoursClick = { navController.navigate("pdf/$courseId/$chapterId/cours") },
                     onFdrClick = { navController.navigate("pdf/$courseId/$chapterId/fdr") },
-                    onVideoClick = { /* Navigation Vidéo si nécessaire */ },
+                    onVideoClick = { /* Navigation Vidéo */ },
                     onStartQuiz = { navController.navigate("quiz/$courseId/$chapterId") },
                     onBackClick = { navController.popBackStack() }
                 )
             }
 
-            // --- PDF Viewer ---
+            // ... PDF Viewer (Identique) ...
             composable(
                 route = "pdf/{courseId}/{chapterId}/{type}",
                 arguments = listOf(
@@ -121,7 +129,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Quiz (JSON Firebase) ---
+            // --- Quiz Screen (Supporte Chapitre ET Mega Quiz) ---
             composable(
                 route = "quiz/{courseId}/{chapterId}",
                 arguments = listOf(
@@ -132,7 +140,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
                 val chapterId = backStackEntry.arguments?.getString("chapterId") ?: ""
 
-                // QuizScreen utilise désormais son propre ViewModel interne
                 QuizScreen(
                     courseId = courseId,
                     chapterId = chapterId,
