@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,12 +28,13 @@ import com.miage.learnity.ui.screens.quiz.QuizScreen
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
 
+    // ⭐ État partagé pour le mode du quiz (Découverte ou Révision)
+    // Idéalement à terme, ceci sera chargé depuis un ViewModel/DataStore
+    var isDiscoveryMode by remember { mutableStateOf(false) }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // On cache les barres pendant le quiz et le PDF
-    // Le "contains" permet de détecter "quiz/{courseId}/{chapterId}"
-    // MAIS AUSSI notre futur "quiz_mega/{courseId}"
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf")
@@ -54,31 +58,43 @@ fun MainNav(onLogout: () -> Unit = {}) {
             startDestination = "home",
             modifier = Modifier.padding(if (showBars) paddingValues else PaddingValues(0.dp))
         ) {
-            // ... Destinations Standards (Identiques) ...
-            composable("home") { HomeScreen() }
+            // --- Destinations Standards ---
+
+            // ⭐ Mise à jour de Home : on lui passe le controller et le mode
+            composable("home") {
+                HomeScreen(
+                    navController = navController,
+                    isDiscoveryMode = isDiscoveryMode
+                )
+            }
+
             composable("association") { AssociationScreen() }
             composable("ranking") { RankingScreen() }
             composable("settings") { SettingsScreen() }
-            composable("profile") { ProfileScreen(onLogout = onLogout) }
 
-            // --- Bibliothèque ---
+            // ⭐ Mise à jour de Profile : on lui passe l'état pour le switch
+            composable("profile") {
+                ProfileScreen(
+                    isDiscoveryMode = isDiscoveryMode,
+                    onModeChange = { isDiscoveryMode = it },
+                    onLogout = onLogout
+                )
+            }
+
+            // --- Bibliothèque et Cours ---
             composable("library") {
                 LibraryScreen(onCourseClick = { id -> navController.navigate("course/$id") })
             }
 
-            // --- Détail du Cours (UE) ---
             composable(
                 route = "course/{courseId}",
                 arguments = listOf(navArgument("courseId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
-
                 CourseDetailScreen(
                     courseId = courseId,
                     onChapterClick = { cId, chapId -> navController.navigate("chapter/$cId/$chapId") },
-                    // ✅ AJOUT : Action pour le Mega Quiz
                     onMegaQuizClick = {
-                        // On navigue vers l'écran quiz en passant "ALL_CHAPTERS" comme ID de chapitre
                         navController.navigate("quiz/$courseId/ALL_CHAPTERS")
                     },
                     onBackClick = { navController.popBackStack() }
@@ -107,7 +123,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // ... PDF Viewer (Identique) ...
+            // --- PDF Viewer ---
             composable(
                 route = "pdf/{courseId}/{chapterId}/{type}",
                 arguments = listOf(
@@ -129,7 +145,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Quiz Screen (Supporte Chapitre ET Mega Quiz) ---
+            // --- Quiz Screen (Supporte Chapitre, Mega Quiz et Daily Quiz) ---
             composable(
                 route = "quiz/{courseId}/{chapterId}",
                 arguments = listOf(

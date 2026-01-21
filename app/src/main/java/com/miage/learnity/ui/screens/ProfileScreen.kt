@@ -3,25 +3,12 @@ package com.miage.learnity.ui.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,8 +31,10 @@ private val MidSheet = Color(0xfff3f4f6)
 
 @Composable
 fun ProfileScreen(
+    isDiscoveryMode: Boolean, // ⭐ Nouveau paramètre
+    onModeChange: (Boolean) -> Unit, // ⭐ Nouveau callback
     onNotification: () -> Unit = {},
-    onLogout: () -> Unit = {} // Callback de déconnexion
+    onLogout: () -> Unit = {}
 ) {
     val scroll = rememberScrollState()
 
@@ -113,7 +102,7 @@ fun ProfileScreen(
                 .padding(top = 2.dp)
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(32.dp))
 
         Column(
             Modifier
@@ -121,10 +110,79 @@ fun ProfileScreen(
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
         ) {
+            // ⭐ AJOUT DE L'INTERRUPTEUR DE MODE
+            QuizModeToggleRow(
+                isDiscoveryMode = isDiscoveryMode,
+                onToggle = { onModeChange(!isDiscoveryMode) }
+            )
+
             MenuItemRow("Notification", R.drawable.btn_1, onNotification)
-            MenuItemRow("Logout", R.drawable.btn_6, onLogout) //Déconnexion
+            MenuItemRow("Logout", R.drawable.btn_6, onLogout)
             Spacer(Modifier.height(12.dp))
         }
+    }
+}
+
+/**
+ * ⭐ NOUVEAU COMPOSANT : Interrupteur sous forme de bouton
+ */
+@Composable
+private fun QuizModeToggleRow(
+    isDiscoveryMode: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = CircleShape,
+            tonalElevation = 6.dp,
+            color = if (isDiscoveryMode) Color(0xFF673AB7).copy(alpha = 0.1f) else IconBg,
+            modifier = Modifier.size(50.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    painter = painterResource(id = if (isDiscoveryMode) R.drawable.ic_settings_1 else R.drawable.ic_settings_1),
+                    contentDescription = null,
+                    tint = if (isDiscoveryMode) Color(0xFF673AB7) else SecondaryText,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Mode Quiz du jour",
+                fontSize = 18.sp,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Black
+                )
+            )
+            Text(
+                text = if (isDiscoveryMode) "Module : Découverte" else "Module : Révision",
+                fontSize = 13.sp,
+                color = SecondaryText
+            )
+        }
+
+        // L'interrupteur visuel (Switch)
+        Switch(
+            checked = isDiscoveryMode,
+            onCheckedChange = { onToggle() },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF673AB7),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = IconBg
+            )
+        )
     }
 }
 
@@ -173,10 +231,4 @@ private fun MenuItemRow(
             tint = SecondaryText
         )
     }
-}
-
-@Preview
-@Composable
-fun ProfileScreenPreview() {
-    ProfileScreen()
 }

@@ -49,12 +49,13 @@ fun QuizScreen(
     val hasSeenSummary by viewModel.hasSeenSummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    // ⭐ CORRECTION : Sélection de la méthode de chargement
+    // ⭐ MISE À JOUR : Sélection de la méthode de chargement (Daily Quiz inclus)
     LaunchedEffect(courseId, chapterId) {
-        if (chapterId == "ALL_CHAPTERS") {
-            viewModel.loadMegaQuiz(courseId)
-        } else {
-            viewModel.loadQuiz(courseId, chapterId)
+        when (chapterId) {
+            "DISCOVERY" -> viewModel.loadDailyQuiz(isDiscoveryMode = true)
+            "REVIEW" -> viewModel.loadDailyQuiz(isDiscoveryMode = false)
+            "ALL_CHAPTERS" -> viewModel.loadMegaQuiz(courseId)
+            else -> viewModel.loadQuiz(courseId, chapterId)
         }
     }
 
@@ -62,8 +63,12 @@ fun QuizScreen(
         topBar = {
             if (questions.isNotEmpty() && !isQuizFinished) {
                 QuizTopBar(
-                    // Dynamiser le titre selon le mode
-                    title = if (chapterId == "ALL_CHAPTERS") "Synthèse de l'UE" else "Quiz de chapitre",
+                    // ⭐ Dynamiser le titre pour les 3 types de quiz
+                    title = when (chapterId) {
+                        "DISCOVERY", "REVIEW" -> "Quiz du Jour"
+                        "ALL_CHAPTERS" -> "Synthèse de l'UE"
+                        else -> "Quiz de chapitre"
+                    },
                     currentQuestion = currentQuestionIndex + 1,
                     totalQuestions = questions.size,
                     onBackClick = onBackClick
@@ -75,12 +80,16 @@ fun QuizScreen(
             when {
                 isLoading -> LoadingState()
 
-                // ⭐ CORRECTION : Gestion de l'état vide
+                // ⭐ MISE À JOUR : Bouton "Réessayer" intelligent
                 questions.isEmpty() && !isLoading -> ErrorState(
                     msg = "Aucun quiz trouvé pour cette sélection.",
                     onRetry = {
-                        if (chapterId == "ALL_CHAPTERS") viewModel.loadMegaQuiz(courseId)
-                        else viewModel.loadQuiz(courseId, chapterId)
+                        when (chapterId) {
+                            "DISCOVERY" -> viewModel.loadDailyQuiz(isDiscoveryMode = true)
+                            "REVIEW" -> viewModel.loadDailyQuiz(isDiscoveryMode = false)
+                            "ALL_CHAPTERS" -> viewModel.loadMegaQuiz(courseId)
+                            else -> viewModel.loadQuiz(courseId, chapterId)
+                        }
                     }
                 )
 

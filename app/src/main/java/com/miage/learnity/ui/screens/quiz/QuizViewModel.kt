@@ -59,15 +59,13 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
             repository.getQuizForChapter(courseId, chapterId).onSuccess { loadedQuiz ->
                 _quiz.value = loadedQuiz
                 _questions.value = loadedQuiz.questions
-            }.onFailure {
-                // Gérer l'erreur ici (ex: logger)
-            }
+            }.onFailure { /* Gérer erreur */ }
             _isLoading.value = false
         }
     }
 
     /**
-     * NOUVEAU : Charge le Mega Quiz de l'UE (20 questions mixées)
+     * Charge le Mega Quiz de l'UE (20 questions mixées)
      */
     fun loadMegaQuiz(courseId: String) {
         resetQuizState()
@@ -76,9 +74,23 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
             repository.getMegaQuizForCourse(courseId).onSuccess { megaQuiz ->
                 _quiz.value = megaQuiz
                 _questions.value = megaQuiz.questions
-            }.onFailure {
-                // Gérer l'erreur
-            }
+            }.onFailure { /* Gérer erreur */ }
+            _isLoading.value = false
+        }
+    }
+
+    /**
+     * ⭐ NOUVEAU : Charge le Quiz du Jour (10 questions transversales)
+     * @param isDiscoveryMode true pour Module 1 (Tout), false pour Module 2 (Déjà vu)
+     */
+    fun loadDailyQuiz(isDiscoveryMode: Boolean) {
+        resetQuizState()
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.getDailyQuiz(isDiscoveryMode).onSuccess { dailyQuiz ->
+                _quiz.value = dailyQuiz
+                _questions.value = dailyQuiz.questions
+            }.onFailure { /* Gérer erreur */ }
             _isLoading.value = false
         }
     }
@@ -88,8 +100,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     // ============================================
 
     fun selectAnswer(selectedIndex: Int) {
-        // On ne peut répondre que si la réponse n'est pas encore révélée
-        // et qu'on n'est pas en train de consulter une ancienne question
         if (!_isCurrentAnswerRevealed.value && _currentQuestionIndex.value >= _maxIndexReached.value) {
             _userAnswers.value = _userAnswers.value + (_currentQuestionIndex.value to selectedIndex)
         }
@@ -106,7 +116,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     fun nextQuestion() {
         if (_currentQuestionIndex.value < _questions.value.size - 1) {
             _currentQuestionIndex.value++
-            // Si on a déjà passé cette question, on montre direct la réponse
             _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
         } else {
             finishQuiz()
@@ -116,7 +125,7 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     fun previousQuestion() {
         if (_currentQuestionIndex.value > 0) {
             _currentQuestionIndex.value--
-            _isCurrentAnswerRevealed.value = true // Toujours révélé en arrière
+            _isCurrentAnswerRevealed.value = true
         }
     }
 
@@ -140,7 +149,9 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
             _quiz.value?.let { currentQuiz ->
                 repository.saveQuizResult(
                     courseId = currentQuiz.courseId,
-                    chapterId = currentQuiz.chapterId, // Sera "ALL_CHAPTERS" pour un Mega Quiz
+                    // chapterId sera soit l'ID du chapitre, soit "ALL_CHAPTERS",
+                    // soit "DISCOVERY"/"REVIEW" pour le Daily Quiz
+                    chapterId = currentQuiz.chapterId,
                     score = finalScore,
                     total = questionsList.size
                 )
@@ -166,9 +177,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     // UTILS
     // ============================================
 
-    /**
-     * Réinitialise l'état interne pour un nouveau quiz
-     */
     private fun resetQuizState() {
         _currentQuestionIndex.value = 0
         _maxIndexReached.value = 0

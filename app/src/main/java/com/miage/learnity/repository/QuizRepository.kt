@@ -1,8 +1,6 @@
 package com.miage.learnity.repository
 
 import android.icu.text.SimpleDateFormat
-import android.os.Build
-import androidx.annotation.RequiresApi
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -26,9 +24,6 @@ class QuizRepository {
     // RÉCUPÉRATION DES QUIZ
     // ============================================
 
-    /**
-     * Récupère le quiz d'un chapitre (5 questions aléatoires parmi le JSON du chapitre)
-     */
     suspend fun getQuizForChapter(courseId: String, chapterId: String): Result<Quiz> =
         withContext(Dispatchers.IO) {
             try {
@@ -42,7 +37,7 @@ class QuizRepository {
                 if (!chapterDoc.exists()) return@withContext Result.failure(Exception("Chapitre non trouvé"))
 
                 val quizJson = chapterDoc.getString("quiz")
-                if (quizJson.isNullOrEmpty()) return@withContext Result.failure(Exception("Pas de quiz pour ce chapitre"))
+                if (quizJson.isNullOrEmpty()) return@withContext Result.failure(Exception("Pas de quiz"))
 
                 val allQuestions = parseQuestions(quizJson)
                 val selectedQuestions = allQuestions.shuffled().take(5)
@@ -61,13 +56,9 @@ class QuizRepository {
             }
         }
 
-    /**
-     * NOUVEAU : Récupère 20 questions aléatoires parmi TOUS les chapitres d'une UE
-     */
     suspend fun getMegaQuizForCourse(courseId: String): Result<Quiz> =
         withContext(Dispatchers.IO) {
             try {
-                // 1. Récupérer tous les documents de la sous-collection "chapters"
                 val chaptersSnapshot = firestore.collection("courses")
                     .document(courseId)
                     .collection("chapters")
@@ -75,33 +66,128 @@ class QuizRepository {
                     .await()
 
                 val allUEQuestions = mutableListOf<Question>()
-
-                // 2. Extraire et fusionner les questions de chaque chapitre
                 for (doc in chaptersSnapshot.documents) {
-                    val quizJson = doc.getString("quiz")
-                    if (!quizJson.isNullOrEmpty()) {
-                        allUEQuestions.addAll(parseQuestions(quizJson))
-                    }
+                    doc.getString("quiz")?.let { allUEQuestions.addAll(parseQuestions(it)) }
                 }
 
-                if (allUEQuestions.isEmpty()) return@withContext Result.failure(Exception("Aucune question trouvée dans l'UE"))
-
-                // 3. Shuffle et sélection de 20
-                val selectedQuestions = allUEQuestions.shuffled().take(20)
+                if (allUEQuestions.isEmpty()) return@withContext Result.failure(Exception("Aucune question trouvée"))
 
                 Result.success(
                     Quiz(
                         quizId = "MEGA_$courseId",
                         courseId = courseId,
-                        chapterId = "ALL_CHAPTERS", // ID spécial pour le mode synthèse
+                        chapterId = "ALL_CHAPTERS",
                         title = "Grand Quiz de Synthèse",
-                        questions = selectedQuestions
+                        questions = allUEQuestions.shuffled().take(20)
                     )
                 )
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+
+    // ============================================
+    // ⭐ QUIZ DU JOUR (DAILY QUIZ)
+    // ============================================
+
+    /**
+     * Module 1 & 2 : Récupère 10 questions transversales
+     * @param isDiscoveryMode Si true : toutes les UE. Si false : uniquement chapitres LUS (isContentRead).
+     */
+    suspend fun getDailyQuiz(isDiscoveryMode: Boolean): Result<Quiz> =
+        withContext(Dispatchers.IO) {
+            try {
+                val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+                val allQuestionsPool = mutableListOf<Question>()
+
+                // 1. On récupère la liste de TOUS les cours existants (Source : collection "courses")
+                val globalCoursesSnapshot = firestore.collection("courses").get().await()
+
+                for (courseDoc in globalCoursesSnapshot.documents) {
+                    val courseId = courseDoc.id
+
+                    // 2. On récupère tous les chapitres de cette UE
+                    val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
+
+                    for (chapterDoc in chaptersSnapshot.documents) {
+                        val chapterId = chapterDoc.id
+                        var shouldInclude = isDiscoveryMode // Si découverte, on prend tout
+
+                        if (!isDiscoveryMode) {
+                            // 3. MODE RÉVISION : On va chercher DIRECTEMENT le document de progression
+                            // On ne liste pas, on tape directement au bon chemin
+                            val progressDoc = firestore.collection("user_progress")
+                                .document(userId)
+                                .collection("courses")
+                                .document(courseId)
+                                .collection("chapters")
+                                .document(chapterId)
+                                .get()
+                                .await()
+
+                            // Si le document existe et que isContentRead est vrai
+                            if (progressDoc.exists() && progressDoc.getBoolean("isContentRead") == true) {
+                                shouldInclude = true
+                                println("LOG_QUIZ: Chapitre validé pour révision -> $chapterId")
+                            }
+                        }
+
+                        // 4. Extraction des questions
+                        if (shouldInclude) {
+                            val quizJson = chapterDoc.getString("quiz")
+                            if (!quizJson.isNullOrEmpty()) {
+                                allQuestionsPool.addAll(parseQuestions(quizJson))
+                            }
+                        }
+                    }
+                }
+
+                if (allQuestionsPool.isEmpty()) {
+                    val errorMsg = if (!isDiscoveryMode)
+                        "Aucun chapitre lu trouvé. Ouvre un cours pour débloquer le mode Révision !"
+                    else "Aucune question trouvée dans la base de données."
+                    return@withContext Result.failure(Exception(errorMsg))
+                }
+
+                Result.success(
+                    Quiz(
+                        "DAILY_QUIZ",
+                        "GLOBAL",
+                        if (isDiscoveryMode) "DISCOVERY" else "REVIEW",
+                        "Quiz du Jour",
+                        allQuestionsPool.shuffled().take(10)
+                    )
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("QUIZ_ERROR", "Erreur fatale: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getLastDailyQuizScore(): Result<Pair<Int, Int>?> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+            val snapshot = firestore.collection("quiz_results")
+                .document(userId)
+                .collection("history")
+                .whereEqualTo("date", today)
+                .whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) return@withContext Result.success(null)
+
+            val lastDoc = snapshot.documents.maxByOrNull { it.getLong("completedAt") ?: 0L }
+            val score = lastDoc?.getLong("score")?.toInt() ?: 0
+            val total = lastDoc?.getLong("total")?.toInt() ?: 10
+
+            Result.success(score to total)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     // ============================================
     // SAUVEGARDE DES RÉSULTATS
@@ -127,15 +213,10 @@ class QuizRepository {
                 "date" to today
             )
 
-            // 1. Enregistrement dans l'historique global
-            firestore.collection("quiz_results")
-                .document(userId)
-                .collection("history")
-                .add(resultData)
-                .await()
+            firestore.collection("quiz_results").document(userId).collection("history").add(resultData).await()
 
-            // 2. Mise à jour de la progression (UNIQUEMENT si ce n'est pas un Mega Quiz)
-            if (chapterId != "ALL_CHAPTERS") {
+            val specialModes = listOf("ALL_CHAPTERS", "DISCOVERY", "REVIEW")
+            if (!specialModes.contains(chapterId)) {
                 firestore.collection("user_progress")
                     .document(userId)
                     .collection("courses")
@@ -145,12 +226,7 @@ class QuizRepository {
                     .set(mapOf("isQuizCompleted" to true), SetOptions.merge())
                     .await()
 
-                // Notification pour la barre de progression UI
-                ProgressManager.notifyProgressChanged(
-                    courseId,
-                    chapterId,
-                    ProgressManager.ProgressType.QUIZ_COMPLETED
-                )
+                ProgressManager.notifyProgressChanged(courseId, chapterId, ProgressManager.ProgressType.QUIZ_COMPLETED)
             }
 
             Result.success(Unit)
@@ -158,10 +234,6 @@ class QuizRepository {
             Result.failure(e)
         }
     }
-
-    // ============================================
-    // HELPER
-    // ============================================
 
     private fun parseQuestions(json: String): List<Question> {
         return try {
