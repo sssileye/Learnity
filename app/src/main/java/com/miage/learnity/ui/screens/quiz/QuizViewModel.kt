@@ -49,9 +49,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     // CHARGEMENT DES DONNÉES
     // ============================================
 
-    /**
-     * Charge le quiz standard d'un chapitre (5 questions aléatoires)
-     */
     fun loadQuiz(courseId: String, chapterId: String) {
         resetQuizState()
         viewModelScope.launch {
@@ -59,14 +56,25 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
             repository.getQuizForChapter(courseId, chapterId).onSuccess { loadedQuiz ->
                 _quiz.value = loadedQuiz
                 _questions.value = loadedQuiz.questions
-            }.onFailure { /* Gérer erreur */ }
+            }
             _isLoading.value = false
         }
     }
 
     /**
-     * Charge le Mega Quiz de l'UE (20 questions mixées)
+     * ⭐ Charge les anciennes réponses pour le mode "Revoir"
      */
+    fun loadOldAnswers() {
+        viewModelScope.launch {
+            repository.getDailyQuizAnswers().onSuccess { oldAnswers ->
+                if (oldAnswers != null) {
+                    _userAnswers.value = oldAnswers
+                    calculateAndSetScore(oldAnswers)
+                }
+            }
+        }
+    }
+
     fun loadMegaQuiz(courseId: String) {
         resetQuizState()
         viewModelScope.launch {
@@ -74,15 +82,11 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
             repository.getMegaQuizForCourse(courseId).onSuccess { megaQuiz ->
                 _quiz.value = megaQuiz
                 _questions.value = megaQuiz.questions
-            }.onFailure { /* Gérer erreur */ }
+            }
             _isLoading.value = false
         }
     }
 
-    /**
-     * ⭐ NOUVEAU : Charge le Quiz du Jour (10 questions transversales)
-     * @param isDiscoveryMode true pour Module 1 (Tout), false pour Module 2 (Déjà vu)
-     */
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
         resetQuizState()
         viewModelScope.launch {
@@ -90,7 +94,7 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
             repository.getDailyQuiz(isDiscoveryMode).onSuccess { dailyQuiz ->
                 _quiz.value = dailyQuiz
                 _questions.value = dailyQuiz.questions
-            }.onFailure { /* Gérer erreur */ }
+            }
             _isLoading.value = false
         }
     }
@@ -133,30 +137,35 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     // RÉCAPITULATIF ET FIN
     // ============================================
 
-    private fun finishQuiz() {
-        val questionsList = _questions.value
-        val answers = _userAnswers.value
-        var finalScore = 0
+    fun finishQuiz() {
+        val currentQuiz = _quiz.value ?: return
 
-        questionsList.forEachIndexed { index, q ->
-            if (answers[index] == q.correctAnswerIndex) finalScore++
-        }
-
-        _score.value = finalScore
-        _isQuizFinished.value = true
+        // On calcule le score final avant de sauvegarder
+        calculateAndSetScore(_userAnswers.value)
 
         viewModelScope.launch {
-            _quiz.value?.let { currentQuiz ->
-                repository.saveQuizResult(
-                    courseId = currentQuiz.courseId,
-                    // chapterId sera soit l'ID du chapitre, soit "ALL_CHAPTERS",
-                    // soit "DISCOVERY"/"REVIEW" pour le Daily Quiz
-                    chapterId = currentQuiz.chapterId,
-                    score = finalScore,
-                    total = questionsList.size
-                )
+            repository.saveQuizResult(
+                courseId = currentQuiz.courseId,
+                chapterId = currentQuiz.chapterId,
+                score = _score.value,
+                total = _questions.value.size,
+                userAnswers = _userAnswers.value
+            )
+            _isQuizFinished.value = true
+        }
+    }
+
+    /**
+     * Helper pour calculer le score à partir d'une map de réponses
+     */
+    private fun calculateAndSetScore(answers: Map<Int, Int>) {
+        var finalScore = 0
+        _questions.value.forEachIndexed { index, question ->
+            if (answers[index] == question.correctAnswerIndex) {
+                finalScore++
             }
         }
+        _score.value = finalScore
     }
 
     fun markSummaryAsSeen() {
@@ -185,6 +194,8 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         _isQuizFinished.value = false
         _hasSeenSummary.value = false
         _score.value = 0
+        _quiz.value = null
+        _questions.value = emptyList()
     }
 
     fun resetQuiz() {

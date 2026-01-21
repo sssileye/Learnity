@@ -147,18 +147,26 @@ fun MainNav(onLogout: () -> Unit = {}) {
 
             // --- Quiz Screen (Supporte Chapitre, Mega Quiz et Daily Quiz) ---
             composable(
-                route = "quiz/{courseId}/{chapterId}",
+                route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
                     navArgument("courseId") { type = NavType.StringType },
-                    navArgument("chapterId") { type = NavType.StringType }
+                    navArgument("chapterId") { type = NavType.StringType },
+                    navArgument("isReviewMode") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    }
                 )
             ) { backStackEntry ->
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
                 val chapterId = backStackEntry.arguments?.getString("chapterId") ?: ""
 
+                // ⭐ UTILISER CETTE SYNTAXE pour les paramètres optionnels
+                val isReviewMode = backStackEntry.arguments?.getBoolean("isReviewMode") ?: false
+
                 QuizScreen(
                     courseId = courseId,
                     chapterId = chapterId,
+                    isReviewMode = isReviewMode,
                     onBackClick = { navController.popBackStack() }
                 )
             }

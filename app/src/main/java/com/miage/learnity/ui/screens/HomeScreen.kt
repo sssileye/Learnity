@@ -27,11 +27,10 @@ fun HomeScreen(
     navController: NavController,
     isDiscoveryMode: Boolean = false
 ) {
-    // ⭐ Initialisation du repository et de l'état du score
     val repository = remember { QuizRepository() }
     var dailyScore by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // ⭐ Charger le score au lancement de l'écran
+    // Charger le score au lancement de l'écran
     LaunchedEffect(Unit) {
         repository.getLastDailyQuizScore().onSuccess { score ->
             dailyScore = score
@@ -48,13 +47,13 @@ fun HomeScreen(
     ) {
         VirtualDebtCard()
 
-        // Carte mise à jour avec l'affichage du score
+        // Carte mise à jour avec navigation Revoir/Refaire et design dynamique
         DailyQuizCard(
             isDiscoveryMode = isDiscoveryMode,
             lastScore = dailyScore,
-            onLaunchQuiz = {
+            onAction = { isReview ->
                 val modeId = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
-                navController.navigate("quiz/GLOBAL/$modeId")
+                navController.navigate("quiz/GLOBAL/$modeId?isReviewMode=$isReview")
             }
         )
 
@@ -65,16 +64,37 @@ fun HomeScreen(
 @Composable
 fun DailyQuizCard(
     isDiscoveryMode: Boolean,
-    lastScore: Pair<Int, Int>?, // (Score actuel, Score Total)
-    onLaunchQuiz: () -> Unit
+    lastScore: Pair<Int, Int>?,
+    onAction: (isReview: Boolean) -> Unit
 ) {
     val hasDoneQuizToday = lastScore != null
+    val scoreValue = lastScore?.first ?: 0
+
+    // ⭐ LOGIQUE DE DÉCORATION DYNAMIQUE SELON LE SCORE
+    val (gradient, emoji, message) = when {
+        !hasDoneQuizToday -> Triple(
+            Brush.linearGradient(listOf(Color(0xFF42A5F5), Color(0xFF7E57C2))),
+            "🚀", "Prêt pour ton défi ?"
+        )
+        scoreValue >= 9 -> Triple(
+            Brush.linearGradient(listOf(Color(0xFFFFD700), Color(0xFFFFA000))),
+            "🏆", "Score de Légende !"
+        )
+        scoreValue >= 7 -> Triple(
+            Brush.linearGradient(listOf(Color(0xFF81C784), Color(0xFF2E7D32))),
+            "🥈", "Très bon niveau !"
+        )
+        scoreValue >= 5 -> Triple(
+            Brush.linearGradient(listOf(Color(0xFFFFB74D), Color(0xFFE65100))),
+            "🥉", "Pas mal, persévère !"
+        )
+        else -> Triple(
+            Brush.linearGradient(listOf(Color(0xFFE57373), Color(0xFFC62828))),
+            "📖", "Besoin de révisions..."
+        )
+    }
 
     Column {
-        val gradient = Brush.linearGradient(
-            colors = listOf(Color(0xFF42A5F5), Color(0xFF7E57C2))
-        )
-
         Card(
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -82,9 +102,8 @@ fun DailyQuizCard(
         ) {
             Box(modifier = Modifier.background(gradient).padding(20.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Titre centré et gras
                     Text(
-                        text = "Quiz du jour",
+                        text = "Quiz du jour $emoji",
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 30.sp,
@@ -93,10 +112,10 @@ fun DailyQuizCard(
                     )
 
                     if (hasDoneQuizToday) {
-                        // --- ÉTAT : QUIZ TERMINÉ (Affiche le Score) ---
+                        // --- ÉTAT : COMPLÉTÉ (Score figé + Revoir/Refaire) ---
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Complété ! 🎉",
+                            text = message,
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
@@ -108,14 +127,35 @@ fun DailyQuizCard(
                             fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center
                         )
-                        Text(
-                            text = "Reviens demain pour un nouveau défi",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Bouton REVOIR (👁️)
+                            Button(
+                                onClick = { onAction(true) },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+                            ) {
+                                Text("Revoir 👁️", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                            // Bouton REFAIRE (🔄)
+                            Button(
+                                onClick = { onAction(false) },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Refaire 🔄", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     } else {
-                        // --- ÉTAT : À FAIRE (Affiche le Bouton) ---
+                        // --- ÉTAT : À FAIRE ---
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = if (isDiscoveryMode) "Mode : Découverte (Toutes les UE)" else "Mode : Révision (UE étudiées)",
@@ -129,32 +169,29 @@ fun DailyQuizCard(
                         Spacer(modifier = Modifier.height(20.dp))
 
                         Button(
-                            onClick = onLaunchQuiz,
+                            onClick = { onAction(false) },
                             modifier = Modifier.fillMaxWidth().height(54.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF311B92).copy(alpha = 0.3f)
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .background(Color.White, shape = RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF5E35B1), shape = RoundedCornerShape(6.dp))
                                         .padding(4.dp)
                                 ) {
                                     Icon(
                                         painter = painterResource(id= R.drawable.ic_settings_1),
                                         contentDescription = null,
-                                        tint = Color(0xFF5E35B1),
+                                        tint = Color.White,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     text = "Lancer le Quiz",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.ExtraBold,
                                     fontSize = 16.sp
                                 )
                             }
@@ -173,8 +210,6 @@ fun DailyQuizCard(
         )
     }
 }
-
-// --- Les autres cartes restent inchangées ---
 
 @Composable
 fun VirtualDebtCard() {
