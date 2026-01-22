@@ -16,40 +16,32 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.data.Course
 import com.miage.learnity.data.CourseProgress
-import com.miage.learnity.ui.theme.LearnityTheme
+import com.miage.learnity.ui.screens.quiz.QuizViewModel
 
 /**
- * Écran de détail d'un cours : affiche les chapitres
- *
- * @param courseId ID du cours à afficher
- * @param viewModel ViewModel qui gère les données
- * @param onChapterClick Callback appelé quand l'utilisateur clique sur un chapitre
- * @param onBackClick Callback pour retourner à l'écran précédent
+ * Écran de détail d'un cours : affiche les chapitres et le bouton Mega Quiz (conditionnel)
  */
 @Composable
 fun CourseDetailScreen(
     courseId: String,
     viewModel: CourseDetailViewModel = viewModel(),
-    onChapterClick: (String, String) -> Unit,  // (courseId, chapterId)
+    quizViewModel: QuizViewModel = viewModel(),
+    onChapterClick: (String, String) -> Unit,
+    onMegaQuizClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
-    println("📍 CourseDetailScreen - courseId reçu : '$courseId'")
-
     val course by viewModel.course.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    // Charger les données au démarrage
     LaunchedEffect(courseId) {
-        println("📍 LaunchedEffect - Chargement du cours : '$courseId'")
         viewModel.loadCourse(courseId)
     }
 
@@ -67,20 +59,11 @@ fun CourseDetailScreen(
                 .padding(paddingValues)
         ) {
             when {
-                // État : Chargement
-                isLoading -> {
-                    LoadingState()
-                }
-
-                // État : Erreur
-                error != null -> {
-                    ErrorState(
-                        message = error ?: "Erreur inconnue",
-                        onRetry = { viewModel.refresh(courseId) }
-                    )
-                }
-
-                // État : Affichage du cours et chapitres
+                isLoading -> LoadingState()
+                error != null -> ErrorState(
+                    message = error ?: "Erreur inconnue",
+                    onRetry = { viewModel.refresh(courseId) }
+                )
                 course != null -> {
                     CourseContent(
                         course = course!!,
@@ -88,6 +71,10 @@ fun CourseDetailScreen(
                         progress = viewModel.getCourseProgress(),
                         onChapterClick = { chapterId ->
                             onChapterClick(courseId, chapterId)
+                        },
+                        onMegaQuizLaunch = {
+                            quizViewModel.loadMegaQuiz(courseId)
+                            onMegaQuizClick()
                         }
                     )
                 }
@@ -97,65 +84,102 @@ fun CourseDetailScreen(
 }
 
 /**
- * Barre supérieure de l'écran
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CourseDetailTopBar(
-    title: String,
-    onBackClick: () -> Unit
-) {
-    TopAppBar(
-        title = {
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Retour"
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    )
-}
-
-/**
- * Contenu principal : header + liste des chapitres
+ * Contenu principal : header + BOUTON MEGA QUIZ (Grisé si < 100%) + liste des chapitres
  */
 @Composable
 private fun CourseContent(
     course: Course,
     chapters: List<Chapter>,
     progress: CourseProgress,
-    onChapterClick: (String) -> Unit
+    onChapterClick: (String) -> Unit,
+    onMegaQuizLaunch: () -> Unit
 ) {
+    // ⭐ Déterminer si le cours est totalement complété
+    val isUEComplete = progress.percentage >= 1.0f
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // En-tête du cours avec progression
         item {
-            CourseHeader(
-                course = course,
-                progress = progress
+            CourseHeader(course = course, progress = progress)
+        }
+
+        // --- SECTION BOUTON MEGA QUIZ CONDITIONNEL ---
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    // ⭐ Grisé (Grey) si incomplet, Violet signature si 100%
+                    containerColor = if (isUEComplete) Color(0xFF673AB7) else Color(0xFFBDBDBD)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isUEComplete) 4.dp else 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        // ⭐ Clic désactivé si pas 100%
+                        .clickable(enabled = isUEComplete) { onMegaQuizLaunch() }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = if (isUEComplete) 0.2f else 0.1f)
+                    ) {
+                        Icon(
+                            // ⭐ Icône Cadenas si verrouillé
+                            imageVector = if (isUEComplete) Icons.Default.AutoAwesome else Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Examen Blanc d'UE",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (isUEComplete)
+                                "20 questions aléatoires sur toute l'UE"
+                            else
+                                "Complétez l'UE à 100% pour débloquer",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+
+                    if (isUEComplete) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "Chapitres (${chapters.size})",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp)
             )
         }
 
-        // Séparateur
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // Liste des chapitres
         items(chapters) { chapter ->
             ChapterCard(
                 chapter = chapter,
@@ -163,10 +187,7 @@ private fun CourseContent(
             )
         }
 
-        // Espace pour bottom bar
-        item {
-            Spacer(modifier = Modifier.height(80.dp))
-        }
+        item { Spacer(modifier = Modifier.height(80.dp)) }
     }
 }
 
@@ -174,19 +195,13 @@ private fun CourseContent(
  * En-tête du cours avec titre et barre de progression
  */
 @Composable
-private fun CourseHeader(
-    course: Course,
-    progress: CourseProgress
-) {
+private fun CourseHeader(course: Course, progress: CourseProgress) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.primaryContainer
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            // Titre du cours
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = course.title,
                 fontSize = 24.sp,
@@ -194,7 +209,6 @@ private fun CourseHeader(
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
-            // Description
             if (course.description.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -206,45 +220,23 @@ private fun CourseHeader(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Barre de progression
             Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Progression du contenu",  // ✅ Préciser
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                    Text(
-                        text = "${progress.completedChapters}/${progress.totalChapters} chapitres",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = "Progression globale", fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                    Text(text = "${progress.completedChapters}/${progress.totalChapters} chapitres", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
-
-                // ✅ Barre de progression
                 LinearProgressIndicator(
                     progress = { progress.percentage },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
+                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
                 )
-
-                // ✅ Pourcentage en texte
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${(progress.percentage * 100).toInt()}% complété",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp)
                 )
             }
         }
@@ -255,294 +247,65 @@ private fun CourseHeader(
  * Card représentant un chapitre
  */
 @Composable
-private fun ChapterCard(
-    chapter: Chapter,
-    onClick: () -> Unit
-) {
+private fun ChapterCard(chapter: Chapter, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (chapter.isCompleted) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
+            containerColor = if (chapter.isCompleted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icône du chapitre
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Icon(
-                        imageVector = getChapterIcon(chapter),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(imageVector = getChapterIcon(chapter), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                 }
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
-            // Contenu du chapitre
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                // Numéro du chapitre
-                Text(
-                    text = "Chapitre ${chapter.order + 1}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                // Titre du chapitre
-                Text(
-                    text = chapter.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Informations du chapitre
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Chapitre ${chapter.order + 1}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(text = chapter.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ChapterInfo(chapter = chapter)
-
-                // État du quiz si complété
                 if (chapter.isQuizCompleted) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "✅ Quiz complété",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "✅ Quiz complété", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Indicateur de statut
             Icon(
-                imageVector = when {
-                    chapter.isCompleted -> Icons.Default.CheckCircle
-                    // ✅ CORRECTION : Vérifier au moins un contenu lu
-                    chapter.isCoursRead || chapter.isFdrRead || chapter.isVideoWatched -> Icons.Default.Edit
-                    else -> Icons.Default.ChevronRight
-                },
+                imageVector = if (chapter.isCompleted) Icons.Default.CheckCircle else if (chapter.isCoursRead || chapter.isFdrRead || chapter.isVideoWatched) Icons.Default.Edit else Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = when {
-                    chapter.isCompleted -> MaterialTheme.colorScheme.primary
-                    chapter.isCoursRead || chapter.isFdrRead || chapter.isVideoWatched -> MaterialTheme.colorScheme.secondary
-                    else -> MaterialTheme.colorScheme.outline
-                }
+                tint = if (chapter.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
             )
         }
     }
 }
 
-/**
- * Informations détaillées du chapitre (contenu disponible)
- */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CourseDetailTopBar(title: String, onBackClick: () -> Unit) {
+    TopAppBar(title = { Text(text = title, fontWeight = FontWeight.Bold, maxLines = 1) }, navigationIcon = { IconButton(onClick = onBackClick) { Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour") } })
+}
+
 @Composable
 private fun ChapterInfo(chapter: Chapter) {
     val contentParts = mutableListOf<String>()
-
-    // ✅ Afficher les types de contenu disponibles
-    if (chapter.hasCours) {
-        contentParts.add("📄 Cours")
-    }
-    if (chapter.hasFdr) {
-        contentParts.add("📋 FDR")
-    }
-    if (chapter.hasVideo) {
-        contentParts.add("🎥 Vidéo")
-    }
-
-    if (contentParts.isNotEmpty()) {
-        Text(
-            text = contentParts.joinToString(" • "),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    if (chapter.hasCours) contentParts.add("📄 Cours")
+    if (chapter.hasFdr) contentParts.add("📋 FDR")
+    if (chapter.hasVideo) contentParts.add("🎥 Vidéo")
+    if (contentParts.isNotEmpty()) Text(text = contentParts.joinToString(" • "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-/**
- * Retourne une icône appropriée selon le contenu du chapitre
- */
-private fun getChapterIcon(chapter: Chapter): ImageVector {
-    return when {
-        chapter.title.contains("Introduction", ignoreCase = true) -> Icons.Default.School
-        chapter.title.contains("TP", ignoreCase = true) -> Icons.Default.Code
-        chapter.hasVideo && !chapter.hasCours -> Icons.Default.PlayCircle
-        else -> Icons.Default.MenuBook
-    }
-}
+private fun getChapterIcon(chapter: Chapter): ImageVector = if (chapter.title.contains("Introduction", ignoreCase = true)) Icons.Default.School else if (chapter.title.contains("TP", ignoreCase = true)) Icons.Default.Code else Icons.Default.MenuBook
 
-/**
- * État de chargement
- */
 @Composable
-private fun LoadingState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Chargement du cours...",
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-    }
-}
+private fun LoadingState() = Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
-/**
- * État d'erreur
- */
 @Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Text(text = "❌", style = MaterialTheme.typography.displayLarge)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Erreur",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onRetry) {
-                Text("Réessayer")
-            }
-        }
-    }
-}
-
-// ============================================
-// PREVIEWS
-// ============================================
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun CourseDetailScreenPreview() {
-    LearnityTheme {
-        // Preview avec données factices
-        CourseDetailScreen(
-            courseId = "test_course",
-            onChapterClick = { _, _ -> },
-            onBackClick = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CourseHeaderPreview() {
-    LearnityTheme {
-        CourseHeader(
-            course = Course(
-                id = "test",
-                title = "Extraction de Connaissances",
-                description = "Cours sur l'extraction de connaissances à partir de données"
-            ),
-            progress = CourseProgress(completedChapters = 2, totalChapters = 5)
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ChapterCardPreview() {
-    LearnityTheme {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Chapitre non commencé
-            ChapterCard(
-                chapter = Chapter(
-                    chapterId = "ch1",
-                    title = "Introduction",
-                    order = 0,
-                    coursUrl = "https://example.com/cours.pdf",
-                    fdrUrl = "https://example.com/fdr.pdf",
-                    videoUrl = "https://youtube.com/watch?v=test",
-                    isCoursRead = false,
-                    isFdrRead = false,
-                    isVideoWatched = false,
-                    isQuizCompleted = false
-                ),
-                onClick = {}
-            )
-
-            // Chapitre en cours (cours lu)
-            ChapterCard(
-                chapter = Chapter(
-                    chapterId = "ch2",
-                    title = "Les bases du machine learning",
-                    order = 1,
-                    coursUrl = "https://example.com/cours.pdf",
-                    videoUrl = "https://youtube.com/watch?v=test",
-                    isCoursRead = true,
-                    isFdrRead = false,
-                    isVideoWatched = false,
-                    isQuizCompleted = false
-                ),
-                onClick = {}
-            )
-
-            // Chapitre complété
-            ChapterCard(
-                chapter = Chapter(
-                    chapterId = "ch3",
-                    title = "TP - Extraction de features",
-                    order = 2,
-                    coursUrl = "https://example.com/cours.pdf",
-                    fdrUrl = "https://example.com/fdr.pdf",
-                    videoUrl = "https://youtube.com/watch?v=test",
-                    isCoursRead = true,
-                    isFdrRead = true,
-                    isVideoWatched = true,
-                    isQuizCompleted = true
-                ),
-                onClick = {}
-            )
-        }
+private fun ErrorState(message: String, onRetry: () -> Unit) = Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+        Text(text = "❌", fontSize = 48.sp)
+        Text(text = message, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) { Text("Réessayer") }
     }
 }
