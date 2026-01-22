@@ -1,4 +1,3 @@
-// ProfileViewModel.kt
 package com.miage.learnity.ui.screens
 
 import androidx.lifecycle.ViewModel
@@ -18,10 +17,6 @@ data class ProfileUiState(
     val isEditMode: Boolean = false
 )
 
-/**
- * ViewModel spécifique pour l'écran de profil
- * (Réutilise UserRepository)
- */
 class ProfileViewModel(
     private val repository: UserRepository = UserRepository(),
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -31,17 +26,17 @@ class ProfileViewModel(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        // ✅ Option 1 : Chargement unique
         loadProfile()
-
-        // ✅ Option 2 : Observation temps réel (décommenter si souhaité)
-        // observeProfile()
     }
 
+    // ============================================
+    // CHARGEMENT DU PROFIL
+    // ============================================
+
     /**
-     * Chargement unique
+     * ✅ Méthode PUBLIQUE pour charger/rafraîchir le profil
      */
-    private fun loadProfile() {
+    fun loadProfile() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
@@ -51,29 +46,49 @@ class ProfileViewModel(
                         profile = profile,
                         isLoading = false
                     )
+                    println("✅ ProfileViewModel - Profil chargé : ${profile?.email}")
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = exception.message
+                        error = exception.message ?: "Erreur de chargement"
                     )
+                    println("❌ ProfileViewModel - Erreur : ${exception.message}")
                 }
         }
     }
 
     /**
-     * Observation temps réel (optionnel)
+     * ✅ Alias pour rafraîchir (optionnel mais plus explicite)
      */
-    private fun observeProfile() {
+    fun refresh() {
+        loadProfile()
+    }
+
+    // ============================================
+    // OBSERVATION TEMPS RÉEL (Optionnel)
+    // ============================================
+
+    /**
+     * 🔥 Active l'observation temps réel du profil
+     * À appeler si vous voulez que les changements Firebase
+     * soient automatiquement reflétés dans l'UI
+     */
+    fun observeProfile() {
         viewModelScope.launch {
             repository.observeUserProfile().collect { profile ->
                 _uiState.value = _uiState.value.copy(
                     profile = profile,
                     isLoading = false
                 )
+                println("🔥 ProfileViewModel - Profil mis à jour en temps réel")
             }
         }
     }
+
+    // ============================================
+    // ÉDITION DU PROFIL
+    // ============================================
 
     fun enableEditMode() {
         _uiState.value = _uiState.value.copy(isEditMode = true)
@@ -81,7 +96,7 @@ class ProfileViewModel(
 
     fun cancelEdit() {
         _uiState.value = _uiState.value.copy(isEditMode = false)
-        loadProfile()
+        loadProfile() // Recharger pour annuler les modifications
     }
 
     fun saveProfile(firstName: String, lastName: String) {
@@ -102,15 +117,44 @@ class ProfileViewModel(
                         isLoading = false,
                         isEditMode = false
                     )
+                    println("✅ ProfileViewModel - Profil sauvegardé")
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         error = exception.message
                     )
+                    println("❌ ProfileViewModel - Erreur sauvegarde : ${exception.message}")
                 }
         }
     }
+
+    // ============================================
+    // MISE À JOUR REDEVANCE
+    // ============================================
+
+    fun updateRedevance(newValue: Double) {
+        viewModelScope.launch {
+            val currentProfile = _uiState.value.profile ?: return@launch
+
+            val updatedProfile = currentProfile.copy(
+                redevanceSoutienUnitaire = newValue
+            )
+
+            repository.saveUserProfile(updatedProfile)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(profile = updatedProfile)
+                    println("✅ ProfileViewModel - Redevance mise à jour : $newValue€")
+                }
+                .onFailure { exception ->
+                    println("❌ ProfileViewModel - Erreur : ${exception.message}")
+                }
+        }
+    }
+
+    // ============================================
+    // DÉCONNEXION
+    // ============================================
 
     fun signOut() {
         auth.signOut()
