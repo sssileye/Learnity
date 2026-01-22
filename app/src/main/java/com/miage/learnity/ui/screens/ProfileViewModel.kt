@@ -2,7 +2,6 @@ package com.miage.learnity.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
 import com.miage.learnity.data.UserProfile
 import com.miage.learnity.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,152 +11,82 @@ import kotlinx.coroutines.launch
 
 data class ProfileUiState(
     val profile: UserProfile? = null,
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val error: String? = null,
-    val isEditMode: Boolean = false
+    val isEditing: Boolean = false
 )
 
 class ProfileViewModel(
-    private val repository: UserRepository = UserRepository(),
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        loadProfile()
+        loadUserProfile()
     }
 
-    // ============================================
-    // CHARGEMENT DU PROFIL
-    // ============================================
-
-    /**
-     * ✅ Méthode PUBLIQUE pour charger/rafraîchir le profil
-     */
-    fun loadProfile() {
+    fun loadUserProfile() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            repository.getUserProfile()
+            userRepository.getUserProfile()
                 .onSuccess { profile ->
                     _uiState.value = _uiState.value.copy(
                         profile = profile,
                         isLoading = false
                     )
-                    println("✅ ProfileViewModel - Profil chargé : ${profile?.email}")
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = exception.message ?: "Erreur de chargement"
+                        error = exception.message ?: "Erreur de chargement",
+                        isLoading = false
                     )
-                    println("❌ ProfileViewModel - Erreur : ${exception.message}")
                 }
         }
     }
 
-    /**
-     * ✅ Alias pour rafraîchir (optionnel mais plus explicite)
-     */
-    fun refresh() {
-        loadProfile()
-    }
+    fun updateProfile(
+        firstName: String? = null,
+        lastName: String? = null,
+        photoUrl: String? = null,
+        redevance: Double? = null,
+        selectedAssociationId: String? = null
+    ) {
+        val currentProfile = _uiState.value.profile ?: return
 
-    // ============================================
-    // OBSERVATION TEMPS RÉEL (Optionnel)
-    // ============================================
-
-    /**
-     * 🔥 Active l'observation temps réel du profil
-     * À appeler si vous voulez que les changements Firebase
-     * soient automatiquement reflétés dans l'UI
-     */
-    fun observeProfile() {
         viewModelScope.launch {
-            repository.observeUserProfile().collect { profile ->
-                _uiState.value = _uiState.value.copy(
-                    profile = profile,
-                    isLoading = false
-                )
-                println("🔥 ProfileViewModel - Profil mis à jour en temps réel")
-            }
-        }
-    }
-
-    // ============================================
-    // ÉDITION DU PROFIL
-    // ============================================
-
-    fun enableEditMode() {
-        _uiState.value = _uiState.value.copy(isEditMode = true)
-    }
-
-    fun cancelEdit() {
-        _uiState.value = _uiState.value.copy(isEditMode = false)
-        loadProfile() // Recharger pour annuler les modifications
-    }
-
-    fun saveProfile(firstName: String, lastName: String) {
-        viewModelScope.launch {
-            val currentProfile = _uiState.value.profile ?: return@launch
-
-            _uiState.value = _uiState.value.copy(isLoading = true)
-
             val updatedProfile = currentProfile.copy(
-                firstName = firstName.trim(),
-                lastName = lastName.trim()
+                firstName = firstName ?: currentProfile.firstName,
+                lastName = lastName ?: currentProfile.lastName,
+                photoUrl = photoUrl ?: currentProfile.photoUrl,
+                redevanceSoutienUnitaire = redevance ?: currentProfile.redevanceSoutienUnitaire,
+                selectedAssociationId = selectedAssociationId ?: currentProfile.selectedAssociationId
             )
 
-            repository.saveUserProfile(updatedProfile)
+            userRepository.saveUserProfile(updatedProfile)
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(
                         profile = updatedProfile,
-                        isLoading = false,
-                        isEditMode = false
+                        isEditing = false
                     )
-                    println("✅ ProfileViewModel - Profil sauvegardé")
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = exception.message
+                        error = exception.message ?: "Erreur de sauvegarde"
                     )
-                    println("❌ ProfileViewModel - Erreur sauvegarde : ${exception.message}")
                 }
         }
     }
 
-    // ============================================
-    // MISE À JOUR REDEVANCE
-    // ============================================
-
-    fun updateRedevance(newValue: Double) {
-        viewModelScope.launch {
-            val currentProfile = _uiState.value.profile ?: return@launch
-
-            val updatedProfile = currentProfile.copy(
-                redevanceSoutienUnitaire = newValue
-            )
-
-            repository.saveUserProfile(updatedProfile)
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(profile = updatedProfile)
-                    println("✅ ProfileViewModel - Redevance mise à jour : $newValue€")
-                }
-                .onFailure { exception ->
-                    println("❌ ProfileViewModel - Erreur : ${exception.message}")
-                }
-        }
+    fun toggleEditMode() {
+        _uiState.value = _uiState.value.copy(
+            isEditing = !_uiState.value.isEditing
+        )
     }
 
-    // ============================================
-    // DÉCONNEXION
-    // ============================================
-
-    fun signOut() {
-        auth.signOut()
-        _uiState.value = ProfileUiState()
+    fun refresh() {
+        loadUserProfile()
     }
 }

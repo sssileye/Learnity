@@ -2,7 +2,6 @@ package com.miage.learnity.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,7 +38,10 @@ fun Inscription(
 ) {
     val context = LocalContext.current
 
-    // États du formulaire
+    // ============================================
+    // ÉTATS DU FORMULAIRE
+    // ============================================
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -53,7 +55,7 @@ fun Inscription(
     var confirmPasswordError by remember { mutableStateOf("") }
 
     // ============================================
-    // VALIDATION EMAIL
+    // FONCTIONS DE VALIDATION
     // ============================================
 
     fun validateEmail(email: String): Boolean {
@@ -66,10 +68,6 @@ fun Inscription(
             true
         }
     }
-
-    // ============================================
-    // VALIDATION MOT DE PASSE
-    // ============================================
 
     fun validatePassword(password: String): Boolean {
         return when {
@@ -92,10 +90,6 @@ fun Inscription(
         }
     }
 
-    // ============================================
-    // VALIDATION CONFIRMATION MOT DE PASSE
-    // ============================================
-
     fun validateConfirmPassword(password: String, confirmPassword: String): Boolean {
         return if (password != confirmPassword) {
             confirmPasswordError = "Les mots de passe ne correspondent pas"
@@ -115,10 +109,6 @@ fun Inscription(
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
         }
     }
-
-    // ============================================
-    // BOUTON ACTIF SI FORMULAIRE VALIDE
-    // ============================================
 
     val isButtonEnabled = email.isNotBlank() &&
             password.isNotBlank() &&
@@ -160,10 +150,7 @@ fun Inscription(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // ============================================
-            // LOGO
-            // ============================================
-
+            // Logo
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo Learnity",
@@ -172,10 +159,7 @@ fun Inscription(
 
             Spacer(Modifier.height(16.dp))
 
-            // ============================================
-            // TITRE
-            // ============================================
-
+            // Titre
             Text(
                 text = "Rejoignez-nous !",
                 fontSize = 28.sp,
@@ -361,7 +345,7 @@ fun Inscription(
 
             Button(
                 onClick = {
-                    // Valider tous les champs
+                    // Validation complète
                     val isEmailValid = validateEmail(email)
                     val isPasswordValid = validatePassword(password)
                     val isConfirmValid = validateConfirmPassword(password, confirmPassword)

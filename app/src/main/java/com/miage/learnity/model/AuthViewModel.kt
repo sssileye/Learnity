@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.miage.learnity.data.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -54,56 +55,41 @@ class AuthViewModel : ViewModel() {
     // INSCRIPTION + CRÉATION PROFIL
     // ============================================
 
-    fun signUp(email: String, password: String) {
+    fun signUp(email: String, password: String){
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // ✅ Créer le profil dans Firestore
+                    // ✅ Créer le profil utilisateur
                     val user = auth.currentUser
                     if (user != null) {
                         createUserProfile(user.uid, email)
-                    } else {
-                        ok()
                     }
+                    ok()
                 } else {
                     fail(task.exception)
                 }
             }
     }
 
-    /**
-     * ✅ Crée le profil utilisateur initial dans Firestore
-     */
     private fun createUserProfile(uid: String, email: String) {
-        val initialProfile = UserProfile(
+        val userRepository = com.miage.learnity.repository.UserRepository()
+        val newProfile = com.miage.learnity.data.UserProfile(
             uid = uid,
             email = email,
             firstName = "",
             lastName = "",
-            photoUrl = null,
             createdAt = System.currentTimeMillis(),
             redevanceSoutienUnitaire = 1.0,
             detteCumulee = 0.0,
             unityPoints = 0,
             currentStreak = 0,
-            bestStreak = 0,
-            lastDailyQuizDate = null,
-            selectedAssociationId = null
+            bestStreak = 0
         )
 
-        firestore.collection("users")
-            .document(uid)
-            .set(initialProfile)
-            .addOnSuccessListener {
-                println("✅ AuthViewModel - Profil créé dans Firestore pour : $email")
-                ok()
-            }
-            .addOnFailureListener { exception ->
-                println("❌ AuthViewModel - Erreur création profil : ${exception.message}")
-                // On continue quand même l'authentification
-                ok()
-            }
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            userRepository.saveUserProfile(newProfile)
+        }
     }
 
     // ============================================
