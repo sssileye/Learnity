@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -27,7 +26,6 @@ import com.miage.learnity.ui.screens.quiz.QuizScreen
 @Composable
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
-
     var isDiscoveryMode by remember { mutableStateOf(false) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -42,7 +40,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
             if (showBars) {
                 TopNavigationBar(
                     onProfileClick = { navController.navigate("profile") },
-                    onLogoClick = {  // ✅ NOUVEAU
+                    onLogoClick = {
                         navController.navigate("home") {
                             popUpTo("home") { inclusive = true }
                             launchSingleTop = true
@@ -100,12 +98,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-<<<<<<< HEAD
-=======
-
-
             // --- Contenu du Chapitre ---
->>>>>>> page-profil
             composable(
                 route = "chapter/{courseId}/{chapterId}",
                 arguments = listOf(
