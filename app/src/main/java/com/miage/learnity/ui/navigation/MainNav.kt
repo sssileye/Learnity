@@ -28,8 +28,6 @@ import com.miage.learnity.ui.screens.quiz.QuizScreen
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
 
-    // ⭐ État partagé pour le mode du quiz (Découverte ou Révision)
-    // Idéalement à terme, ceci sera chargé depuis un ViewModel/DataStore
     var isDiscoveryMode by remember { mutableStateOf(false) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -43,7 +41,13 @@ fun MainNav(onLogout: () -> Unit = {}) {
         topBar = {
             if (showBars) {
                 TopNavigationBar(
-                    onProfileClick = { navController.navigate("profile") }
+                    onProfileClick = { navController.navigate("profile") },
+                    onLogoClick = {  // ✅ NOUVEAU
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
         },
@@ -58,9 +62,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
             startDestination = "home",
             modifier = Modifier.padding(if (showBars) paddingValues else PaddingValues(0.dp))
         ) {
-            // --- Destinations Standards ---
-
-            // ⭐ Mise à jour de Home : on lui passe le controller et le mode
             composable("home") {
                 HomeScreen(
                     navController = navController,
@@ -72,7 +73,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
             composable("ranking") { RankingScreen() }
             composable("settings") { SettingsScreen() }
 
-            // ⭐ Mise à jour de Profile : on lui passe l'état pour le switch
             composable("profile") {
                 ProfileScreen(
                     isDiscoveryMode = isDiscoveryMode,
@@ -81,7 +81,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Bibliothèque et Cours ---
             composable("library") {
                 LibraryScreen(onCourseClick = { id -> navController.navigate("course/$id") })
             }
@@ -101,7 +100,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Contenu du Chapitre ---
             composable(
                 route = "chapter/{courseId}/{chapterId}",
                 arguments = listOf(
@@ -123,7 +121,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- PDF Viewer ---
             composable(
                 route = "pdf/{courseId}/{chapterId}/{type}",
                 arguments = listOf(
@@ -145,7 +142,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Quiz Screen (Supporte Chapitre, Mega Quiz et Daily Quiz) ---
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
@@ -159,8 +155,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
             ) { backStackEntry ->
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
                 val chapterId = backStackEntry.arguments?.getString("chapterId") ?: ""
-
-                // ⭐ UTILISER CETTE SYNTAXE pour les paramètres optionnels
                 val isReviewMode = backStackEntry.arguments?.getBoolean("isReviewMode") ?: false
 
                 QuizScreen(

@@ -2,6 +2,7 @@ package com.miage.learnity.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -22,7 +23,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 
 @Composable
 fun TopNavigationBar(
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onLogoClick: () -> Unit = {}  // ✅ NOUVEAU callback
 ) {
     Surface(
         shadowElevation = 4.dp,
@@ -33,13 +35,16 @@ fun TopNavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .statusBarsPadding() ,
+                .statusBarsPadding(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Logo Learnity
+            // ✅ Logo Learnity CLIQUABLE
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clickable(onClick = onLogoClick)  // ✅ Rendre cliquable
+                    .padding(8.dp)  // ✅ Zone de clic plus grande
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
@@ -86,6 +91,7 @@ fun TopNavigationBar(
 @Composable
 fun TopNavigationBarPreview() {
     TopNavigationBar(
-        onProfileClick = { }
+        onProfileClick = { },
+        onLogoClick = { }
     )
 }
