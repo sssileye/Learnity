@@ -47,12 +47,21 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
         composable(Screen.Inscription.route) {
             Inscription(
                 onBackClick = { nav.popBackStack() },
-                onInscriptionSuccess = { email, password -> vm.signUp(email, password) },
+                onInscriptionSuccess = { email, password, firstName, lastName ->  // ✅ AJOUT
+                    vm.signUp(email, password, firstName, lastName)
+                },
                 isLoading = state.isLoading,
                 error = state.error
             )
+
+            // Navigation automatique vers HomePage après inscription réussie
             LaunchedEffect(state.user) {
-                if (state.user != null) goToHomepage(nav)
+                if (state.user != null) {
+                    nav.navigate(Screen.Homepage.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             }
         }
 

@@ -8,27 +8,38 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
+import com.miage.learnity.data.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 data class AuthUiState(
     val isLoading: Boolean = false,
     val user: FirebaseUser? = FirebaseAuth.getInstance().currentUser,
     val error: String? = null,
-    val resetPasswordSuccess: Boolean = false  // ✅ NOUVEAU
-){
+    val resetPasswordSuccess: Boolean = false
+) {
     val isAuthenticated: Boolean
         get() = user != null
 }
 
-class AuthViewModel: ViewModel(){
+class AuthViewModel : ViewModel() {
+
     private val auth = FirebaseAuth.getInstance().apply {
         firebaseAuthSettings.setAppVerificationDisabledForTesting(true)
     }
+
+    private val firestore = FirebaseFirestore.getInstance()
+
     private val _state = MutableStateFlow(AuthUiState())
     val state: StateFlow<AuthUiState> = _state
 
-    fun signIn(email: String, password: String){
+    // ============================================
+    // CONNEXION
+    // ============================================
+
+    fun signIn(email: String, password: String) {
         setLoading()
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
@@ -40,15 +51,20 @@ class AuthViewModel: ViewModel(){
             }
     }
 
-    fun clearError() {
-        _state.value = _state.value.copy(error = null)
-    }
+    // ============================================
+    // INSCRIPTION + CRÉATION PROFIL
+    // ============================================
 
-    fun signUp(email: String, password: String){
+    fun signUp(email: String, password: String, firstName: String, lastName: String) {
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
+                    // ✅ Créer le profil utilisateur avec nom et prénom
+                    val user = auth.currentUser
+                    if (user != null) {
+                        createUserProfile(user.uid, email, firstName, lastName)
+                    }
                     ok()
                 } else {
                     fail(task.exception)
@@ -56,7 +72,35 @@ class AuthViewModel: ViewModel(){
             }
     }
 
-    // ✅ NOUVEAU - Réinitialisation du mot de passe
+    private fun createUserProfile(
+        uid: String,
+        email: String,
+        firstName: String,
+        lastName: String
+    ) {
+        val userRepository = com.miage.learnity.repository.UserRepository()
+        val newProfile = com.miage.learnity.data.UserProfile(
+            uid = uid,
+            email = email,
+            firstName = firstName,      // ✅ NOUVEAU
+            lastName = lastName,         // ✅ NOUVEAU
+            createdAt = System.currentTimeMillis(),
+            redevanceSoutienUnitaire = 1.0,
+            detteCumulee = 0.0,
+            unityPoints = 0,
+            currentStreak = 0,
+            bestStreak = 0
+        )
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            userRepository.saveUserProfile(newProfile)
+        }
+    }
+
+    // ============================================
+    // RÉINITIALISATION MOT DE PASSE
+    // ============================================
+
     fun resetPassword(email: String) {
         setLoading()
         auth.sendPasswordResetEmail(email)
@@ -74,56 +118,88 @@ class AuthViewModel: ViewModel(){
             }
     }
 
-    // ✅ NOUVEAU - Reset du flag de succès
     fun clearResetPasswordSuccess() {
         _state.value = _state.value.copy(resetPasswordSuccess = false)
     }
 
-    fun signOut(){
+    // ============================================
+    // DÉCONNEXION
+    // ============================================
+
+    fun signOut() {
         auth.signOut()
         _state.value = _state.value.copy(user = null)
     }
 
-    private fun setLoading(){
+    // ============================================
+    // GESTION ERREURS
+    // ============================================
+
+    fun clearError() {
+        _state.value = _state.value.copy(error = null)
+    }
+
+    private fun setLoading() {
         _state.value = _state.value.copy(isLoading = true, error = null)
     }
 
-    private fun ok(){
-        _state.value = _state.value.copy(isLoading = false, user=auth.currentUser, error = null)
+    private fun ok() {
+        _state.value = _state.value.copy(
+            isLoading = false,
+            user = auth.currentUser,
+            error = null
+        )
     }
 
-    private fun fail(ex: Exception?){
-        _state.value = _state.value.copy(isLoading = false, error = mapError(ex))
+    private fun fail(ex: Exception?) {
+        _state.value = _state.value.copy(
+            isLoading = false,
+            error = mapError(ex)
+        )
     }
 
     private fun mapError(ex: Exception?): String {
-        val e = ex ?: return "Authentication failed. Please try again."
+        val e = ex ?: return "Échec de l'authentification. Veuillez réessayer."
+
         return when (e) {
             is FirebaseAuthUserCollisionException ->
-                "This email is already registered. Try signing in or resetting your password."
+                "Cet email est déjà enregistré. Essayez de vous connecter ou de réinitialiser votre mot de passe."
+
             is FirebaseAuthInvalidCredentialsException ->
                 when (e.errorCode) {
-                    "ERROR_INVALID_EMAIL" -> "The email address is badly formatted."
-                    "ERROR_WRONG_PASSWORD" -> "Incorrect password. Please try again."
-                    else -> "Invalid credentials. Please check your email and password."
+                    "ERROR_INVALID_EMAIL" -> "L'adresse email est mal formatée."
+                    "ERROR_WRONG_PASSWORD" -> "Mot de passe incorrect. Veuillez réessayer."
+                    else -> "Identifiants invalides. Vérifiez votre email et mot de passe."
                 }
+
             is FirebaseAuthInvalidUserException ->
                 when (e.errorCode) {
-                    "ERROR_USER_NOT_FOUND" -> "No account found with this email."
-                    "ERROR_USER_DISABLED" -> "Your account has been disabled."
-                    else -> "This account is not valid."
+                    "ERROR_USER_NOT_FOUND" -> "Aucun compte trouvé avec cet email."
+                    "ERROR_USER_DISABLED" -> "Votre compte a été désactivé."
+                    else -> "Ce compte n'est pas valide."
                 }
+
             is FirebaseNetworkException ->
-                "No internet connection. Please check your network and try again."
+                "Pas de connexion internet. Vérifiez votre réseau et réessayez."
+
             else -> {
                 val code = (e as? FirebaseAuthException)?.errorCode
                 when (code) {
-                    "ERROR_EMAIL_ALREADY_IN_USE" -> "This email is already registered. Try signing in or resetting your password."
-                    "ERROR_WEAK_PASSWORD"        -> "Password is too weak. Use at least 6 characters."
-                    "ERROR_OPERATION_NOT_ALLOWED"-> "Email/password sign-in is disabled for this project."
-                    "ERROR_TOO_MANY_REQUESTS"    -> "Too many attempts. Please try again later."
-                    else -> e.localizedMessage?.substringBefore('\n')
-                        ?: "Authentication failed. Please try again."
+                    "ERROR_EMAIL_ALREADY_IN_USE" ->
+                        "Cet email est déjà enregistré. Essayez de vous connecter ou de réinitialiser votre mot de passe."
+
+                    "ERROR_WEAK_PASSWORD" ->
+                        "Mot de passe trop faible. Utilisez au moins 6 caractères."
+
+                    "ERROR_OPERATION_NOT_ALLOWED" ->
+                        "La connexion email/mot de passe est désactivée pour ce projet."
+
+                    "ERROR_TOO_MANY_REQUESTS" ->
+                        "Trop de tentatives. Veuillez réessayer plus tard."
+
+                    else ->
+                        e.localizedMessage?.substringBefore('\n')
+                            ?: "Échec de l'authentification. Veuillez réessayer."
                 }
             }
         }

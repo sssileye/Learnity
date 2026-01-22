@@ -100,6 +100,12 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
+<<<<<<< HEAD
+=======
+
+
+            // --- Contenu du Chapitre ---
+>>>>>>> page-profil
             composable(
                 route = "chapter/{courseId}/{chapterId}",
                 arguments = listOf(
