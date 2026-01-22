@@ -53,7 +53,7 @@ fun BottomNavigationBar(navController: NavHostController) {
                     tint = Color.Unspecified
                 )
             },
-            label = { Text("Mon Asso") },
+            label = { Text("Asso") },
             selected = route == "association",
             onClick = {
                 navController.navigate("association") {
