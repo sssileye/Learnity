@@ -101,6 +101,8 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
+
+
             // --- Contenu du Chapitre ---
             composable(
                 route = "chapter/{courseId}/{chapterId}",

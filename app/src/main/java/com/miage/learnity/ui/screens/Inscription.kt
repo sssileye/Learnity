@@ -23,9 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import com.miage.learnity.R
 import com.miage.learnity.ui.theme.*
 
@@ -39,6 +39,7 @@ fun Inscription(
 ) {
     val context = LocalContext.current
 
+    // États du formulaire
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -46,9 +47,14 @@ fun Inscription(
     var showConfirmPassword by remember { mutableStateOf(false) }
     var acceptCGU by remember { mutableStateOf(false) }
 
+    // États d'erreur
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf("") }
+
+    // ============================================
+    // VALIDATION EMAIL
+    // ============================================
 
     fun validateEmail(email: String): Boolean {
         val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
@@ -61,14 +67,22 @@ fun Inscription(
         }
     }
 
+    // ============================================
+    // VALIDATION MOT DE PASSE
+    // ============================================
+
     fun validatePassword(password: String): Boolean {
         return when {
             password.length < 8 -> {
-                passwordError = "Au moins 8 caractères"
+                passwordError = "Au moins 8 caractères requis"
                 false
             }
             !password.any { it.isDigit() } -> {
-                passwordError = "Au moins 1 chiffre"
+                passwordError = "Au moins 1 chiffre requis"
+                false
+            }
+            !password.any { it.isUpperCase() } -> {
+                passwordError = "Au moins 1 majuscule requise"
                 false
             }
             else -> {
@@ -78,9 +92,13 @@ fun Inscription(
         }
     }
 
+    // ============================================
+    // VALIDATION CONFIRMATION MOT DE PASSE
+    // ============================================
+
     fun validateConfirmPassword(password: String, confirmPassword: String): Boolean {
         return if (password != confirmPassword) {
-            confirmPasswordError = "Les mots de passe diffèrent"
+            confirmPasswordError = "Les mots de passe ne correspondent pas"
             false
         } else {
             confirmPasswordError = ""
@@ -88,17 +106,29 @@ fun Inscription(
         }
     }
 
+    // ============================================
+    // AFFICHAGE DES ERREURS
+    // ============================================
+
     LaunchedEffect(error) {
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
         }
     }
 
+    // ============================================
+    // BOUTON ACTIF SI FORMULAIRE VALIDE
+    // ============================================
+
     val isButtonEnabled = email.isNotBlank() &&
             password.isNotBlank() &&
             confirmPassword.isNotBlank() &&
             acceptCGU &&
             !isLoading
+
+    // ============================================
+    // UI
+    // ============================================
 
     Scaffold(
         topBar = {
@@ -130,18 +160,24 @@ fun Inscription(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // Logo réduit
+            // ============================================
+            // LOGO
+            // ============================================
+
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
-                contentDescription = "Logo",
+                contentDescription = "Logo Learnity",
                 modifier = Modifier.size(100.dp)
             )
 
             Spacer(Modifier.height(16.dp))
 
-            // Titre
+            // ============================================
+            // TITRE
+            // ============================================
+
             Text(
-                text = "Rejoignez nous!",
+                text = "Rejoignez-nous !",
                 fontSize = 28.sp,
                 color = TextDark,
                 fontWeight = FontWeight.ExtraBold
@@ -149,7 +185,10 @@ fun Inscription(
 
             Spacer(Modifier.height(32.dp))
 
-            // Email Field
+            // ============================================
+            // CHAMP EMAIL
+            // ============================================
+
             OutlinedTextField(
                 value = email,
                 onValueChange = {
@@ -162,7 +201,12 @@ fun Inscription(
                 shape = RoundedCornerShape(16.dp),
                 isError = emailError.isNotEmpty(),
                 supportingText = {
-                    if (emailError.isNotEmpty()) Text(emailError)
+                    if (emailError.isNotEmpty()) {
+                        Text(
+                            text = emailError,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -173,7 +217,10 @@ fun Inscription(
 
             Spacer(Modifier.height(16.dp))
 
-            // Password Field
+            // ============================================
+            // CHAMP MOT DE PASSE
+            // ============================================
+
             OutlinedTextField(
                 value = password,
                 onValueChange = {
@@ -182,12 +229,24 @@ fun Inscription(
                 },
                 label = { Text("Mot de passe") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (showPassword) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
-                            imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = null
+                            imageVector = if (showPassword) {
+                                Icons.Default.Visibility
+                            } else {
+                                Icons.Default.VisibilityOff
+                            },
+                            contentDescription = if (showPassword) {
+                                "Masquer le mot de passe"
+                            } else {
+                                "Afficher le mot de passe"
+                            }
                         )
                     }
                 },
@@ -195,7 +254,18 @@ fun Inscription(
                 shape = RoundedCornerShape(16.dp),
                 isError = passwordError.isNotEmpty(),
                 supportingText = {
-                    if (passwordError.isNotEmpty()) Text(passwordError)
+                    if (passwordError.isNotEmpty()) {
+                        Text(
+                            text = passwordError,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        Text(
+                            text = "8 caractères min, 1 chiffre, 1 majuscule",
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                    }
                 },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -206,7 +276,10 @@ fun Inscription(
 
             Spacer(Modifier.height(16.dp))
 
-            // Confirm Password Field
+            // ============================================
+            // CHAMP CONFIRMATION MOT DE PASSE
+            // ============================================
+
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = {
@@ -217,12 +290,24 @@ fun Inscription(
                 },
                 label = { Text("Confirmer le mot de passe") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (showConfirmPassword) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 trailingIcon = {
                     IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
                         Icon(
-                            imageVector = if (showConfirmPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = null
+                            imageVector = if (showConfirmPassword) {
+                                Icons.Default.Visibility
+                            } else {
+                                Icons.Default.VisibilityOff
+                            },
+                            contentDescription = if (showConfirmPassword) {
+                                "Masquer"
+                            } else {
+                                "Afficher"
+                            }
                         )
                     }
                 },
@@ -230,7 +315,12 @@ fun Inscription(
                 shape = RoundedCornerShape(16.dp),
                 isError = confirmPasswordError.isNotEmpty(),
                 supportingText = {
-                    if (confirmPasswordError.isNotEmpty()) Text(confirmPasswordError)
+                    if (confirmPasswordError.isNotEmpty()) {
+                        Text(
+                            text = confirmPasswordError,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -241,7 +331,10 @@ fun Inscription(
 
             Spacer(Modifier.height(24.dp))
 
-            // Checkbox CGU
+            // ============================================
+            // CHECKBOX CGU
+            // ============================================
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -254,7 +347,7 @@ fun Inscription(
                     )
                 )
                 Text(
-                    "J'accepte les conditions générales d'utilisation",
+                    text = "J'accepte les conditions générales d'utilisation",
                     color = TextGray,
                     fontSize = 14.sp
                 )
@@ -262,13 +355,18 @@ fun Inscription(
 
             Spacer(Modifier.height(32.dp))
 
-            // Bouton Inscription
+            // ============================================
+            // BOUTON INSCRIPTION
+            // ============================================
+
             Button(
                 onClick = {
+                    // Valider tous les champs
                     val isEmailValid = validateEmail(email)
                     val isPasswordValid = validatePassword(password)
                     val isConfirmValid = validateConfirmPassword(password, confirmPassword)
 
+                    // Si tout est valide, lancer l'inscription
                     if (isEmailValid && isPasswordValid && isConfirmValid) {
                         onInscriptionSuccess(email.trim(), password.trim())
                     }
@@ -290,7 +388,7 @@ fun Inscription(
                     )
                 } else {
                     Text(
-                        "S'inscrire",
+                        text = "S'inscrire",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -302,6 +400,10 @@ fun Inscription(
         }
     }
 }
+
+// ============================================
+// PREVIEW
+// ============================================
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
