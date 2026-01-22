@@ -55,15 +55,15 @@ class AuthViewModel : ViewModel() {
     // INSCRIPTION + CRÉATION PROFIL
     // ============================================
 
-    fun signUp(email: String, password: String){
+    fun signUp(email: String, password: String, firstName: String, lastName: String) {
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // ✅ Créer le profil utilisateur
+                    // ✅ Créer le profil utilisateur avec nom et prénom
                     val user = auth.currentUser
                     if (user != null) {
-                        createUserProfile(user.uid, email)
+                        createUserProfile(user.uid, email, firstName, lastName)
                     }
                     ok()
                 } else {
@@ -72,13 +72,18 @@ class AuthViewModel : ViewModel() {
             }
     }
 
-    private fun createUserProfile(uid: String, email: String) {
+    private fun createUserProfile(
+        uid: String,
+        email: String,
+        firstName: String,
+        lastName: String
+    ) {
         val userRepository = com.miage.learnity.repository.UserRepository()
         val newProfile = com.miage.learnity.data.UserProfile(
             uid = uid,
             email = email,
-            firstName = "",
-            lastName = "",
+            firstName = firstName,      // ✅ NOUVEAU
+            lastName = lastName,         // ✅ NOUVEAU
             createdAt = System.currentTimeMillis(),
             redevanceSoutienUnitaire = 1.0,
             detteCumulee = 0.0,
