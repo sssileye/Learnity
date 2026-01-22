@@ -61,6 +61,9 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.foundation)
 
     // PdfBox-Android (stable, sur Maven Central)
     implementation(libs.pdfbox.android)

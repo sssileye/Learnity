@@ -140,7 +140,15 @@ data class Quiz(
     val title: String = "",
     val questions: List<Question> = emptyList()
 )
-
+// ============================================
+// Association
+// ============================================
+data class Association(
+    val name: String = "",
+    val websiteUrl: String = "", // Lien vers le site de don
+    val logoName: String = "",
+    val description: String = ""
+)
 data class Question(
     @SerializedName("text")
     val questionText: String = "",
