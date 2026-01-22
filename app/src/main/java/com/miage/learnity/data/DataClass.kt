@@ -3,6 +3,38 @@ package com.miage.learnity.data
 import com.google.gson.annotations.SerializedName
 
 // ============================================
+// PROFIL UTILISATEUR COMPLET
+// ============================================
+data class UserProfile(
+    // --- Informations d'Identification ---
+    val uid: String = "",
+    val email: String = "",
+    val firstName: String = "",
+    val lastName: String = "",
+    val photoUrl: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+
+    // --- Système de Redevance (La Dette) ---
+    // Valeur "X" fixée par l'utilisateur pour son engagement
+    val redevanceSoutienUnitaire: Double = 1.0,
+    // Dette virtuelle cumulée (Incrémentée par X ou X/10)
+    val detteCumulee: Double = 0.0,
+
+    // --- Système de Récompense (Unity Points) ---
+    val unityPoints: Int = 0,
+
+    // --- Progression & Winstreak ---
+    val currentStreak: Int = 0,
+    val bestStreak: Int = 0,
+    // Format "yyyy-MM-dd" pour calculer l'absentéisme au démarrage
+    val lastDailyQuizDate: String? = null,
+
+    // --- Engagement Social ---
+    // ID de l'association parrainée
+    val selectedAssociationId: String? = null
+)
+
+// ============================================
 // COURSE (Cours - Sans les chapitres)
 // ============================================
 data class Course(
