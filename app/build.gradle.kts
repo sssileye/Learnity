@@ -76,6 +76,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.geometry)
 
     implementation(libs.androidx.core.splashscreen)
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Tests
     testImplementation(libs.junit)
