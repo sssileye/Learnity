@@ -1,13 +1,10 @@
 package com.miage.learnity.ui.navigation
 
+import ProfileEditorScreen
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
@@ -31,9 +28,11 @@ fun MainNav(onLogout: () -> Unit = {}) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // ⭐ On cache les barres pour le Quiz, le PDF et maintenant l'Éditeur de profil
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
-            !currentRoute.contains("pdf")
+            !currentRoute.contains("pdf") &&
+            currentRoute != "profile_editor"
 
     Scaffold(
         topBar = {
@@ -70,12 +69,19 @@ fun MainNav(onLogout: () -> Unit = {}) {
             composable("association") { AssociationScreen() }
             composable("ranking") { RankingScreen() }
             composable("settings") { SettingsScreen() }
-
             composable("profile") {
                 ProfileScreen(
                     isDiscoveryMode = isDiscoveryMode,
                     onModeChange = { isDiscoveryMode = it },
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    onEditClick = { navController.navigate("profile_editor") }
+                )
+            }
+
+            // ⭐ Nouvelle Route : Écran de modification de profil
+            composable("profile_editor") {
+                ProfileEditorScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -140,7 +146,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     onBackClick = { navController.popBackStack() }
                 )
             }
-
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
