@@ -1,7 +1,9 @@
 package com.miage.learnity.ui.screens
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.miage.learnity.R
 import com.miage.learnity.data.UserProfile
 import com.miage.learnity.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,25 +16,37 @@ data class ProfileUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val isEditing: Boolean = false,
-    val updateSuccess: Boolean = false // ⭐ Ajouté pour déclencher l'animation/Snackbar
+    val updateSuccess: Boolean = false
 )
 
 class ProfileViewModel(
     private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
 
+    // ⭐ Tes 13 avatars disponibles
+    val availableAvatars = listOf(
+        R.drawable.avatar_b1, R.drawable.avatar_b2, R.drawable.avatar_b3,
+        R.drawable.avatar_o1, R.drawable.avatar_o2, R.drawable.avatar_o3,
+        R.drawable.avatar_v1, R.drawable.avatar_v2, R.drawable.avatar_v3,
+        R.drawable.avatar_r1, R.drawable.avatar_r2, R.drawable.avatar_r3,
+        R.drawable.avatar_vivi1
+    )
+
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        // ⭐ On remplace loadUserProfile() par une observation en temps réel
         observeUserProfile()
     }
 
     /**
-     * Écoute les changements du profil dans Firestore en temps réel.
-     * Plus besoin de refresh manuel, l'UI se mettra à jour toute seule.
+     * Convertit un ID de ressource (Int) en nom de fichier (String)
+     * Utile pour transformer R.drawable.avatar_b1 en "avatar_b1"
      */
+    fun getResourceName(resourceId: Int, context: Context): String {
+        return context.resources.getResourceEntryName(resourceId)
+    }
+
     private fun observeUserProfile() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
@@ -49,32 +63,29 @@ class ProfileViewModel(
     fun updateProfile(
         firstName: String? = null,
         lastName: String? = null,
-        photoUrl: String? = null,
+        photoResName: String? = null,
         redevance: Double? = null,
         selectedAssociationId: String? = null
     ) {
         val currentProfile = _uiState.value.profile ?: return
 
         viewModelScope.launch {
-            // On affiche un état de chargement pendant la sauvegarde
             _uiState.value = _uiState.value.copy(isLoading = true, updateSuccess = false)
 
             val updatedProfile = currentProfile.copy(
                 firstName = firstName ?: currentProfile.firstName,
                 lastName = lastName ?: currentProfile.lastName,
-                photoUrl = photoUrl ?: currentProfile.photoUrl,
+                photoUrl = photoResName ?: currentProfile.photoUrl,
                 redevanceSoutienUnitaire = redevance ?: currentProfile.redevanceSoutienUnitaire,
                 selectedAssociationId = selectedAssociationId ?: currentProfile.selectedAssociationId
             )
 
             userRepository.saveUserProfile(updatedProfile)
                 .onSuccess {
-                    // On ne met pas à jour le profil ici manuellement car
-                    // observeUserProfile() s'en chargera dès que Firebase aura validé.
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         isEditing = false,
-                        updateSuccess = true // ⭐ Déclenche l'effet visuel dans l'UI
+                        updateSuccess = true
                     )
                 }
                 .onFailure { exception ->
@@ -86,22 +97,15 @@ class ProfileViewModel(
         }
     }
 
-    /**
-     * Appelé par l'UI après avoir affiché la Snackbar pour réinitialiser l'état
-     */
     fun resetUpdateSuccess() {
         _uiState.value = _uiState.value.copy(updateSuccess = false)
     }
 
     fun toggleEditMode() {
-        _uiState.value = _uiState.value.copy(
-            isEditing = !_uiState.value.isEditing
-        )
+        _uiState.value = _uiState.value.copy(isEditing = !_uiState.value.isEditing)
     }
 
     fun refresh() {
-        // Optionnel maintenant grâce à observeUserProfile,
-        // mais utile en cas d'erreur réseau pour relancer le flow.
         observeUserProfile()
     }
 }
