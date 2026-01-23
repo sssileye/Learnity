@@ -11,19 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Chapter
-import com.miage.learnity.repository.CourseRepository
-import com.miage.learnity.repository.ProgressManager
-import com.miage.learnity.repository.UserProgressRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import com.miage.learnity.ui.theme.LearnityTheme
+import com.miage.learnity.ui.utils.*
 
 @Composable
 fun ChapterContentScreen(
@@ -36,16 +29,15 @@ fun ChapterContentScreen(
     onStartQuiz: () -> Unit,
     onBackClick: () -> Unit
 ) {
+    val dimensions = rememberResponsiveDimensions()
     val chapter by viewModel.chapter.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    // Charger les données au démarrage
     LaunchedEffect(courseId, chapterId) {
         viewModel.loadChapter(courseId, chapterId)
     }
 
-    // Rafraîchir quand on revient sur cet écran (après avoir marqué contenu comme lu)
     LaunchedEffect(Unit) {
         viewModel.refresh()
     }
@@ -54,65 +46,40 @@ fun ChapterContentScreen(
         topBar = {
             ChapterContentTopBar(
                 title = chapter?.title ?: "Chargement...",
-                onBackClick = onBackClick
+                onBackClick = onBackClick,
+                dimensions = dimensions
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
-                isLoading -> LoadingState()
-                error != null -> ErrorState(
-                    message = error!!,
-                    onRetry = { viewModel.refresh() }
-                )
+                isLoading -> LoadingState(dimensions)
+                error != null -> ErrorState(error!!, { viewModel.refresh() }, dimensions)
                 chapter != null -> ChapterContentLayout(
                     chapter = chapter!!,
                     onCoursClick = onCoursClick,
                     onFdrClick = onFdrClick,
                     onVideoClick = onVideoClick,
-                    onStartQuiz = onStartQuiz
+                    onStartQuiz = onStartQuiz,
+                    dimensions = dimensions
                 )
             }
         }
     }
 }
 
-// ============================================
-// TOP BAR
-// ============================================
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChapterContentTopBar(
-    title: String,
-    onBackClick: () -> Unit
-) {
+private fun ChapterContentTopBar(title: String, onBackClick: () -> Unit, dimensions: ResponsiveDimensions) {
     TopAppBar(
-        title = {
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-        },
+        title = { Text(text = title, fontWeight = FontWeight.Bold, fontSize = dimensions.titleMedium, maxLines = 1) },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Retour"
-                )
+                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour", modifier = Modifier.size(dimensions.iconSizeMedium))
             }
         }
     )
 }
-
-// ============================================
-// CONTENT LAYOUT
-// ============================================
 
 @Composable
 private fun ChapterContentLayout(
@@ -120,117 +87,102 @@ private fun ChapterContentLayout(
     onCoursClick: () -> Unit,
     onFdrClick: () -> Unit,
     onVideoClick: () -> Unit,
-    onStartQuiz: () -> Unit
+    onStartQuiz: () -> Unit,
+    dimensions: ResponsiveDimensions
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().padding(dimensions.screenPaddingHorizontal),
+        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
         Text(
             text = "CONTENU DISPONIBLE",
-            style = MaterialTheme.typography.labelLarge,
+            fontSize = dimensions.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 4.dp)
+            modifier = Modifier.padding(bottom = dimensions.itemSpacing / 3)
         )
 
-        // ✅ Cours complet - FLAG SÉPARÉ
         if (chapter.hasCours) {
             ContentOptionCard(
                 icon = Icons.Default.MenuBook,
                 title = "Cours Complet",
-                isCompleted = chapter.isCoursRead,  // ✅ FLAG SÉPARÉ
-                onClick = onCoursClick
+                isCompleted = chapter.isCoursRead,
+                onClick = onCoursClick,
+                dimensions = dimensions
             )
         }
 
-        // ✅ Fiche de révision - FLAG SÉPARÉ
         if (chapter.hasFdr) {
             ContentOptionCard(
                 icon = Icons.Default.Description,
                 title = "Fiche de Révision",
-                isCompleted = chapter.isFdrRead,    // ✅ FLAG SÉPARÉ
-                onClick = onFdrClick
+                isCompleted = chapter.isFdrRead,
+                onClick = onFdrClick,
+                dimensions = dimensions
             )
         }
 
-        // Vidéo
         if (chapter.hasVideo) {
             ContentOptionCard(
                 icon = Icons.Default.PlayCircle,
                 title = "Vidéo Explicative",
                 isCompleted = chapter.isVideoWatched,
-                onClick = onVideoClick
+                onClick = onVideoClick,
+                dimensions = dimensions
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 8.dp),
-            thickness = 0.5.dp
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+        HorizontalDivider(modifier = Modifier.padding(horizontal = dimensions.itemSpacing / 1.5f), thickness = 0.5.dp)
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
         Text(
             text = "ÉVALUATION",
-            style = MaterialTheme.typography.labelLarge,
+            fontSize = dimensions.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 4.dp)
+            modifier = Modifier.padding(bottom = dimensions.itemSpacing / 3)
         )
 
         if (chapter.isQuizUnlocked) {
             QuizSection(
                 isQuizCompleted = chapter.isQuizCompleted,
-                onStartQuiz = onStartQuiz
+                onStartQuiz = onStartQuiz,
+                dimensions = dimensions
             )
         } else {
-            LockedQuizSection()
+            LockedQuizSection(dimensions)
         }
     }
 }
-
-// Garde tous les autres composables (ContentOptionCard, QuizSection, etc.) tels quels
-// ============================================
-// CONTENT OPTION CARD
-// ============================================
 
 @Composable
 private fun ContentOptionCard(
     icon: ImageVector,
     title: String,
     isCompleted: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    dimensions: ResponsiveDimensions
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) {
+            containerColor = if (isCompleted)
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            } else {
+            else
                 MaterialTheme.colorScheme.surface
-            }
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = CardDefaults.outlinedCardBorder().copy(
-            width = if (isCompleted) 0.dp else 1.dp
-        )
+        border = if (isCompleted) null else CardDefaults.outlinedCardBorder().copy(width = 1.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icône
             Surface(
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(dimensions.iconSizeMedium * 1.67f),
+                shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -238,201 +190,119 @@ private fun ContentOptionCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(dimensions.iconSizeMedium * 0.9f)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(dimensions.itemSpacing))
 
-            // Titre
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                fontSize = dimensions.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f)
             )
 
-            // Indicateur de complétion
             Icon(
-                imageVector = if (isCompleted) {
-                    Icons.Default.CheckCircle
-                } else {
-                    Icons.Default.ChevronRight
-                },
+                imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = if (isCompleted) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.outline
-                },
-                modifier = Modifier.size(20.dp)
+                tint = if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(dimensions.iconSizeMedium * 0.83f)
             )
         }
     }
 }
 
-// ============================================
-// QUIZ SECTION
-// ============================================
-
 @Composable
-private fun QuizSection(
-    isQuizCompleted: Boolean,
-    onStartQuiz: () -> Unit
-) {
+private fun QuizSection(isQuizCompleted: Boolean, onStartQuiz: () -> Unit, dimensions: ResponsiveDimensions) {
     if (isQuizCompleted) {
-        // Quiz déjà complété
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+            shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
+                modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "Quiz validé avec succès !",
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(dimensions.itemSpacing))
+                Text(text = "Quiz validé avec succès !", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.primary)
             }
         }
     } else {
-        // Bouton pour démarrer le quiz
         Button(
             onClick = onStartQuiz,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
+            modifier = Modifier.fillMaxWidth().height(dimensions.buttonHeight),
+            shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
         ) {
-            Icon(
-                imageVector = Icons.Default.Quiz,
-                contentDescription = null
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Passer le Quiz de Chapitre",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Icon(imageVector = Icons.Default.Quiz, contentDescription = null)
+            Spacer(modifier = Modifier.width(dimensions.itemSpacing))
+            Text(text = "Passer le Quiz de Chapitre", fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold)
         }
     }
 }
 
-// ============================================
-// LOCKED QUIZ SECTION
-// ============================================
-
 @Composable
-private fun LockedQuizSection() {
+private fun LockedQuizSection(dimensions: ResponsiveDimensions) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(dimensions.iconSizeLarge * 0.67f))
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
+            Text(text = "Quiz Verrouillé", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing / 3))
+            Text(text = "Complétez la lecture et/ou la vidéo pour débloquer le test", fontSize = dimensions.bodySmall, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+@Composable
+private fun LoadingState(dimensions: ResponsiveDimensions) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            CircularProgressIndicator(modifier = Modifier.size(dimensions.iconSizeLarge))
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+            Text(text = "Chargement du chapitre...", fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ErrorState(message: String, onRetry: () -> Unit, dimensions: ResponsiveDimensions) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(dimensions.screenPaddingHorizontal * 2)) {
+            Text(text = "❌", fontSize = dimensions.displayLarge)
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+            Text(text = "Erreur", fontSize = dimensions.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
+            Text(text = message, fontSize = dimensions.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
+            Button(onClick = onRetry, modifier = Modifier.height(dimensions.buttonHeightSmall)) { Text("Réessayer", fontSize = dimensions.bodyLarge) }
+        }
+    }
+}
+
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+@Composable
+fun ChapterContentScreenPreview() {
+    LearnityTheme {
+        ChapterContentScreen(
+            courseId = "test",
+            chapterId = "test",
+            onCoursClick = {},
+            onFdrClick = {},
+            onVideoClick = {},
+            onStartQuiz = {},
+            onBackClick = {}
         )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(32.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Quiz Verrouillé",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Complétez la lecture et/ou la vidéo pour débloquer le test",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline
-            )
-        }
-    }
-}
-
-// ============================================
-// LOADING & ERROR STATES
-// ============================================
-
-@Composable
-private fun LoadingState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Chargement du chapitre...",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Text(
-                text = "❌",
-                style = MaterialTheme.typography.displayLarge
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Erreur",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onRetry) {
-                Text("Réessayer")
-            }
-        }
     }
 }
