@@ -17,15 +17,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.miage.learnity.R
 import androidx.compose.foundation.layout.statusBarsPadding
+import com.miage.learnity.ui.utils.*
 
 @Composable
 fun TopNavigationBar(
     onProfileClick: () -> Unit,
-    onLogoClick: () -> Unit = {}  // ✅ NOUVEAU callback
+    onLogoClick: () -> Unit = {}
 ) {
+    // ✅ DIMENSIONS RESPONSIVES
+    val dimensions = rememberResponsiveDimensions()
+
     Surface(
         shadowElevation = 4.dp,
         color = Color.White,
@@ -34,41 +37,44 @@ fun TopNavigationBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(
+                    horizontal = dimensions.screenPaddingHorizontal,  // ✅ Responsive
+                    vertical = dimensions.itemSpacing  // ✅ Responsive (12dp adaptatif)
+                )
                 .statusBarsPadding(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ✅ Logo Learnity CLIQUABLE
+            // ✅ Logo Learnity CLIQUABLE - RESPONSIVE
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clickable(onClick = onLogoClick)  // ✅ Rendre cliquable
-                    .padding(8.dp)  // ✅ Zone de clic plus grande
+                    .clickable(onClick = onLogoClick)
+                    .padding(dimensions.itemSpacing / 2)  // ✅ Zone de clic responsive
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
                     contentDescription = "Logo Learnity",
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(dimensions.iconSizeLarge),  // ✅ 48.sdp() (était 32.dp)
                     contentScale = ContentScale.Fit
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(dimensions.itemSpacing / 2))  // ✅ Responsive
                 Text(
                     text = "LEARNITY",
-                    fontSize = 18.sp,
+                    fontSize = dimensions.titleMedium,  // ✅ 20.ssp() (était 18.sp)
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF635BFF)
                 )
             }
 
-            // Bouton Profil
+            // Bouton Profil - RESPONSIVE
             IconButton(
                 onClick = onProfileClick,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(dimensions.iconSizeLarge)  // ✅ 48.sdp() (était 32.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(dimensions.iconSizeLarge)  // ✅ Responsive
                         .background(
                             color = Color(0xFFE8E0FF),
                             shape = CircleShape
@@ -79,7 +85,7 @@ fun TopNavigationBar(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Profil",
                         tint = Color(0xFF635BFF),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp() (était 18.dp)
                     )
                 }
             }
@@ -87,7 +93,11 @@ fun TopNavigationBar(
     }
 }
 
-@Preview(showBackground = true)
+// ✅ PREVIEWS MULTI-TAILLES
+@Preview(name = "Petit (320dp)", widthDp = 320)
+@Preview(name = "Moyen (360dp)", widthDp = 360)
+@Preview(name = "Grand (410dp)", widthDp = 410)
+@Preview(name = "Tablette (600dp)", widthDp = 600)
 @Composable
 fun TopNavigationBarPreview() {
     TopNavigationBar(

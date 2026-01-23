@@ -20,10 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.miage.learnity.R
 import com.miage.learnity.ui.theme.*
+import com.miage.learnity.ui.utils.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +34,8 @@ fun ResetPasswordScreen(
     error: String? = null,
     success: Boolean = false
 ) {
+    // ✅ DIMENSIONS RESPONSIVES
+    val dimensions = rememberResponsiveDimensions()
     val context = LocalContext.current
 
     var email by remember { mutableStateOf("") }
@@ -96,44 +97,45 @@ fun ResetPasswordScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 32.dp)
+                .padding(horizontal = dimensions.screenPaddingHorizontal)  // ✅ Responsive
+                .responsiveMaxWidth(dimensions)  // ✅ Limite largeur
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))  // ✅ Responsive
 
-            // Logo
+            // Logo - RESPONSIVE
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo",
-                modifier = Modifier.size(100.dp)
+                modifier = Modifier.size(dimensions.logoSize)  // ✅ 100.sdp()
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
 
-            // Titre
+            // Titre - RESPONSIVE
             Text(
                 text = "Mot de passe oublié ?",
-                fontSize = 26.sp,
+                fontSize = dimensions.titleMedium,  // ✅ 20.ssp() (plus petit)
                 color = TextDark,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
 
-            // Description
+            // Description - RESPONSIVE
             Text(
                 text = "Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
-                fontSize = 14.sp,
+                fontSize = dimensions.bodyMedium,  // ✅ 14.ssp()
                 color = TextGray,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = dimensions.itemSpacing)  // ✅ Responsive
             )
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // ✅ Responsive
 
-            // Email Field
+            // Email Field - RESPONSIVE
             OutlinedTextField(
                 value = email,
                 onValueChange = {
@@ -143,21 +145,29 @@ fun ResetPasswordScreen(
                 label = { Text("Email") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
                 isError = emailError.isNotEmpty(),
                 supportingText = {
-                    if (emailError.isNotEmpty()) Text(emailError)
+                    if (emailError.isNotEmpty()) {
+                        Text(
+                            text = emailError,
+                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                        )
+                    }
                 },
                 singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
                     focusedLabelColor = Color(0xFF635BFF)
                 )
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // ✅ Responsive
 
-            // Bouton Réinitialiser
+            // Bouton Réinitialiser - RESPONSIVE
             Button(
                 onClick = {
                     val isEmailValid = validateEmail(email)
@@ -167,9 +177,9 @@ fun ResetPasswordScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(dimensions.buttonHeight),  // ✅ 56.sdp()
                 enabled = isButtonEnabled,
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),  // ✅ 16.dp
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF635BFF),
                     disabledContainerColor = Color.LightGray
@@ -178,33 +188,38 @@ fun ResetPasswordScreen(
                 if (isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
                     )
                 } else {
                     Text(
                         "Envoyer le lien",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
                     )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // ✅ Responsive
 
-            // Lien retour connexion
+            // Lien retour connexion - RESPONSIVE
             TextButton(onClick = onBackClick) {
                 Text(
                     text = "Retour à la connexion",
                     color = Color(0xFF635BFF),
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    fontSize = dimensions.bodyMedium  // ✅ 14.ssp()
                 )
             }
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+// ✅ PREVIEWS MULTI-TAILLES
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
 @Composable
 fun ResetPasswordScreenPreview() {
     LearnityTheme {

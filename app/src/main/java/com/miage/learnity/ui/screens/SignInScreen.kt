@@ -2,7 +2,6 @@ package com.miage.learnity.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,10 +27,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.miage.learnity.R
 import com.miage.learnity.ui.theme.*
+import com.miage.learnity.ui.utils.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +41,8 @@ fun SignInScreen(
     isLoading: Boolean = false,
     error: String? = null
 ) {
+    // ✅ DIMENSIONS RESPONSIVES
+    val dimensions = rememberResponsiveDimensions()
     val context = LocalContext.current
 
     var email by remember { mutableStateOf("") }
@@ -96,32 +96,33 @@ fun SignInScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 32.dp)
+                .padding(horizontal = dimensions.screenPaddingHorizontal)  // ✅ Responsive
+                .responsiveMaxWidth(dimensions)  // ✅ Limite largeur sur tablettes
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(dimensions.screenPaddingVertical))  // ✅ Responsive
 
-            // Logo réduit
+            // Logo réduit - RESPONSIVE
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo",
-                modifier = Modifier.size(100.dp)
+                modifier = Modifier.size(dimensions.logoSize)  // ✅ 100.sdp()
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
 
-            // Titre
+            // Titre - RESPONSIVE
             Text(
                 text = "Connexion",
-                fontSize = 28.sp,
+                fontSize = dimensions.titleLarge,  // ✅ 28.ssp()
                 color = TextDark,
                 fontWeight = FontWeight.ExtraBold
             )
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // ✅ Responsive
 
-            // Email Field
+            // Email Field - RESPONSIVE
             OutlinedTextField(
                 value = email,
                 onValueChange = {
@@ -131,49 +132,69 @@ fun SignInScreen(
                 label = { Text("Email") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
                 isError = emailError.isNotEmpty(),
                 supportingText = {
-                    if (emailError.isNotEmpty()) Text(emailError)
+                    if (emailError.isNotEmpty()) {
+                        Text(
+                            text = emailError,
+                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                        )
+                    }
                 },
                 singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
                     focusedLabelColor = Color(0xFF635BFF)
                 )
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
 
-            // Password Field
+            // Password Field - RESPONSIVE
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Mot de passe") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (showPassword) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
-                            imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = null
+                            imageVector = if (showPassword) {
+                                Icons.Default.Visibility
+                            } else {
+                                Icons.Default.VisibilityOff
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
                         )
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
                 singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
                     focusedLabelColor = Color(0xFF635BFF)
                 )
             )
 
-            // Mot de passe oublié
+            // Mot de passe oublié - RESPONSIVE
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp)
+                    .padding(top = dimensions.itemSpacing / 2)  // ✅ Responsive
             ) {
                 TextButton(
                     onClick = onForgotPassword,
@@ -183,14 +204,14 @@ fun SignInScreen(
                         text = "Mot de passe oublié ?",
                         color = Color(0xFF635BFF),
                         fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
+                        fontSize = dimensions.bodyMedium  // ✅ 14.ssp()
                     )
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // ✅ Responsive
 
-            // Bouton Connexion
+            // Bouton Connexion - RESPONSIVE
             Button(
                 onClick = {
                     val isEmailValid = validateEmail(email)
@@ -200,9 +221,9 @@ fun SignInScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(dimensions.buttonHeight),  // ✅ 56.sdp()
                 enabled = isButtonEnabled,
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),  // ✅ 16.dp
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF635BFF),
                     disabledContainerColor = Color.LightGray
@@ -211,25 +232,30 @@ fun SignInScreen(
                 if (isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
                     )
                 } else {
                     Text(
                         "Se connecter",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
                     )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // ✅ Responsive
 
-            // Lien vers inscription
+            // Lien vers inscription - RESPONSIVE
             val annotated = buildAnnotatedString {
                 append("Pas encore de compte ? ")
                 pushStringAnnotation(tag = "signup", annotation = "signup")
-                withStyle(SpanStyle(color = Color(0xFF635BFF), fontWeight = FontWeight.Bold)) {
+                withStyle(
+                    SpanStyle(
+                        color = Color(0xFF635BFF),
+                        fontWeight = FontWeight.Bold
+                    )
+                ) {
                     append("S'inscrire")
                 }
                 pop()
@@ -245,12 +271,20 @@ fun SignInScreen(
                         onNavigateToSignUp()
                     }
                 },
-                modifier = Modifier.padding(bottom = 24.dp)
+                style = LocalTextStyle.current.copy(
+                    fontSize = dimensions.bodyMedium  // ✅ 14.ssp()
+                ),
+                modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.5f)  // ✅ Responsive
             )
         }
     }
 }
 
+// ✅ PREVIEWS MULTI-TAILLES
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun SignInScreenPreview() {

@@ -16,23 +16,37 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.R
+import com.miage.learnity.ui.utils.*
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
-    val currentRoute by navController.currentBackStackEntryAsState();
+    // DIMENSIONS RESPONSIVES
+    val dimensions = rememberResponsiveDimensions()
+
+    val currentRoute by navController.currentBackStackEntryAsState()
     val route = currentRoute?.destination?.route
 
-    NavigationBar {
-        // ACCUEIL
+    NavigationBar(
+        modifier = Modifier,  // Hauteur gérée automatiquement par Material3
+        containerColor = Color.White
+    ) {
+        // ═══════════════════════════════════════
+        // ACCUEIL - RESPONSIVE
+        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_homepage_1),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
                 )
             },
-            label = { Text("Accueil") },
+            label = {
+                Text(
+                    "Accueil",
+                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                )
+            },
             selected = route == "home",
             onClick = {
                 navController.navigate("home") {
@@ -42,18 +56,24 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-
-        // MON ASSO
+        // ═══════════════════════════════════════
+        // MON ASSO - RESPONSIVE
+        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_asso),
                     contentDescription = null,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(dimensions.iconSizeLarge),  // ✅ 48.sdp() (était 28.dp - plus grand car logo)
                     tint = Color.Unspecified
                 )
             },
-            label = { Text("Asso") },
+            label = {
+                Text(
+                    "Asso",
+                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                )
+            },
             selected = route == "association",
             onClick = {
                 navController.navigate("association") {
@@ -62,16 +82,24 @@ fun BottomNavigationBar(navController: NavHostController) {
                 }
             }
         )
-        // COURS
+
+        // ═══════════════════════════════════════
+        // COURS - RESPONSIVE
+        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_cours_1),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
                 )
             },
-            label = { Text("Cours") },
+            label = {
+                Text(
+                    "Cours",
+                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                )
+            },
             selected = route == "library",
             onClick = {
                 navController.navigate("library") {
@@ -80,16 +108,24 @@ fun BottomNavigationBar(navController: NavHostController) {
                 }
             }
         )
-        // CLASSEMENT
+
+        // ═══════════════════════════════════════
+        // CLASSEMENT - RESPONSIVE
+        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_ranking),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
                 )
             },
-            label = { Text("Ranking") },
+            label = {
+                Text(
+                    "Ranking",
+                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                )
+            },
             selected = route == "ranking",
             onClick = {
                 navController.navigate("ranking") {
@@ -99,16 +135,23 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // PARAMÈTRES
+        // ═══════════════════════════════════════
+        // PARAMÈTRES - RESPONSIVE
+        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_settings_1),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
                 )
             },
-            label = { Text("Outils") },
+            label = {
+                Text(
+                    "Outils",
+                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                )
+            },
             selected = route == "settings",
             onClick = {
                 navController.navigate("settings") {
@@ -120,11 +163,14 @@ fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+// ✅ PREVIEWS MULTI-TAILLES
+@Preview(name = "Petit (320dp)", widthDp = 320, showBackground = true)
+@Preview(name = "Moyen (360dp)", widthDp = 360, showBackground = true)
+@Preview(name = "Grand (410dp)", widthDp = 410, showBackground = true)
+@Preview(name = "Tablette (600dp)", widthDp = 600, showBackground = true)
 @Composable
-fun AppPreview() {
+fun BottomNavigationBarPreview() {
     BottomNavigationBar(
         navController = rememberNavController()
     )
 }
-

@@ -16,21 +16,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.R
 import com.miage.learnity.repository.QuizRepository
+import com.miage.learnity.ui.utils.*
 
 @Composable
 fun HomeScreen(
     navController: NavController,
     isDiscoveryMode: Boolean = false
 ) {
+    // 🎨 Dimensions responsives
+    val dimensions = rememberResponsiveDimensions()
+
     val repository = remember { QuizRepository() }
     var dailyScore by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // Charger le score au lancement de l'écran
     LaunchedEffect(Unit) {
         repository.getLastDailyQuizScore().onSuccess { score ->
             dailyScore = score
@@ -41,14 +42,17 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F7FA))
-            .padding(16.dp)
+            .padding(horizontal = dimensions.screenPaddingHorizontal) // ✅ Padding responsive
+            .responsiveMaxWidth(dimensions) // ✅ Limite largeur
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing) // ✅ Spacing adaptatif
     ) {
-        VirtualDebtCard()
+        Spacer(modifier = Modifier.height(dimensions.screenPaddingVertical))
 
-        // Carte mise à jour avec navigation Revoir/Refaire et design dynamique
-        DailyQuizCard(
+        VirtualDebtCardResponsive(dimensions)
+
+        DailyQuizCardResponsive(
+            dimensions = dimensions,
             isDiscoveryMode = isDiscoveryMode,
             lastScore = dailyScore,
             onAction = { isReview ->
@@ -57,12 +61,15 @@ fun HomeScreen(
             }
         )
 
-        UnityPointsCard()
+        UnityPointsCardResponsive(dimensions)
+
+        Spacer(modifier = Modifier.height(80.dp)) // Pour bottom bar
     }
 }
 
 @Composable
-fun DailyQuizCard(
+private fun DailyQuizCardResponsive(
+    dimensions: ResponsiveDimensions,
     isDiscoveryMode: Boolean,
     lastScore: Pair<Int, Int>?,
     onAction: (isReview: Boolean) -> Unit
@@ -70,7 +77,6 @@ fun DailyQuizCard(
     val hasDoneQuizToday = lastScore != null
     val scoreValue = lastScore?.first ?: 0
 
-    // ⭐ LOGIQUE DE DÉCORATION DYNAMIQUE SELON LE SCORE
     val (gradient, emoji, message) = when {
         !hasDoneQuizToday -> Triple(
             Brush.linearGradient(listOf(Color(0xFF42A5F5), Color(0xFF7E57C2))),
@@ -96,103 +102,138 @@ fun DailyQuizCard(
 
     Column {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge), // ✅ Border radius adaptatif
             modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
         ) {
-            Box(modifier = Modifier.background(gradient).padding(20.dp)) {
+            Box(
+                modifier = Modifier
+                    .background(gradient)
+                    .padding(dimensions.cardPadding) // ✅ Padding adaptatif
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "Quiz du jour $emoji",
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 30.sp,
+                        fontSize = dimensions.titleLarge, // ✅ 28.ssp()
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     if (hasDoneQuizToday) {
-                        // --- ÉTAT : COMPLÉTÉ (Score figé + Revoir/Refaire) ---
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+
                         Text(
                             text = message,
                             color = Color.White,
-                            fontSize = 16.sp,
+                            fontSize = dimensions.bodyLarge, // ✅ 16.ssp()
                             fontWeight = FontWeight.Medium
                         )
+
                         Text(
                             text = "${lastScore?.first}/${lastScore?.second}",
                             color = Color.White,
-                            fontSize = 48.sp,
+                            fontSize = dimensions.displayLarge, // ✅ 40.ssp()
                             fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
                         ) {
-                            // Bouton REVOIR
                             Button(
                                 onClick = { onAction(true) },
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f)),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(dimensions.buttonHeightSmall), // ✅ 48.sdp()
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White.copy(alpha = 0.2f)
+                                ),
+                                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    Color.White.copy(alpha = 0.4f)
+                                )
                             ) {
-                                Text("Revoir", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Revoir",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = dimensions.bodyMedium // ✅ 14.ssp()
+                                )
                             }
-                            // Bouton REFAIRE
+
                             Button(
                                 onClick = { onAction(false) },
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                                shape = RoundedCornerShape(12.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(dimensions.buttonHeightSmall),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
                             ) {
-                                Text("Refaire", color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Refaire",
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = dimensions.bodyMedium
+                                )
                             }
                         }
                     } else {
-                        // --- ÉTAT : À FAIRE ---
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
+
                         Text(
-                            text = if (isDiscoveryMode) "Mode : Découverte (Toutes les UE)" else "Mode : Révision (UE étudiées)",
+                            text = if (isDiscoveryMode)
+                                "Mode : Découverte (Toutes les UE)"
+                            else
+                                "Mode : Révision (UE étudiées)",
                             color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 13.sp,
+                            fontSize = dimensions.bodySmall, // ✅ 12.ssp()
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2))
 
                         Button(
                             onClick = { onAction(false) },
-                            modifier = Modifier.fillMaxWidth().height(54.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(dimensions.buttonHeight), // ✅ 56.sdp()
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFF5E35B1), shape = RoundedCornerShape(6.dp))
+                                        .background(
+                                            Color(0xFF5E35B1),
+                                            shape = RoundedCornerShape(dimensions.cornerRadiusSmall)
+                                        )
                                         .padding(4.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(id= R.drawable.ic_settings_1),
+                                        painter = painterResource(id = R.drawable.ic_settings_1),
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(dimensions.iconSizeSmall) // ✅ 20.sdp()
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(dimensions.itemSpacing))
                                 Text(
                                     text = "Lancer le Quiz",
                                     color = Color.Black,
                                     fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 16.sp
+                                    fontSize = dimensions.bodyLarge
                                 )
                             }
                         }
@@ -200,11 +241,13 @@ fun DailyQuizCard(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
+
         Text(
             text = "Objectif de semaine : 4 séances / 2 faites.",
             color = Color.Gray,
-            fontSize = 12.sp,
+            fontSize = dimensions.bodySmall,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(start = 4.dp)
         )
@@ -212,64 +255,171 @@ fun DailyQuizCard(
 }
 
 @Composable
-fun VirtualDebtCard() {
+private fun VirtualDebtCardResponsive(dimensions: ResponsiveDimensions) {
     val gradient = Brush.linearGradient(
         colors = listOf(Color(0xFFFF9966), Color(0xFFFF5E62))
     )
+
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
     ) {
-        Box(modifier = Modifier.background(gradient).padding(20.dp)) {
+        Box(
+            modifier = Modifier
+                .background(gradient)
+                .padding(dimensions.cardPadding)
+        ) {
             Column {
-                Text(text = "Dette Virtuelle ce mois-ci : 😈", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "12.50€", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
-                    Button(onClick = { }, colors = ButtonDefaults.buttonColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp)) {
-                        Text(text = "Solder ma dette", color = Color(0xFFFF5E62), fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Dette Virtuelle ce mois-ci : 😈",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = dimensions.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "12.50€",
+                        color = Color.White,
+                        fontSize = dimensions.titleLarge * 1.2f, // ✅ Taille relative
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Button(
+                        onClick = { },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+                    ) {
+                        Text(
+                            text = "Solder ma dette",
+                            color = Color(0xFFFF5E62),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = dimensions.bodyMedium
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+
+                Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2))
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(painter = painterResource(id = R.drawable.ic_settings_1), contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                    Slider(value = 0.4f, onValueChange = {}, enabled = false, modifier = Modifier.weight(1f).padding(horizontal = 8.dp), colors = SliderDefaults.colors(disabledThumbColor = Color.White, disabledActiveTrackColor = Color.White, disabledInactiveTrackColor = Color.White.copy(alpha = 0.3f)))
-                    Icon(painter = painterResource(id = R.drawable.ic_settings_1), contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_settings_1),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
+                    )
+
+                    Slider(
+                        value = 0.4f,
+                        onValueChange = {},
+                        enabled = false,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = dimensions.itemSpacing),
+                        colors = SliderDefaults.colors(
+                            disabledThumbColor = Color.White,
+                            disabledActiveTrackColor = Color.White,
+                            disabledInactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        )
+                    )
+
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_settings_1),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
+                    )
                 }
-                Text(text = "Dans 4 mois", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+
+                Text(
+                    text = "Dans 4 mois",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = dimensions.bodySmall,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
             }
         }
     }
 }
 
 @Composable
-fun UnityPointsCard() {
-    val gradient = Brush.linearGradient(colors = listOf(Color(0xFF66BB6A), Color(0xFF00897B)))
-    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)) {
-        Box(modifier = Modifier.background(gradient).fillMaxWidth().padding(20.dp)) {
+private fun UnityPointsCardResponsive(dimensions: ResponsiveDimensions) {
+    val gradient = Brush.linearGradient(
+        colors = listOf(Color(0xFF66BB6A), Color(0xFF00897B))
+    )
+
+    Card(
+        shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(gradient)
+                .fillMaxWidth()
+                .padding(dimensions.cardPadding)
+        ) {
             Column {
-                Text(text = "Tes Unity Points : ✨", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(modifier = Modifier.height(20.dp))
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Tes Unity Points : ✨",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = dimensions.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(progress = { 0.75f }, modifier = Modifier.size(64.dp), color = Color.White, trackColor = Color.White.copy(alpha = 0.3f), strokeWidth = 5.dp)
+                        CircularProgressIndicator(
+                            progress = { 0.75f },
+                            modifier = Modifier.size(dimensions.iconSizeLarge + 16.dp), // ✅ 64.dp
+                            color = Color.White,
+                            trackColor = Color.White.copy(alpha = 0.3f),
+                            strokeWidth = 5.dp
+                        )
                     }
-                    Spacer(modifier = Modifier.width(20.dp))
+
+                    Spacer(modifier = Modifier.width(dimensions.itemSpacing * 2))
+
                     Column {
-                        Text(text = "1540 pts", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(text = "Prochain don à 2000 pts", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                        Text(
+                            text = "1540 pts",
+                            color = Color.White,
+                            fontSize = dimensions.titleLarge,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            text = "Prochain don à 2000 pts",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = dimensions.bodySmall
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(text = "Voir mon impact", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.CenterHorizontally))
+
+                Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
+
+                Text(
+                    text = "Voir mon impact",
+                    color = Color.White,
+                    fontSize = dimensions.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
             }
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun AppPreview() {
-    HomeScreen(navController = rememberNavController())
-}
