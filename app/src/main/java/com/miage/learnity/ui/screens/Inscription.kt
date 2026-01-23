@@ -303,10 +303,10 @@ fun Inscription(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun InscriptionScreenPreview() {
-    LearnityTheme {
-        Inscription()
-    }
-}
+//@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//fun InscriptionScreenPreview() {
+//    LearnityTheme {
+//        Inscription()
+//    }
+//}

@@ -11,9 +11,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.model.AuthViewModel
 import com.miage.learnity.ui.screens.*
+import com.miage.learnity.ui.theme.ThemeViewModel
 
 @Composable
-fun AppNav(vm: AuthViewModel = viewModel()) {
+fun AppNav(
+    vm: AuthViewModel = viewModel(),
+    themeViewModel: ThemeViewModel = viewModel()
+) {
     val nav = rememberNavController()
     val state by vm.state.collectAsState()
 
@@ -91,6 +95,8 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
 
         composable(Screen.Homepage.route) {
             MainNav(
+                // ✅ ON PASSE LE VIEWMODEL ICI POUR CORRIGER L'ERREUR
+                themeViewModel = themeViewModel,
                 onLogout = {
                     vm.signOut()
                     nav.navigate(Screen.Authentication.route) {

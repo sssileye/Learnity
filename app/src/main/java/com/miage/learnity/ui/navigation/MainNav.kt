@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -22,14 +21,17 @@ import com.miage.learnity.ui.components.TopNavigationBar
 import com.miage.learnity.ui.screens.*
 import com.miage.learnity.ui.screens.library.*
 import com.miage.learnity.ui.screens.quiz.QuizScreen
+import com.miage.learnity.ui.theme.ThemeViewModel // AJOUTER CET IMPORT
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainNav(onLogout: () -> Unit = {}) {
+fun MainNav(
+    themeViewModel: ThemeViewModel, // AJOUTER CE PARAMÈTRE
+    onLogout: () -> Unit = {}
+) {
     val navController = rememberNavController()
 
-    // ⭐ État partagé pour le mode du quiz (Découverte ou Révision)
-    // Idéalement à terme, ceci sera chargé depuis un ViewModel/DataStore
+    // État partagé pour le mode du quiz (Découverte ou Révision)
     var isDiscoveryMode by remember { mutableStateOf(false) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -60,7 +62,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
         ) {
             // --- Destinations Standards ---
 
-            // ⭐ Mise à jour de Home : on lui passe le controller et le mode
             composable("home") {
                 HomeScreen(
                     navController = navController,
@@ -70,9 +71,12 @@ fun MainNav(onLogout: () -> Unit = {}) {
 
             composable("association") { AssociationScreen() }
             composable("ranking") { RankingScreen() }
-            composable("settings") { SettingsScreen() }
 
-            // ⭐ Mise à jour de Profile : on lui passe l'état pour le switch
+            // ⭐ MISE À JOUR : Passage du ViewModel au SettingsScreen
+            composable("settings") {
+                SettingsScreen(themeViewModel = themeViewModel) // AJOUTER CE PARAMÈTRE
+            }
+
             composable("profile") {
                 ProfileScreen(
                     isDiscoveryMode = isDiscoveryMode,
@@ -145,7 +149,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Quiz Screen (Supporte Chapitre, Mega Quiz et Daily Quiz) ---
+            // --- Quiz Screen ---
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
@@ -159,8 +163,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
             ) { backStackEntry ->
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
                 val chapterId = backStackEntry.arguments?.getString("chapterId") ?: ""
-
-                // ⭐ UTILISER CETTE SYNTAXE pour les paramètres optionnels
                 val isReviewMode = backStackEntry.arguments?.getBoolean("isReviewMode") ?: false
 
                 QuizScreen(
