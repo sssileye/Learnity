@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.R
+import kotlinx.coroutines.launch
 
 private val IconBg = Color(0xfff0f1f3)
 private val PrimaryText = Color(0xff1b1c1e)
@@ -37,32 +38,66 @@ fun ProfileScreen(
     isDiscoveryMode: Boolean,
     onModeChange: (Boolean) -> Unit,
     onLogout: () -> Unit = {},
+    onEditClick: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
-        Image(
-            painter = painterResource(id = R.drawable.arc_pic),
-            contentDescription = null,
-            contentScale = ContentScale.FillWidth,
-            modifier = Modifier.fillMaxWidth().height(260.dp)
-        )
+    // ⭐ Gestion du retour visuel après sauvegarde
+    LaunchedEffect(uiState.updateSuccess) {
+        if (uiState.updateSuccess) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Profil mis à jour avec succès !",
+                    duration = SnackbarDuration.Short
+                )
+                viewModel.resetUpdateSuccess()
+            }
+        }
+    }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(modifier = Modifier.height(80.dp))
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.Transparent // Permet de voir notre fond personnalisé derrière
+    ) { paddingValues ->
+        // On applique le paddingValues du Scaffold pour ne pas cacher le contenu sous la TopBar/BottomBar
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(paddingValues)
+        ) {
+            // 1. IMAGE DE FOND (ARC) - Fixe
+            Image(
+                painter = painterResource(id = R.drawable.arc_pic),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp)
+            )
 
-            when {
-                uiState.isLoading -> LoadingProfileState()
-                uiState.profile != null -> {
-                    ProfileContent(
-                        profile = uiState.profile!!,
-                        isDiscoveryMode = isDiscoveryMode,
-                        onModeChange = onModeChange,
-                        onLogout = onLogout
-                    )
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Espace pour aligner la photo sur l'arc
+                Spacer(modifier = Modifier.height(80.dp))
+
+                when {
+                    // On affiche le loader seulement si on n'a aucune donnée
+                    uiState.isLoading && uiState.profile == null -> LoadingProfileState()
+
+                    uiState.profile != null -> {
+                        ProfileContent(
+                            profile = uiState.profile!!,
+                            isDiscoveryMode = isDiscoveryMode,
+                            onModeChange = onModeChange,
+                            onLogout = onLogout,
+                            onEditClick = onEditClick
+                        )
+                    }
+
+                    uiState.error != null -> ErrorProfileState(uiState.error!!, { viewModel.refresh() })
                 }
-                uiState.error != null -> ErrorProfileState(uiState.error!!, { viewModel.refresh() })
             }
         }
     }
@@ -73,9 +108,10 @@ private fun ProfileContent(
     profile: com.miage.learnity.data.UserProfile,
     isDiscoveryMode: Boolean,
     onModeChange: (Boolean) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onEditClick: () -> Unit
 ) {
-    // --- HEADER PROFIL ---
+    // --- HEADER PROFIL (Image + Nom) ---
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -97,7 +133,9 @@ private fun ProfileContent(
             Surface(
                 shape = CircleShape,
                 color = Color(0xFF673AB7),
-                modifier = Modifier.size(32.dp).clickable { /* Edit */ },
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { onEditClick() },
                 shadowElevation = 4.dp
             ) {
                 Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.padding(6.dp))
@@ -106,13 +144,22 @@ private fun ProfileContent(
 
         Spacer(Modifier.height(16.dp))
 
-        Text("${profile.firstName} ${profile.lastName}", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 20.sp)
-        Text(profile.email, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+        Text(
+            text = "${profile.firstName} ${profile.lastName}",
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White,
+            fontSize = 20.sp
+        )
+        Text(
+            text = profile.email,
+            color = Color.White.copy(alpha = 0.8f),
+            fontSize = 14.sp
+        )
     }
 
     Spacer(Modifier.height(24.dp))
 
-    // --- ZONE SCROLLABLE ---
+    // --- ZONE SCROLLABLE (Dashboard + Paramètres) ---
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -121,7 +168,7 @@ private fun ProfileContent(
             .padding(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // --- BOX 1 : DASHBOARD (Stats & Dette) ---
+        // --- BOX 1 : DASHBOARD ---
         Surface(
             color = Color.White,
             shape = RoundedCornerShape(24.dp),
@@ -154,7 +201,6 @@ private fun ProfileContent(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Dette
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -178,13 +224,7 @@ private fun ProfileContent(
             shadowElevation = 2.dp
         ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                Text(
-                    "PARAMÈTRES",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SecondaryText,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                Text("PARAMÈTRES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SecondaryText, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 QuizModeToggleRow(isDiscoveryMode, { onModeChange(!isDiscoveryMode) })
                 MenuItemRow("Mon Association", R.drawable.ic_asso) {}
                 MenuItemRow("Réglages", R.drawable.ic_settings_1) {}
@@ -193,7 +233,7 @@ private fun ProfileContent(
             }
         }
 
-        Spacer(Modifier.height(80.dp)) // Espace pour la Bottom Bar
+        Spacer(Modifier.height(80.dp))
     }
 }
 
@@ -251,50 +291,23 @@ private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit) {
     }
 }
 
-// Helpers États
-@Composable private fun LoadingProfileState() { Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() } }
+@Composable private fun LoadingProfileState() { Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Color(0xFF673AB7)) } }
 @Composable private fun ErrorProfileState(m: String, r: () -> Unit) { Column(Modifier.fillMaxSize(), Arrangement.Center, Alignment.CenterHorizontally) { Text(m); Button(onClick = r) { Text("Retry") } } }
 
 @Preview(showBackground = true, showSystemUi = true)
-
 @Composable
-
 fun ProfileScreenPreview() {
-
     MaterialTheme {
-
         ProfileContent(
-
             profile = com.miage.learnity.data.UserProfile(
-
-                firstName = "Axel",
-
-                lastName = "H",
-
-                email = "axel@learnity.fr",
-
-                unityPoints = 1250,
-
-                currentStreak = 7,
-
-                bestStreak = 15,
-
-                detteCumulee = 4.50,
-
-                redevanceSoutienUnitaire = 0.10
-
+                firstName = "Axel", lastName = "H", email = "axel@learnity.fr",
+                unityPoints = 1250, currentStreak = 7, bestStreak = 15,
+                detteCumulee = 4.50, redevanceSoutienUnitaire = 0.10
             ),
-
             isDiscoveryMode = true,
-
             onModeChange = {},
-
-            //onEditClick = {},
-
+            onEditClick = {},
             onLogout = {}
-
         )
-
     }
-
 }

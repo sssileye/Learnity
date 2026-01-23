@@ -13,7 +13,8 @@ data class ProfileUiState(
     val profile: UserProfile? = null,
     val isLoading: Boolean = true,
     val error: String? = null,
-    val isEditing: Boolean = false
+    val isEditing: Boolean = false,
+    val updateSuccess: Boolean = false // ⭐ Ajouté pour déclencher l'animation/Snackbar
 )
 
 class ProfileViewModel(
@@ -24,26 +25,24 @@ class ProfileViewModel(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        loadUserProfile()
+        // ⭐ On remplace loadUserProfile() par une observation en temps réel
+        observeUserProfile()
     }
 
-    fun loadUserProfile() {
+    /**
+     * Écoute les changements du profil dans Firestore en temps réel.
+     * Plus besoin de refresh manuel, l'UI se mettra à jour toute seule.
+     */
+    private fun observeUserProfile() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-
-            userRepository.getUserProfile()
-                .onSuccess { profile ->
-                    _uiState.value = _uiState.value.copy(
-                        profile = profile,
-                        isLoading = false
-                    )
-                }
-                .onFailure { exception ->
-                    _uiState.value = _uiState.value.copy(
-                        error = exception.message ?: "Erreur de chargement",
-                        isLoading = false
-                    )
-                }
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            userRepository.observeUserProfile().collect { profile ->
+                _uiState.value = _uiState.value.copy(
+                    profile = profile,
+                    isLoading = false,
+                    error = if (profile == null) "Profil introuvable" else null
+                )
+            }
         }
     }
 
@@ -57,6 +56,9 @@ class ProfileViewModel(
         val currentProfile = _uiState.value.profile ?: return
 
         viewModelScope.launch {
+            // On affiche un état de chargement pendant la sauvegarde
+            _uiState.value = _uiState.value.copy(isLoading = true, updateSuccess = false)
+
             val updatedProfile = currentProfile.copy(
                 firstName = firstName ?: currentProfile.firstName,
                 lastName = lastName ?: currentProfile.lastName,
@@ -67,17 +69,28 @@ class ProfileViewModel(
 
             userRepository.saveUserProfile(updatedProfile)
                 .onSuccess {
+                    // On ne met pas à jour le profil ici manuellement car
+                    // observeUserProfile() s'en chargera dès que Firebase aura validé.
                     _uiState.value = _uiState.value.copy(
-                        profile = updatedProfile,
-                        isEditing = false
+                        isLoading = false,
+                        isEditing = false,
+                        updateSuccess = true // ⭐ Déclenche l'effet visuel dans l'UI
                     )
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
-                        error = exception.message ?: "Erreur de sauvegarde"
+                        error = exception.message ?: "Erreur de sauvegarde",
+                        isLoading = false
                     )
                 }
         }
+    }
+
+    /**
+     * Appelé par l'UI après avoir affiché la Snackbar pour réinitialiser l'état
+     */
+    fun resetUpdateSuccess() {
+        _uiState.value = _uiState.value.copy(updateSuccess = false)
     }
 
     fun toggleEditMode() {
@@ -87,6 +100,8 @@ class ProfileViewModel(
     }
 
     fun refresh() {
-        loadUserProfile()
+        // Optionnel maintenant grâce à observeUserProfile,
+        // mais utile en cas d'erreur réseau pour relancer le flow.
+        observeUserProfile()
     }
 }

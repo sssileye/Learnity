@@ -1,15 +1,11 @@
 package com.miage.learnity.ui.navigation
 
+import ProfileEditorScreen
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -28,16 +24,17 @@ import com.miage.learnity.ui.screens.quiz.QuizScreen
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
 
-    // ⭐ État partagé pour le mode du quiz (Découverte ou Révision)
-    // Idéalement à terme, ceci sera chargé depuis un ViewModel/DataStore
+    // État partagé pour le mode du quiz
     var isDiscoveryMode by remember { mutableStateOf(false) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // ⭐ On cache les barres pour le Quiz, le PDF et maintenant l'Éditeur de profil
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
-            !currentRoute.contains("pdf")
+            !currentRoute.contains("pdf") &&
+            currentRoute != "profile_editor"
 
     Scaffold(
         topBar = {
@@ -60,7 +57,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
         ) {
             // --- Destinations Standards ---
 
-            // ⭐ Mise à jour de Home : on lui passe le controller et le mode
             composable("home") {
                 HomeScreen(
                     navController = navController,
@@ -72,12 +68,20 @@ fun MainNav(onLogout: () -> Unit = {}) {
             composable("ranking") { RankingScreen() }
             composable("settings") { SettingsScreen() }
 
-            // ⭐ Mise à jour de Profile : on lui passe l'état pour le switch
+            // ⭐ Mise à jour : Ajout du déclencheur vers l'éditeur
             composable("profile") {
                 ProfileScreen(
                     isDiscoveryMode = isDiscoveryMode,
                     onModeChange = { isDiscoveryMode = it },
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    onEditClick = { navController.navigate("profile_editor") }
+                )
+            }
+
+            // ⭐ Nouvelle Route : Écran de modification de profil
+            composable("profile_editor") {
+                ProfileEditorScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -100,8 +104,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     onBackClick = { navController.popBackStack() }
                 )
             }
-
-
 
             // --- Contenu du Chapitre ---
             composable(
@@ -147,7 +149,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Quiz Screen (Supporte Chapitre, Mega Quiz et Daily Quiz) ---
+            // --- Quiz Screen ---
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
@@ -161,8 +163,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
             ) { backStackEntry ->
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
                 val chapterId = backStackEntry.arguments?.getString("chapterId") ?: ""
-
-                // ⭐ UTILISER CETTE SYNTAXE pour les paramètres optionnels
                 val isReviewMode = backStackEntry.arguments?.getBoolean("isReviewMode") ?: false
 
                 QuizScreen(

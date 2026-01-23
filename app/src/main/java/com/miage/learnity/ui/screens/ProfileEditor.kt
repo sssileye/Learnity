@@ -1,210 +1,217 @@
-package com.miage.learnity.ui.screens
-
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.miage.learnity.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.miage.learnity.ui.screens.ProfileViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun ProfileEditorScreen(
-    onBack: () -> Unit,
-    onSave: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: ProfileViewModel = viewModel()
 ) {
-    val scrollState = rememberScrollState()
+    val uiState by viewModel.uiState.collectAsState()
 
-    // États pour les champs (À lier plus tard à ton ViewModel)
-    var firstName by remember { mutableStateOf("Axel") }
-    var lastName by remember { mutableStateOf("H") }
-    var redevance by remember { mutableStateOf("0.10") }
-
-    // État pour le dialogue de sécurité
-    var showPasswordDialog by remember { mutableStateOf(false) }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Modifier le profil", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onSave) {
-                        Text("Enregistrer", color = Color(0xFF673AB7), fontWeight = FontWeight.Bold)
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(scrollState)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // --- SECTION PHOTO ---
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .clickable { /* Action Galerie */ },
-                contentAlignment = Alignment.BottomEnd
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.LightGray,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.profile),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop
-                    )
-                }
-                // Badge caméra
-                Surface(
-                    shape = CircleShape,
-                    color = Color(0xFF673AB7),
-                    modifier = Modifier.size(36.dp),
-                    shadowElevation = 4.dp
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
+    // On récupère le profil depuis le StateFlow du ViewModel
+    uiState.profile?.let { currentProfile ->
+        ProfileEditor(
+            profile = currentProfile,
+            isLoading = uiState.isLoading,
+            onCancel = onNavigateBack,
+            onSave = { firstName, lastName, email, redevance ->
+                // On appelle la fonction de ton ViewModel
+                viewModel.updateProfile(
+                    firstName = firstName,
+                    lastName = lastName,
+                    redevance = redevance
+                    // Note: Ton ViewModel actuel ne prend pas l'email,
+                    // tu peux l'ajouter dans la signature de updateProfile si besoin
+                )
+                onNavigateBack() // Retour à l'écran précédent après sauvegarde
             }
-
-            Spacer(Modifier.height(32.dp))
-
-            // --- SECTION INFORMATIONS ---
-            Text(
-                text = "INFORMATIONS PERSONNELLES",
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.Gray,
-                modifier = Modifier.align(Alignment.Start).padding(bottom = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = firstName,
-                onValueChange = { firstName = it },
-                label = { Text("Prénom") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = lastName,
-                onValueChange = { lastName = it },
-                label = { Text("Nom") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = redevance,
-                onValueChange = { redevance = it },
-                label = { Text("Redevance de soutien unitaire (€)") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                prefix = { Text("€ ") }
-            )
-
-            Spacer(Modifier.height(32.dp))
-
-            // --- SECTION SÉCURITÉ ---
-            Text(
-                text = "SÉCURITÉ",
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.Gray,
-                modifier = Modifier.align(Alignment.Start).padding(bottom = 16.dp)
-            )
-
-            Card(
-                onClick = { showPasswordDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF673AB7))
-                    Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text("Mot de passe", fontWeight = FontWeight.Bold)
-                        Text("Modifier votre accès sécurisé", fontSize = 12.sp, color = Color.Gray)
-                    }
-                }
-            }
-        }
-    }
-
-    // --- DIALOGUE MOT DE PASSE ---
-    if (showPasswordDialog) {
-        SecurityPasswordDialog(onDismiss = { showPasswordDialog = false })
+        )
     }
 }
 
 @Composable
-fun SecurityPasswordDialog(onDismiss: () -> Unit) {
-    var oldPwd by remember { mutableStateOf("") }
-    var newPwd by remember { mutableStateOf("") }
+private fun ProfileEditor(
+    profile: com.miage.learnity.data.UserProfile,
+    onSave: (String, String, String, Double) -> Unit,
+    onCancel: () -> Unit,
+    isLoading: Boolean
+) {
+    // États (Logique Claude conservée)
+    var firstName by remember { mutableStateOf(profile.firstName) }
+    var lastName by remember { mutableStateOf(profile.lastName) }
+    var email by remember { mutableStateOf(profile.email) }
+    var redevance by remember { mutableStateOf(profile.redevanceSoutienUnitaire.toString()) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Changer le mot de passe") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Pour votre sécurité, entrez votre ancien mot de passe avant d'en créer un nouveau.", fontSize = 13.sp)
-                OutlinedTextField(
-                    value = oldPwd,
-                    onValueChange = { oldPwd = it },
-                    label = { Text("Ancien mot de passe") }
-                )
-                OutlinedTextField(
-                    value = newPwd,
-                    onValueChange = { newPwd = it },
-                    label = { Text("Nouveau mot de passe") }
-                )
+    var firstNameError by remember { mutableStateOf("") }
+    var lastNameError by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf("") }
+    var redevanceError by remember { mutableStateOf("") }
+
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .verticalScroll(scrollState)
+            .padding(horizontal = 24.dp)
+    ) {
+        Spacer(Modifier.height(60.dp))
+
+        // Titre stylisé
+        Text(
+            text = "Modifier mon profil",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.Black
+            )
+        )
+        Text(
+            text = "Mettez à jour vos informations personnelles",
+            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Black)
+        )
+
+        Spacer(Modifier.height(40.dp))
+
+        // Champ Prénom
+        CustomEditField(
+            value = firstName,
+            onValueChange = {
+                firstName = it
+                firstNameError = if (it.isBlank()) "Prénom requis" else ""
+            },
+            label = "Prénom",
+            icon = Icons.Default.Person,
+            errorText = firstNameError
+        )
+
+        // Champ Nom
+        CustomEditField(
+            value = lastName,
+            onValueChange = {
+                lastName = it
+                lastNameError = if (it.isBlank()) "Nom requis" else ""
+            },
+            label = "Nom",
+            icon = Icons.Default.Person,
+            errorText = lastNameError
+        )
+
+        // Champ Email
+        CustomEditField(
+            value = email,
+            onValueChange = {
+                email = it
+                emailError = if (!android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Email invalide" else ""
+            },
+            label = "Email",
+            icon = Icons.Default.Email,
+            errorText = emailError,
+            keyboardType = KeyboardType.Email
+        )
+
+        // Champ Redevance
+        CustomEditField(
+            value = redevance,
+            onValueChange = {
+                redevance = it
+                redevanceError = if (it.toDoubleOrNull() == null) "Montant invalide" else ""
+            },
+            label = "Redevance unitaire (€)",
+            icon = Icons.Default.ShoppingCart, // Ou une icône de monnaie
+            errorText = redevanceError,
+            keyboardType = KeyboardType.Decimal
+        )
+
+        Spacer(Modifier.height(48.dp))
+
+        // BOUTONS (Même logique, look amélioré)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f).height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+            ) {
+                Text("Annuler", color = Color.Black)
             }
-        },
-        confirmButton = {
-            Button(onClick = { /* Logique Firebase Reauth + Update */ onDismiss() }) {
-                Text("Confirmer")
+
+            Button(
+                onClick = {
+                    // Validation finale et onSave...
+                    val redValue = redevance.toDoubleOrNull() ?: 0.0
+                    onSave(firstName, lastName, email, redValue)
+                },
+                modifier = Modifier.weight(1f).height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
+                // Dans le bouton Sauvegarder
+                enabled = !isLoading &&
+                        firstNameError.isEmpty() &&
+                        lastNameError.isEmpty() &&
+                        emailError.isEmpty() &&
+                        redevanceError.isEmpty() &&
+                        firstName.isNotBlank() &&
+                        lastName.isNotBlank()
+            ) {
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                else Text("Enregistrer")
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
         }
-    )
+    }
+}
+
+@Composable
+fun CustomEditField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    icon: ImageVector,
+    errorText: String,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
+    Column(modifier = Modifier.padding(bottom = 20.dp)) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            leadingIcon = { Icon(icon, contentDescription = null, tint = Color(0xFF673AB7)) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            isError = errorText.isNotEmpty(),
+            supportingText = { if (errorText.isNotEmpty()) Text(errorText) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF673AB7),
+                focusedLabelColor = Color(0xFF673AB7),
+                unfocusedBorderColor = Color(0xFFE0E0E0)
+            )
+        )
+    }
 }
