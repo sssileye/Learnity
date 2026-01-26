@@ -11,7 +11,7 @@ data class UserProfile(
     val email: String = "",
     val firstName: String = "",
     val lastName: String = "",
-    val photoUrl: String? = null,
+    val photoUrl: String = "avatar_b1",
     val createdAt: Long = System.currentTimeMillis(),
 
     // --- Système de Redevance (La Dette) ---

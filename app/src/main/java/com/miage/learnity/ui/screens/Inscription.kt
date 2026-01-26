@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,14 +16,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miage.learnity.R
@@ -32,18 +32,19 @@ import com.miage.learnity.ui.theme.*
 @Composable
 fun Inscription(
     onBackClick: () -> Unit = {},
-    onInscriptionSuccess: (String, String, String, String) -> Unit = { _, _, _, _ -> }, // ✅ Ajout firstName, lastName
+    onInscriptionSuccess: (String, String, String, String) -> Unit = { _, _, _, _ -> },
     isLoading: Boolean = false,
     error: String? = null
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     // ============================================
     // ÉTATS DU FORMULAIRE
     // ============================================
 
-    var firstName by remember { mutableStateOf("") }  // ✅ NOUVEAU
-    var lastName by remember { mutableStateOf("") }   // ✅ NOUVEAU
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -52,8 +53,8 @@ fun Inscription(
     var acceptCGU by remember { mutableStateOf(false) }
 
     // États d'erreur
-    var firstNameError by remember { mutableStateOf("") }  // ✅ NOUVEAU
-    var lastNameError by remember { mutableStateOf("") }   // ✅ NOUVEAU
+    var firstNameError by remember { mutableStateOf("") }
+    var lastNameError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf("") }
@@ -66,7 +67,7 @@ fun Inscription(
         return when {
             name.isBlank() -> false to "$fieldName requis"
             name.length < 2 -> false to "Au moins 2 caractères"
-            !name.all { it.isLetter() || it.isWhitespace() } -> false to "Lettres uniquement"
+            !name.all { it.isLetter() || it.isWhitespace() || it == '-' } -> false to "Lettres uniquement"
             else -> true to ""
         }
     }
@@ -123,8 +124,8 @@ fun Inscription(
         }
     }
 
-    val isButtonEnabled = firstName.isNotBlank() &&    // ✅ NOUVEAU
-            lastName.isNotBlank() &&                    // ✅ NOUVEAU
+    val isButtonEnabled = firstName.isNotBlank() &&
+            lastName.isNotBlank() &&
             email.isNotBlank() &&
             password.isNotBlank() &&
             confirmPassword.isNotBlank() &&
@@ -165,7 +166,6 @@ fun Inscription(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // Logo
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo Learnity",
@@ -174,7 +174,6 @@ fun Inscription(
 
             Spacer(Modifier.height(16.dp))
 
-            // Titre
             Text(
                 text = "Rejoignez-nous !",
                 fontSize = 28.sp,
@@ -184,296 +183,158 @@ fun Inscription(
 
             Spacer(Modifier.height(32.dp))
 
-            // ============================================
-            // ✅ CHAMP PRÉNOM
-            // ============================================
-
+            // PRÉNOM : Majuscule automatique + Touche Suivant
             OutlinedTextField(
                 value = firstName,
-                onValueChange = {
-                    firstName = it
-                    if (firstNameError.isNotEmpty()) {
-                        val (isValid, error) = validateName(it, "Prénom")
-                        firstNameError = error
-                    }
-                },
+                onValueChange = { firstName = it },
                 label = { Text("Prénom") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 isError = firstNameError.isNotEmpty(),
-                supportingText = {
-                    if (firstNameError.isNotEmpty()) {
-                        Text(
-                            text = firstNameError,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
+                supportingText = { if (firstNameError.isNotEmpty()) Text(firstNameError, color = MaterialTheme.colorScheme.error) },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF635BFF),
-                    focusedLabelColor = Color(0xFF635BFF)
-                )
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF635BFF), focusedLabelColor = Color(0xFF635BFF))
             )
 
             Spacer(Modifier.height(16.dp))
 
-            // ============================================
-            // ✅ CHAMP NOM
-            // ============================================
-
+            // NOM : Majuscule automatique + Touche Suivant
             OutlinedTextField(
                 value = lastName,
-                onValueChange = {
-                    lastName = it
-                    if (lastNameError.isNotEmpty()) {
-                        val (isValid, error) = validateName(it, "Nom")
-                        lastNameError = error
-                    }
-                },
+                onValueChange = { lastName = it },
                 label = { Text("Nom") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 isError = lastNameError.isNotEmpty(),
-                supportingText = {
-                    if (lastNameError.isNotEmpty()) {
-                        Text(
-                            text = lastNameError,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
+                supportingText = { if (lastNameError.isNotEmpty()) Text(lastNameError, color = MaterialTheme.colorScheme.error) },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF635BFF),
-                    focusedLabelColor = Color(0xFF635BFF)
-                )
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF635BFF), focusedLabelColor = Color(0xFF635BFF))
             )
 
             Spacer(Modifier.height(16.dp))
 
-            // ============================================
-            // CHAMP EMAIL
-            // ============================================
-
+            // EMAIL
             OutlinedTextField(
                 value = email,
-                onValueChange = {
-                    email = it
-                    if (emailError.isNotEmpty()) validateEmail(it)
-                },
+                onValueChange = { email = it },
                 label = { Text("Email") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 isError = emailError.isNotEmpty(),
-                supportingText = {
-                    if (emailError.isNotEmpty()) {
-                        Text(
-                            text = emailError,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
+                supportingText = { if (emailError.isNotEmpty()) Text(emailError, color = MaterialTheme.colorScheme.error) },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF635BFF),
-                    focusedLabelColor = Color(0xFF635BFF)
-                )
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF635BFF), focusedLabelColor = Color(0xFF635BFF))
             )
 
             Spacer(Modifier.height(16.dp))
 
-            // ============================================
-            // CHAMP MOT DE PASSE
-            // ============================================
-
+            // MOT DE PASSE
             OutlinedTextField(
                 value = password,
-                onValueChange = {
-                    password = it
-                    if (passwordError.isNotEmpty()) validatePassword(it)
-                },
+                onValueChange = { password = it },
                 label = { Text("Mot de passe") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showPassword) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(
-                            imageVector = if (showPassword) {
-                                Icons.Default.Visibility
-                            } else {
-                                Icons.Default.VisibilityOff
-                            },
-                            contentDescription = if (showPassword) {
-                                "Masquer le mot de passe"
-                            } else {
-                                "Afficher le mot de passe"
-                            }
-                        )
+                        Icon(imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 isError = passwordError.isNotEmpty(),
                 supportingText = {
-                    if (passwordError.isNotEmpty()) {
-                        Text(
-                            text = passwordError,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    } else {
-                        Text(
-                            text = "8 caractères min, 1 chiffre, 1 majuscule",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
+                    if (passwordError.isNotEmpty()) Text(passwordError, color = MaterialTheme.colorScheme.error)
+                    else Text("8 caractères min, 1 chiffre, 1 majuscule", color = Color.Gray, fontSize = 12.sp)
                 },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF635BFF),
-                    focusedLabelColor = Color(0xFF635BFF)
-                )
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF635BFF), focusedLabelColor = Color(0xFF635BFF))
             )
 
             Spacer(Modifier.height(16.dp))
 
-            // ============================================
-            // CHAMP CONFIRMATION MOT DE PASSE
-            // ============================================
-
+            // CONFIRMATION MOT DE PASSE : Touche OK/Done
             OutlinedTextField(
                 value = confirmPassword,
-                onValueChange = {
-                    confirmPassword = it
-                    if (confirmPasswordError.isNotEmpty()) {
-                        validateConfirmPassword(password, it)
-                    }
-                },
+                onValueChange = { confirmPassword = it },
                 label = { Text("Confirmer le mot de passe") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showConfirmPassword) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                        Icon(
-                            imageVector = if (showConfirmPassword) {
-                                Icons.Default.Visibility
-                            } else {
-                                Icons.Default.VisibilityOff
-                            },
-                            contentDescription = if (showConfirmPassword) {
-                                "Masquer"
-                            } else {
-                                "Afficher"
-                            }
-                        )
+                        Icon(imageVector = if (showConfirmPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 isError = confirmPasswordError.isNotEmpty(),
-                supportingText = {
-                    if (confirmPasswordError.isNotEmpty()) {
-                        Text(
-                            text = confirmPasswordError,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
+                supportingText = { if (confirmPasswordError.isNotEmpty()) Text(confirmPasswordError, color = MaterialTheme.colorScheme.error) },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF635BFF),
-                    focusedLabelColor = Color(0xFF635BFF)
-                )
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF635BFF), focusedLabelColor = Color(0xFF635BFF))
             )
 
             Spacer(Modifier.height(24.dp))
 
-            // ============================================
             // CHECKBOX CGU
-            // ============================================
-
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Checkbox(
-                    checked = acceptCGU,
-                    onCheckedChange = { acceptCGU = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = Color(0xFF635BFF)
-                    )
-                )
-                Text(
-                    text = "J'accepte les conditions générales d'utilisation",
-                    color = TextGray,
-                    fontSize = 14.sp
-                )
+                Checkbox(checked = acceptCGU, onCheckedChange = { acceptCGU = it }, colors = CheckboxDefaults.colors(checkedColor = Color(0xFF635BFF)))
+                Text(text = "J'accepte les conditions générales d'utilisation", color = TextGray, fontSize = 14.sp)
             }
 
             Spacer(Modifier.height(32.dp))
 
-            // ============================================
             // BOUTON INSCRIPTION
-            // ============================================
-
             Button(
                 onClick = {
-                    // ✅ Validation complète avec nom et prénom
                     val (isFirstNameValid, firstNameErr) = validateName(firstName, "Prénom")
                     firstNameError = firstNameErr
-
                     val (isLastNameValid, lastNameErr) = validateName(lastName, "Nom")
                     lastNameError = lastNameErr
-
                     val isEmailValid = validateEmail(email)
                     val isPasswordValid = validatePassword(password)
                     val isConfirmValid = validateConfirmPassword(password, confirmPassword)
 
-                    // Si tout est valide, lancer l'inscription
                     if (isFirstNameValid && isLastNameValid && isEmailValid && isPasswordValid && isConfirmValid) {
+                        // On formate les noms proprement (Majuscule au début) avant l'envoi
+                        val formattedFirstName = firstName.trim().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+                        val formattedLastName = lastName.trim().uppercase() // Souvent le nom est tout en majuscules ou juste la première lettre
+
                         onInscriptionSuccess(
                             email.trim(),
                             password.trim(),
-                            firstName.trim(),
-                            lastName.trim()
+                            formattedFirstName,
+                            formattedLastName
                         )
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = isButtonEnabled,
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF635BFF),
-                    disabledContainerColor = Color.LightGray
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF635BFF), disabledContainerColor = Color.LightGray)
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
-                    Text(
-                        text = "S'inscrire",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
+                    Text(text = "S'inscrire", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
-
             Spacer(Modifier.height(24.dp))
         }
     }

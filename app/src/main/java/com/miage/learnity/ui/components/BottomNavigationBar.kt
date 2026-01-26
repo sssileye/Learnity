@@ -49,11 +49,11 @@ fun BottomNavigationBar(navController: NavHostController) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_asso),
                     contentDescription = null,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(24.dp),
                     tint = Color.Unspecified
                 )
             },
-            label = { Text("Mon Asso") },
+            label = { Text("Asso") },
             selected = route == "association",
             onClick = {
                 navController.navigate("association") {

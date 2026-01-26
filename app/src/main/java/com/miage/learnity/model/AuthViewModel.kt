@@ -1,6 +1,7 @@
 package com.miage.learnity.model
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
@@ -10,6 +11,8 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.miage.learnity.data.UserProfile
+import com.miage.learnity.repository.UserRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -31,6 +34,9 @@ class AuthViewModel : ViewModel() {
     }
 
     private val firestore = FirebaseFirestore.getInstance()
+
+    // ⭐ On déclare le repository une seule fois ici
+    private val userRepository = UserRepository()
 
     private val _state = MutableStateFlow(AuthUiState())
     val state: StateFlow<AuthUiState> = _state
@@ -60,9 +66,9 @@ class AuthViewModel : ViewModel() {
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // ✅ Créer le profil utilisateur avec nom et prénom
                     val user = auth.currentUser
                     if (user != null) {
+                        // ✅ Appel de la fonction de création de profil
                         createUserProfile(user.uid, email, firstName, lastName)
                     }
                     ok()
@@ -78,12 +84,13 @@ class AuthViewModel : ViewModel() {
         firstName: String,
         lastName: String
     ) {
-        val userRepository = com.miage.learnity.repository.UserRepository()
-        val newProfile = com.miage.learnity.data.UserProfile(
+        // ⭐ Création de l'objet avec l'avatar par défaut "avatar_b1"
+        val newProfile = UserProfile(
             uid = uid,
             email = email,
-            firstName = firstName,      // ✅ NOUVEAU
-            lastName = lastName,         // ✅ NOUVEAU
+            firstName = firstName,
+            lastName = lastName,
+            photoUrl = "avatar_b1", // Garanti à la création
             createdAt = System.currentTimeMillis(),
             redevanceSoutienUnitaire = 1.0,
             detteCumulee = 0.0,
@@ -92,8 +99,15 @@ class AuthViewModel : ViewModel() {
             bestStreak = 0
         )
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        // ⭐ Utilisation du scope du ViewModel pour la coroutine
+        viewModelScope.launch(Dispatchers.IO) {
             userRepository.saveUserProfile(newProfile)
+                .onSuccess {
+                    println("✅ AuthViewModel - Profil Firestore créé avec succès")
+                }
+                .onFailure { e ->
+                    println("❌ AuthViewModel - Échec création profil : ${e.message}")
+                }
         }
     }
 
