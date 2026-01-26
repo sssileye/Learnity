@@ -23,9 +23,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.R
+import com.miage.learnity.ui.utils.*
 import kotlinx.coroutines.launch
 
 private val IconBg = Color(0xfff0f1f3)
@@ -41,6 +41,9 @@ fun ProfileScreen(
     onEditClick: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
+    // ✅ DIMENSIONS RESPONSIVES
+    val dimensions = rememberResponsiveDimensions()
+
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -61,9 +64,10 @@ fun ProfileScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color.White
     ) { paddingValues ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.arc_pic),
@@ -71,24 +75,29 @@ fun ProfileScreen(
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(260.dp)
+                    .height(dimensions.profilePictureSize * 2.7f)  // ✅ 260.sdp()
             )
 
             Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(dimensions.profilePictureSize * 0.83f))  // ✅ 80.sdp()
 
                 when {
-                    uiState.isLoading && uiState.profile == null -> LoadingProfileState()
+                    uiState.isLoading && uiState.profile == null -> LoadingProfileState(dimensions)
                     uiState.profile != null -> {
                         ProfileContent(
                             profile = uiState.profile!!,
                             isDiscoveryMode = isDiscoveryMode,
                             onModeChange = { onModeChange(it) },
                             onLogout = { onLogout() },
-                            onEditClick = { onEditClick() }
+                            onEditClick = { onEditClick() },
+                            dimensions = dimensions
                         )
                     }
-                    uiState.error != null -> ErrorProfileState(uiState.error!!) { viewModel.refresh() }
+                    uiState.error != null -> ErrorProfileState(
+                        uiState.error!!,
+                        { viewModel.refresh() },
+                        dimensions
+                    )
                 }
             }
         }
@@ -101,20 +110,20 @@ private fun ProfileContent(
     isDiscoveryMode: Boolean,
     onModeChange: (Boolean) -> Unit,
     onLogout: () -> Unit,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    dimensions: ResponsiveDimensions
 ) {
     val context = LocalContext.current
 
     // ⭐ LOGIQUE DYNAMIQUE ULTRA-SÉCURISÉE
     val avatarResId = remember(profile.photoUrl) {
-        // On récupère le nom depuis le profil, ou "avatar_b1" si c'est null/vide
         val photoName = if (profile.photoUrl.isNullOrBlank()) "avatar_b1" else profile.photoUrl
 
         try {
             val id = context.resources.getIdentifier(photoName, "drawable", context.packageName)
             if (id != 0) id else R.drawable.avatar_b1
         } catch (e: Exception) {
-            R.drawable.avatar_b1 // En cas de pépin, on retombe toujours sur b1
+            R.drawable.avatar_b1
         }
     }
 
@@ -122,12 +131,13 @@ private fun ProfileContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // ✅ AVATAR AVEC BOUTON ÉDITION - RESPONSIVE
         Box(contentAlignment = Alignment.BottomEnd) {
             Surface(
                 shape = CircleShape,
-                shadowElevation = 8.dp,
+                shadowElevation = dimensions.cardElevation * 4,  // ✅ 8.dp
                 color = Color.White,
-                modifier = Modifier.size(110.dp)
+                modifier = Modifier.size(dimensions.profilePictureSize * 1.15f)  // ✅ 110.sdp()
             ) {
                 Image(
                     painter = painterResource(id = avatarResId),
@@ -135,184 +145,390 @@ private fun ProfileContent(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .padding(4.dp)
+                        .padding(dimensions.itemSpacing / 3)  // ✅ 4.dp
                 )
             }
             Surface(
                 shape = CircleShape,
                 color = Color(0xFF673AB7),
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(dimensions.iconSizeMedium * 1.42f)  // ✅ 34.sdp()
                     .clickable { onEditClick() }
                     .offset(x = (-4).dp, y = (-4).dp),
-                shadowElevation = 4.dp
+                shadowElevation = dimensions.cardElevation * 2  // ✅ 4.dp
             ) {
-                Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.padding(8.dp))
+                Icon(
+                    Icons.Default.Edit,
+                    null,
+                    tint = Color.White,
+                    modifier = Modifier.padding(dimensions.itemSpacing / 1.5f)  // ✅ 8.dp
+                )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))  // ✅ 16.sdp()
 
+        // ✅ NOM ET EMAIL - RESPONSIVE
         Text(
             text = "${profile.firstName} ${profile.lastName}",
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
-            fontSize = 22.sp
+            fontSize = dimensions.titleMedium * 1.1f  // ✅ 22.ssp()
         )
         Text(
             text = profile.email,
             color = Color.White.copy(alpha = 0.9f),
-            fontSize = 14.sp
+            fontSize = dimensions.bodyMedium  // ✅ 14.ssp()
         )
     }
 
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(dimensions.itemSpacing * 2))  // ✅ 24.sdp()
 
+    // ✅ CONTENU SCROLLABLE - RESPONSIVE
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .background(MidSheet, RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .background(
+                MidSheet,
+                RoundedCornerShape(
+                    topStart = dimensions.cornerRadiusLarge * 2.5f,  // ✅ 40.dp
+                    topEnd = dimensions.cornerRadiusLarge * 2.5f
+                )
+            )
+            .padding(
+                horizontal = dimensions.screenPaddingHorizontal,
+                vertical = dimensions.itemSpacing * 2  // ✅ 24.sdp()
+            ),
+        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)  // ✅ 20.sdp()
     ) {
+        // ✅ TABLEAU DE BORD
         Surface(
             color = Color.White,
-            shape = RoundedCornerShape(24.dp),
-            shadowElevation = 2.dp
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),  // ✅ 24.dp
+            shadowElevation = dimensions.cardElevation
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("TABLEAU DE BORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SecondaryText)
-                Spacer(Modifier.height(16.dp))
+            Column(modifier = Modifier.padding(dimensions.cardPadding)) {
+                Text(
+                    "TABLEAU DE BORD",
+                    fontSize = dimensions.bodySmall * 0.92f,  // ✅ 11.ssp()
+                    fontWeight = FontWeight.Bold,
+                    color = SecondaryText
+                )
+                Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))  // ✅ 16.sdp()
 
+                // ✅ CARTES STATS - RESPONSIVE
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
                 ) {
                     StatsCard(
                         title = "Unity Points",
                         value = "${profile.unityPoints}",
                         icon = R.drawable.ic_settings_1,
-                        gradient = Brush.linearGradient(listOf(Color(0xFF66BB6A), Color(0xFF00897B))),
-                        modifier = Modifier.weight(1f)
+                        gradient = Brush.linearGradient(
+                            listOf(Color(0xFF66BB6A), Color(0xFF00897B))
+                        ),
+                        modifier = Modifier.weight(1f),
+                        dimensions = dimensions
                     )
                     StatsCard(
                         title = "Winstreak",
                         value = "${profile.currentStreak}",
                         subtitle = profile.bestStreak.toString(),
                         icon = R.drawable.ic_settings_1,
-                        gradient = Brush.linearGradient(listOf(Color(0xFFFFB74D), Color(0xFFE65100))),
-                        modifier = Modifier.weight(1f)
+                        gradient = Brush.linearGradient(
+                            listOf(Color(0xFFFFB74D), Color(0xFFE65100))
+                        ),
+                        modifier = Modifier.weight(1f),
+                        dimensions = dimensions
                     )
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(dimensions.itemSpacing))
 
+                // ✅ DETTE VIRTUELLE - RESPONSIVE
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFFFF9966), Color(0xFFFF5E62))))
-                        .padding(12.dp)
+                        .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFFFF9966), Color(0xFFFF5E62))
+                            )
+                        )
+                        .padding(dimensions.itemSpacing)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text("Dette Virtuelle", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text(String.format("%.2f €", profile.detteCumulee), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("(Redevance: ${profile.redevanceSoutienUnitaire}€)", color = Color.White.copy(alpha = 0.8f), fontSize = 10.sp)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Dette Virtuelle",
+                            color = Color.White,
+                            fontSize = dimensions.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            String.format("%.2f €", profile.detteCumulee),
+                            color = Color.White,
+                            fontSize = dimensions.titleMedium * 1.2f,  // ✅ 24.ssp()
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            "(Redevance: ${profile.redevanceSoutienUnitaire}€)",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = dimensions.bodySmall * 0.83f  // ✅ 10.ssp()
+                        )
                     }
                 }
             }
         }
 
+        // ✅ PARAMÈTRES - RESPONSIVE
         Surface(
             color = Color.White,
-            shape = RoundedCornerShape(24.dp),
-            shadowElevation = 2.dp
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
+            shadowElevation = dimensions.cardElevation
         ) {
-            Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                Text("PARAMÈTRES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SecondaryText, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                QuizModeToggleRow(isDiscoveryMode) { onModeChange(!isDiscoveryMode) }
-                MenuItemRow("Mon Association", R.drawable.ic_asso) {}
-                MenuItemRow("Réglages", R.drawable.ic_settings_1) {}
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = IconBg)
-                MenuItemRow("Déconnexion", R.drawable.btn_6) { onLogout() }
+            Column(modifier = Modifier.padding(vertical = dimensions.itemSpacing / 1.5f)) {
+                Text(
+                    "PARAMÈTRES",
+                    fontSize = dimensions.bodySmall * 0.92f,
+                    fontWeight = FontWeight.Bold,
+                    color = SecondaryText,
+                    modifier = Modifier.padding(
+                        horizontal = dimensions.cardPadding,
+                        vertical = dimensions.itemSpacing / 1.5f
+                    )
+                )
+                QuizModeToggleRow(isDiscoveryMode, { onModeChange(!isDiscoveryMode) }, dimensions)
+                MenuItemRow("Mon Association", R.drawable.ic_asso, {}, dimensions)
+                MenuItemRow("Réglages", R.drawable.ic_settings_1, {}, dimensions)
+                HorizontalDivider(
+                    modifier = Modifier.padding(
+                        horizontal = dimensions.cardPadding,
+                        vertical = dimensions.itemSpacing / 1.5f
+                    ),
+                    color = IconBg
+                )
+                MenuItemRow("Déconnexion", R.drawable.btn_6, { onLogout() }, dimensions)
             }
         }
 
-        Spacer(modifier = Modifier.height(100.dp))
+        Spacer(modifier = Modifier.height(dimensions.bottomNavHeight * 1.56f))  // ✅ 100.dp
     }
 }
 
 @Composable
-private fun StatsCard(title: String, value: String, subtitle: String? = null, icon: Int, gradient: Brush, modifier: Modifier = Modifier) {
-    Box(modifier = modifier
-        .aspectRatio(1.3f)
-        .clip(RoundedCornerShape(16.dp))
-        .background(gradient)
-        .padding(8.dp)
+private fun StatsCard(
+    title: String,
+    value: String,
+    subtitle: String? = null,
+    icon: Int,
+    gradient: Brush,
+    modifier: Modifier = Modifier,
+    dimensions: ResponsiveDimensions
+) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1.3f)
+            .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
+            .background(gradient)
+            .padding(dimensions.itemSpacing / 1.5f)  // ✅ 8.sdp()
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
-            Icon(painterResource(id = icon), null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(20.dp))
-            Spacer(Modifier.height(4.dp))
-            Text(title, color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp)
-            Text(value, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Icon(
+                painterResource(id = icon),
+                null,
+                tint = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(dimensions.iconSizeSmall)  // ✅ 20.sdp()
+            )
+            Spacer(Modifier.height(dimensions.itemSpacing / 3))  // ✅ 4.sdp()
+            Text(
+                title,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = dimensions.bodySmall * 0.92f  // ✅ 11.ssp()
+            )
+            Text(
+                value,
+                color = Color.White,
+                fontSize = dimensions.bodyLarge * 1.13f,  // ✅ 18.ssp()
+                fontWeight = FontWeight.ExtraBold
+            )
             if (subtitle != null) {
-                Text("Record : $subtitle", color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
+                Text(
+                    "Record : $subtitle",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = dimensions.bodySmall * 0.75f  // ✅ 9.ssp()
+                )
             }
         }
     }
 }
 
 @Composable
-private fun QuizModeToggleRow(isDiscoveryMode: Boolean, onToggle: () -> Unit) {
+private fun QuizModeToggleRow(
+    isDiscoveryMode: Boolean,
+    onToggle: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(
+                horizontal = dimensions.cardPadding,
+                vertical = dimensions.itemSpacing / 1.5f
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(shape = CircleShape, color = if (isDiscoveryMode) Color(0xFF673AB7).copy(alpha = 0.1f) else IconBg, modifier = Modifier.size(40.dp)) {
+        Surface(
+            shape = CircleShape,
+            color = if (isDiscoveryMode)
+                Color(0xFF673AB7).copy(alpha = 0.1f)
+            else
+                IconBg,
+            modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)  // ✅ 40.sdp()
+        ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(painterResource(id = R.drawable.ic_settings_1), null, tint = if (isDiscoveryMode) Color(0xFF673AB7) else SecondaryText, modifier = Modifier.size(20.dp))
+                Icon(
+                    painterResource(id = R.drawable.ic_settings_1),
+                    null,
+                    tint = if (isDiscoveryMode) Color(0xFF673AB7) else SecondaryText,
+                    modifier = Modifier.size(dimensions.iconSizeSmall)
+                )
             }
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(dimensions.itemSpacing))
         Column(modifier = Modifier.weight(1f)) {
-            Text("Mode Quiz", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PrimaryText)
-            Text(if (isDiscoveryMode) "Découverte" else "Révision", fontSize = 12.sp, color = SecondaryText)
+            Text(
+                "Mode Quiz",
+                fontSize = dimensions.bodyLarge * 0.94f,  // ✅ 15.ssp()
+                fontWeight = FontWeight.SemiBold,
+                color = PrimaryText
+            )
+            Text(
+                if (isDiscoveryMode) "Découverte" else "Révision",
+                fontSize = dimensions.bodySmall,
+                color = SecondaryText
+            )
         }
         Switch(checked = isDiscoveryMode, onCheckedChange = { onToggle() })
     }
 }
 
 @Composable
-private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = CircleShape, color = IconBg, modifier = Modifier.size(40.dp)) {
-            Image(painterResource(id = iconRes), null, modifier = Modifier.padding(10.dp))
+private fun MenuItemRow(
+    title: String,
+    iconRes: Int,
+    onClick: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(
+                horizontal = dimensions.cardPadding,
+                vertical = dimensions.itemSpacing * 0.83f  // ✅ 10.sdp()
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = IconBg,
+            modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)  // ✅ 40.sdp()
+        ) {
+            Image(
+                painterResource(id = iconRes),
+                null,
+                modifier = Modifier.padding(dimensions.itemSpacing * 0.83f)  // ✅ 10.dp
+            )
         }
-        Spacer(Modifier.width(12.dp))
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PrimaryText, modifier = Modifier.weight(1f))
-        Icon(painterResource(R.drawable.arrow), null, tint = SecondaryText.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(dimensions.itemSpacing))
+        Text(
+            title,
+            fontSize = dimensions.bodyLarge * 0.94f,  // ✅ 15.ssp()
+            fontWeight = FontWeight.SemiBold,
+            color = PrimaryText,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            painterResource(R.drawable.arrow),
+            null,
+            tint = SecondaryText.copy(alpha = 0.5f),
+            modifier = Modifier.size(dimensions.iconSizeMedium * 0.67f)  // ✅ 16.sdp()
+        )
     }
 }
 
-@Composable private fun LoadingProfileState() { Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Color(0xFF673AB7)) } }
-@Composable private fun ErrorProfileState(m: String, r: () -> Unit) { Column(Modifier.fillMaxSize(), Arrangement.Center, Alignment.CenterHorizontally) { Text(m); Button(onClick = r) { Text("Retry") } } }
+@Composable
+private fun LoadingProfileState(dimensions: ResponsiveDimensions) {
+    Box(Modifier.fillMaxSize(), Alignment.Center) {
+        CircularProgressIndicator(
+            color = Color(0xFF673AB7),
+            modifier = Modifier.size(dimensions.iconSizeLarge)
+        )
+    }
+}
 
-@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun ErrorProfileState(
+    message: String,
+    onRetry: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
+    Column(
+        Modifier.fillMaxSize(),
+        Arrangement.Center,
+        Alignment.CenterHorizontally
+    ) {
+        Text(
+            message,
+            fontSize = dimensions.bodyLarge,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(Modifier.height(dimensions.itemSpacing))
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.height(dimensions.buttonHeightSmall)
+        ) {
+            Text("Réessayer", fontSize = dimensions.bodyMedium)
+        }
+    }
+}
+
+// ✅ PREVIEWS MULTI-TAILLES
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
 @Composable
 fun ProfileScreenPreview() {
     MaterialTheme {
+        val dimensions = rememberResponsiveDimensions()
         ProfileContent(
             profile = com.miage.learnity.data.UserProfile(
-                firstName = "Axel", lastName = "H", email = "axel@learnity.fr",
-                unityPoints = 1250, currentStreak = 7, bestStreak = 15,
-                detteCumulee = 4.50, redevanceSoutienUnitaire = 0.10,
+                firstName = "Axel",
+                lastName = "H",
+                email = "axel@learnity.fr",
+                unityPoints = 1250,
+                currentStreak = 7,
+                bestStreak = 15,
+                detteCumulee = 4.50,
+                redevanceSoutienUnitaire = 0.10,
                 photoUrl = "avatar_b1"
             ),
             isDiscoveryMode = true,
             onModeChange = {},
             onLogout = {},
-            onEditClick = {}
+            onEditClick = {},
+            dimensions = dimensions
         )
     }
 }

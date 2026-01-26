@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
@@ -30,15 +29,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.R
+import com.miage.learnity.ui.utils.*
 
 @Composable
 fun ProfileEditorScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
+    // ✅ DIMENSIONS RESPONSIVES
+    val dimensions = rememberResponsiveDimensions()
+
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
@@ -49,9 +53,7 @@ fun ProfileEditorScreen(
             availableAvatars = viewModel.availableAvatars,
             onCancel = onNavigateBack,
             onSave = { firstName, lastName, photoResId, redevance ->
-                // Conversion de l'ID de ressource en String ("avatar_b1") pour Firestore
                 val photoName = viewModel.getResourceName(photoResId, context)
-
                 viewModel.updateProfile(
                     firstName = firstName,
                     lastName = lastName,
@@ -60,7 +62,8 @@ fun ProfileEditorScreen(
                 )
                 onNavigateBack()
             },
-            viewModel = viewModel
+            viewModel = viewModel,
+            dimensions = dimensions
         )
     }
 }
@@ -72,7 +75,8 @@ private fun ProfileEditor(
     onSave: (String, String, Int, Double) -> Unit,
     onCancel: () -> Unit,
     isLoading: Boolean,
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel,
+    dimensions: ResponsiveDimensions
 ) {
     val context = LocalContext.current
 
@@ -81,9 +85,13 @@ private fun ProfileEditor(
     var lastName by remember { mutableStateOf(profile.lastName) }
     var redevance by remember { mutableStateOf(profile.redevanceSoutienUnitaire.toString()) }
 
-    // État pour l'avatar sélectionné (on cherche l'ID correspondant au nom stocké)
+    // État pour l'avatar sélectionné
     var selectedAvatarResId by remember {
-        val currentId = context.resources.getIdentifier(profile.photoUrl, "drawable", context.packageName)
+        val currentId = context.resources.getIdentifier(
+            profile.photoUrl,
+            "drawable",
+            context.packageName
+        )
         mutableStateOf(if (currentId != 0) currentId else R.drawable.avatar_b1)
     }
 
@@ -94,37 +102,46 @@ private fun ProfileEditor(
             .fillMaxSize()
             .background(Color.White)
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = dimensions.screenPaddingHorizontal)
     ) {
-        Spacer(Modifier.height(60.dp))
+        Spacer(Modifier.height(dimensions.profilePictureSize * 0.63f))  // ✅ 60.sdp()
 
+        // ✅ TITRE - RESPONSIVE
         Text(
             text = "Modifier mon profil",
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.Black
+                color = Color.Black,
+                fontSize = dimensions.titleLarge * 0.86f  // ✅ 24.ssp()
             )
         )
         Text(
             text = "Choisissez votre avatar et modifiez vos infos",
-            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = Color.Gray,
+                fontSize = dimensions.bodyMedium
+            )
         )
 
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // ✅ 30.sdp()
 
-        // --- GRILLE DE SÉLECTION D'AVATARS ---
+        // ✅ TITRE SECTION AVATARS - RESPONSIVE
         Text(
             text = "Sélectionnez un avatar",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 12.dp)
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = dimensions.bodyLarge
+            ),
+            modifier = Modifier.padding(bottom = dimensions.itemSpacing)
         )
 
-        // On utilise une Box avec une hauteur fixe pour la grille au milieu du scroll
-        Box(modifier = Modifier.height(280.dp)) {
+        // ✅ GRILLE D'AVATARS - RESPONSIVE
+        Box(
+            modifier = Modifier.height(dimensions.profilePictureSize * 2.92f)  // ✅ 280.sdp()
+        ) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4), // 4 colonnes pour tes 13 avatars
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                columns = GridCells.Fixed(4),
+                horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
+                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(availableAvatars) { avatarId ->
@@ -132,12 +149,20 @@ private fun ProfileEditor(
 
                     Box(
                         modifier = Modifier
-                            .size(70.dp)
+                            .size(dimensions.iconSizeLarge * 1.46f)  // ✅ 70.sdp()
                             .clip(CircleShape)
-                            .background(if (isSelected) Color(0xFF673AB7).copy(alpha = 0.1f) else Color.Transparent)
+                            .background(
+                                if (isSelected)
+                                    Color(0xFF673AB7).copy(alpha = 0.1f)
+                                else
+                                    Color.Transparent
+                            )
                             .border(
                                 width = if (isSelected) 3.dp else 1.dp,
-                                color = if (isSelected) Color(0xFF673AB7) else Color(0xFFE0E0E0),
+                                color = if (isSelected)
+                                    Color(0xFF673AB7)
+                                else
+                                    Color(0xFFE0E0E0),
                                 shape = CircleShape
                             )
                             .clickable { selectedAvatarResId = avatarId }
@@ -153,15 +178,16 @@ private fun ProfileEditor(
             }
         }
 
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // ✅ 30.sdp()
 
-        // --- CHAMPS DE SAISIE ---
+        // ✅ CHAMPS DE SAISIE - RESPONSIVE
         CustomEditField(
             value = firstName,
             onValueChange = { firstName = it },
             label = "Prénom",
             icon = Icons.Default.Person,
-            errorText = if (firstName.isBlank()) "Prénom requis" else ""
+            errorText = if (firstName.isBlank()) "Prénom requis" else "",
+            dimensions = dimensions
         )
 
         CustomEditField(
@@ -169,7 +195,8 @@ private fun ProfileEditor(
             onValueChange = { lastName = it },
             label = "Nom",
             icon = Icons.Default.Person,
-            errorText = if (lastName.isBlank()) "Nom requis" else ""
+            errorText = if (lastName.isBlank()) "Nom requis" else "",
+            dimensions = dimensions
         )
 
         CustomEditField(
@@ -178,23 +205,30 @@ private fun ProfileEditor(
             label = "Redevance unitaire (€)",
             icon = Icons.Default.ShoppingCart,
             errorText = if (redevance.toDoubleOrNull() == null) "Montant invalide" else "",
-            keyboardType = KeyboardType.Decimal
+            keyboardType = KeyboardType.Decimal,
+            dimensions = dimensions
         )
 
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(dimensions.itemSpacing * 3.33f))  // ✅ 40.sdp()
 
-        // --- BOUTONS ---
+        // ✅ BOUTONS - RESPONSIVE
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.33f)  // ✅ 16.sdp()
         ) {
             OutlinedButton(
                 onClick = onCancel,
-                modifier = Modifier.weight(1f).height(56.dp),
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(dimensions.buttonHeight),
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                 border = BorderStroke(1.dp, Color(0xFFE0E0E0))
             ) {
-                Text("Annuler", color = Color.Black)
+                Text(
+                    "Annuler",
+                    color = Color.Black,
+                    fontSize = dimensions.bodyLarge
+                )
             }
 
             Button(
@@ -202,19 +236,32 @@ private fun ProfileEditor(
                     val redValue = redevance.toDoubleOrNull() ?: 0.0
                     onSave(firstName, lastName, selectedAvatarResId, redValue)
                 },
-                modifier = Modifier.weight(1f).height(56.dp),
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(dimensions.buttonHeight),
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
-                enabled = !isLoading && firstName.isNotBlank() && lastName.isNotBlank() && redevance.toDoubleOrNull() != null
+                enabled = !isLoading &&
+                        firstName.isNotBlank() &&
+                        lastName.isNotBlank() &&
+                        redevance.toDoubleOrNull() != null
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(dimensions.iconSizeMedium),
+                        color = Color.White
+                    )
                 } else {
-                    Text("Enregistrer", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Enregistrer",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = dimensions.bodyLarge
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(50.dp))
+
+        Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))  // ✅ 50.sdp()
     }
 }
 
@@ -225,25 +272,79 @@ fun CustomEditField(
     label: String,
     icon: ImageVector,
     errorText: String,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    dimensions: ResponsiveDimensions
 ) {
-    Column(modifier = Modifier.padding(bottom = 20.dp)) {
+    Column(
+        modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.67f)  // ✅ 20.sdp()
+    ) {
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label) },
-            leadingIcon = { Icon(icon, contentDescription = null, tint = Color(0xFF673AB7)) },
+            label = { Text(label, fontSize = dimensions.bodyMedium) },
+            leadingIcon = {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = Color(0xFF673AB7),
+                    modifier = Modifier.size(dimensions.iconSizeMedium)
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
             isError = errorText.isNotEmpty(),
-            supportingText = { if (errorText.isNotEmpty()) Text(errorText, color = MaterialTheme.colorScheme.error) },
+            supportingText = {
+                if (errorText.isNotEmpty()) {
+                    Text(
+                        errorText,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = dimensions.bodySmall
+                    )
+                }
+            },
             singleLine = true,
+            textStyle = LocalTextStyle.current.copy(
+                fontSize = dimensions.bodyLarge
+            ),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF673AB7),
                 focusedLabelColor = Color(0xFF673AB7),
                 unfocusedBorderColor = Color(0xFFE0E0E0)
             )
+        )
+    }
+}
+
+// ✅ PREVIEWS MULTI-TAILLES
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+@Composable
+fun ProfileEditorPreview() {
+    MaterialTheme {
+        val dimensions = rememberResponsiveDimensions()
+        ProfileEditor(
+            profile = com.miage.learnity.data.UserProfile(
+                firstName = "Axel",
+                lastName = "H",
+                email = "axel@learnity.fr",
+                photoUrl = "avatar_b1",
+                redevanceSoutienUnitaire = 1.0
+            ),
+            availableAvatars = listOf(
+                R.drawable.avatar_b1, R.drawable.avatar_b2, R.drawable.avatar_b3,
+                R.drawable.avatar_o1, R.drawable.avatar_o2, R.drawable.avatar_o3,
+                R.drawable.avatar_v1, R.drawable.avatar_v2, R.drawable.avatar_v3,
+                R.drawable.avatar_r1, R.drawable.avatar_r2, R.drawable.avatar_r3,
+                R.drawable.avatar_vivi1
+            ),
+            onSave = { _, _, _, _ -> },
+            onCancel = {},
+            isLoading = false,
+            viewModel = viewModel(),
+            dimensions = dimensions
         )
     }
 }
