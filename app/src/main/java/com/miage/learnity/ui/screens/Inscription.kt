@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,14 +16,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.*
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.miage.learnity.R
 import com.miage.learnity.ui.theme.*
 import com.miage.learnity.ui.utils.*
@@ -35,11 +37,10 @@ fun Inscription(
     isLoading: Boolean = false,
     error: String? = null
 ) {
-    // ✅ DIMENSIONS RESPONSIVES
     val dimensions = rememberResponsiveDimensions()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
-    // États du formulaire
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -61,7 +62,7 @@ fun Inscription(
         return when {
             name.isBlank() -> false to "$fieldName requis"
             name.length < 2 -> false to "Au moins 2 caractères"
-            !name.all { it.isLetter() || it.isWhitespace() } -> false to "Lettres uniquement"
+            !name.all { it.isLetter() || it.isWhitespace() || it == '-' } -> false to "Lettres uniquement"
             else -> true to ""
         }
     }
@@ -146,35 +147,31 @@ fun Inscription(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = dimensions.screenPaddingHorizontal)  // ✅ Responsive
-                .responsiveMaxWidth(dimensions)  // ✅ Limite largeur
+                .padding(horizontal = dimensions.screenPaddingHorizontal)
+                .responsiveMaxWidth(dimensions)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // Logo - RESPONSIVE
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo Learnity",
-                modifier = Modifier.size(dimensions.logoSize)  // ✅ 100.sdp()
+                modifier = Modifier.size(dimensions.logoSize)
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // Titre - RESPONSIVE
             Text(
                 text = "Rejoignez-nous !",
-                fontSize = dimensions.titleLarge,  // ✅ 28.ssp()
+                fontSize = dimensions.titleLarge,
                 color = TextDark,
                 fontWeight = FontWeight.ExtraBold
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
-            // ═══════════════════════════════════════
-            // CHAMP PRÉNOM - RESPONSIVE
-            // ═══════════════════════════════════════
+            // PRÉNOM
             OutlinedTextField(
                 value = firstName,
                 onValueChange = {
@@ -186,20 +183,27 @@ fun Inscription(
                 },
                 label = { Text("Prénom") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 isError = firstNameError.isNotEmpty(),
                 supportingText = {
                     if (firstNameError.isNotEmpty()) {
                         Text(
                             text = firstNameError,
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall
                         )
                     }
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                    fontSize = dimensions.bodyLarge
+                ),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -207,11 +211,9 @@ fun Inscription(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // ═══════════════════════════════════════
-            // CHAMP NOM - RESPONSIVE
-            // ═══════════════════════════════════════
+            // NOM
             OutlinedTextField(
                 value = lastName,
                 onValueChange = {
@@ -223,20 +225,27 @@ fun Inscription(
                 },
                 label = { Text("Nom") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 isError = lastNameError.isNotEmpty(),
                 supportingText = {
                     if (lastNameError.isNotEmpty()) {
                         Text(
                             text = lastNameError,
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall
                         )
                     }
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                    fontSize = dimensions.bodyLarge
+                ),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -244,34 +253,40 @@ fun Inscription(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // ═══════════════════════════════════════
-            // CHAMP EMAIL - RESPONSIVE
-            // ═══════════════════════════════════════
+            // EMAIL
             OutlinedTextField(
                 value = email,
                 onValueChange = {
                     email = it
-                    if (emailError.isNotEmpty()) validateEmail(it)
+                    if (emailError.isNotEmpty()) {
+                        validateEmail(it)
+                    }
                 },
                 label = { Text("Email") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 isError = emailError.isNotEmpty(),
                 supportingText = {
                     if (emailError.isNotEmpty()) {
                         Text(
                             text = emailError,
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall
                         )
                     }
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                    fontSize = dimensions.bodyLarge
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -279,58 +294,56 @@ fun Inscription(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // ═══════════════════════════════════════
-            // CHAMP MOT DE PASSE - RESPONSIVE
-            // ═══════════════════════════════════════
+            // MOT DE PASSE
             OutlinedTextField(
                 value = password,
                 onValueChange = {
                     password = it
-                    if (passwordError.isNotEmpty()) validatePassword(it)
-                },
-                label = { Text("Mot de passe") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showPassword) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
-                trailingIcon = {
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(
-                            imageVector = if (showPassword) {
-                                Icons.Default.Visibility
-                            } else {
-                                Icons.Default.VisibilityOff
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
-                        )
+                    if (passwordError.isNotEmpty()) {
+                        validatePassword(it)
                     }
                 },
+                label = { Text("Mot de passe") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 isError = passwordError.isNotEmpty(),
                 supportingText = {
                     if (passwordError.isNotEmpty()) {
                         Text(
                             text = passwordError,
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall
                         )
                     } else {
                         Text(
                             text = "8 caractères min, 1 chiffre, 1 majuscule",
                             color = Color.Gray,
-                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall
                         )
                     }
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                    fontSize = dimensions.bodyLarge
+                ),
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (showPassword) "Masquer" else "Afficher",
+                            modifier = Modifier.size(dimensions.iconSizeMedium)
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -338,11 +351,9 @@ fun Inscription(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // ═══════════════════════════════════════
-            // CHAMP CONFIRMATION MOT DE PASSE - RESPONSIVE
-            // ═══════════════════════════════════════
+            // CONFIRMATION MOT DE PASSE
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = {
@@ -352,40 +363,38 @@ fun Inscription(
                     }
                 },
                 label = { Text("Confirmer le mot de passe") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (showConfirmPassword) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
-                trailingIcon = {
-                    IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                        Icon(
-                            imageVector = if (showConfirmPassword) {
-                                Icons.Default.Visibility
-                            } else {
-                                Icons.Default.VisibilityOff
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
-                        )
-                    }
-                },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 isError = confirmPasswordError.isNotEmpty(),
                 supportingText = {
                     if (confirmPasswordError.isNotEmpty()) {
                         Text(
                             text = confirmPasswordError,
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall
                         )
                     }
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                    fontSize = dimensions.bodyLarge
+                ),
+                visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                        Icon(
+                            imageVector = if (showConfirmPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (showConfirmPassword) "Masquer" else "Afficher",
+                            modifier = Modifier.size(dimensions.iconSizeMedium)
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.clearFocus() }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -393,11 +402,9 @@ fun Inscription(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
 
-            // ═══════════════════════════════════════
-            // CHECKBOX CGU - RESPONSIVE
-            // ═══════════════════════════════════════
+            // CHECKBOX CGU
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -412,43 +419,44 @@ fun Inscription(
                 Text(
                     text = "J'accepte les conditions générales d'utilisation",
                     color = TextGray,
-                    fontSize = dimensions.bodyMedium  // ✅ 14.ssp()
+                    fontSize = dimensions.bodyMedium
                 )
             }
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
-            // ═══════════════════════════════════════
-            // BOUTON INSCRIPTION - RESPONSIVE
-            // ═══════════════════════════════════════
+            // BOUTON INSCRIPTION
             Button(
                 onClick = {
-                    // Validation complète
                     val (isFirstNameValid, firstNameErr) = validateName(firstName, "Prénom")
                     firstNameError = firstNameErr
-
                     val (isLastNameValid, lastNameErr) = validateName(lastName, "Nom")
                     lastNameError = lastNameErr
-
                     val isEmailValid = validateEmail(email)
                     val isPasswordValid = validatePassword(password)
                     val isConfirmValid = validateConfirmPassword(password, confirmPassword)
 
                     if (isFirstNameValid && isLastNameValid && isEmailValid &&
                         isPasswordValid && isConfirmValid) {
+                        // Formatage des noms
+                        val formattedFirstName = firstName.trim()
+                            .split(" ")
+                            .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+                        val formattedLastName = lastName.trim().uppercase()
+
                         onInscriptionSuccess(
                             email.trim(),
                             password.trim(),
-                            firstName.trim(),
-                            lastName.trim()
+                            formattedFirstName,
+                            formattedLastName
                         )
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(dimensions.buttonHeight),  // ✅ 56.sdp()
+                    .height(dimensions.buttonHeight),
                 enabled = isButtonEnabled,
-                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),  // ✅ 16.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF635BFF),
                     disabledContainerColor = Color.LightGray
@@ -457,24 +465,23 @@ fun Inscription(
                 if (isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
                     )
                 } else {
                     Text(
                         text = "S'inscrire",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                        fontSize = dimensions.bodyLarge
                     )
                 }
             }
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
         }
     }
 }
 
-// ✅ PREVIEWS MULTI-TAILLES
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
 @Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)

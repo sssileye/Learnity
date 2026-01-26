@@ -2,6 +2,7 @@ package com.miage.learnity.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.SetOptions
 import com.miage.learnity.data.UserProfile
 import kotlinx.coroutines.channels.awaitClose
@@ -95,14 +96,14 @@ class UserRepository {
     /**
      * Crée un profil initial pour un nouvel utilisateur
      */
-    suspend fun createInitialProfile(uid: String, email: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun createInitialProfile(uid: String, email: String, firstName: String, lastName: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val initialProfile = UserProfile(
                 uid = uid,
                 email = email,
-                firstName = "",
-                lastName = "",
-                photoUrl = null,
+                firstName = firstName,
+                lastName = lastName,
+                photoUrl = "avatar_b1",
                 createdAt = System.currentTimeMillis(),
                 redevanceSoutienUnitaire = 1.0,
                 detteCumulee = 0.0,
@@ -118,9 +119,8 @@ class UserRepository {
                 .set(initialProfile)
                 .await()
 
-            println("✅ UserRepository - Profil initial créé : $email")
+            println("✅ UserRepository - Profil initial créé avec avatar : $email")
             Result.success(Unit)
-
         } catch (e: Exception) {
             println("❌ UserRepository - Erreur création profil : ${e.message}")
             Result.failure(e)
@@ -138,7 +138,7 @@ class UserRepository {
         val userId = auth.currentUser?.uid
 
         if (userId == null) {
-            close(Exception("Utilisateur non connecté"))
+            trySend(null)
             return@callbackFlow
         }
 
@@ -146,14 +146,18 @@ class UserRepository {
             .document(userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    println("❌ Listener error: ${error.message}")
-                    close(error)
+                    // ⭐ GESTION DU CRASH DÉCONNEXION
+                    // Si l'erreur est liée aux permissions (signOut), on ferme le flux sans crash
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        println("ℹ️ UserRepository - Permission refusée (normal lors du signOut)")
+                        return@addSnapshotListener
+                    }
+                    println("❌ UserRepository - Erreur Listener : ${error.message}")
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null && snapshot.exists()) {
                     val profile = snapshot.toObject(UserProfile::class.java)
-                    println("🔥 Firebase Listener - Profil mis à jour")
                     trySend(profile)
                 } else {
                     trySend(null)
@@ -161,7 +165,7 @@ class UserRepository {
             }
 
         awaitClose {
-            println("🔥 Firebase Listener - Removed for user profile")
+            println("🔥 UserRepository - Listener supprimé")
             listener.remove()
         }
     }
@@ -175,21 +179,14 @@ class UserRepository {
      */
     suspend fun addUnityPoints(points: Int): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val userId = auth.currentUser?.uid
-                ?: return@withContext Result.failure(Exception("Utilisateur non connecté"))
-
             val profile = getUserProfile().getOrNull()
                 ?: return@withContext Result.failure(Exception("Profil non trouvé"))
 
             val newPoints = profile.unityPoints + points
-
             updateUserFields(mapOf("unityPoints" to newPoints))
 
-            println("✅ UserRepository - Unity Points ajoutés : +$points → $newPoints")
             Result.success(Unit)
-
         } catch (e: Exception) {
-            println("❌ UserRepository - Erreur ajout points : ${e.message}")
             Result.failure(e)
         }
     }
@@ -203,14 +200,10 @@ class UserRepository {
                 ?: return@withContext Result.failure(Exception("Profil non trouvé"))
 
             val newDebt = profile.detteCumulee + amount
-
             updateUserFields(mapOf("detteCumulee" to newDebt))
 
-            println("✅ UserRepository - Dette ajoutée : +$amount → $newDebt")
             Result.success(Unit)
-
         } catch (e: Exception) {
-            println("❌ UserRepository - Erreur ajout dette : ${e.message}")
             Result.failure(e)
         }
     }
@@ -224,17 +217,13 @@ class UserRepository {
                 ?: return@withContext Result.failure(Exception("Profil non trouvé"))
 
             val bestStreak = maxOf(profile.bestStreak, newStreak)
-
             updateUserFields(mapOf(
                 "currentStreak" to newStreak,
                 "bestStreak" to bestStreak
             ))
 
-            println("✅ UserRepository - Streak mis à jour : $newStreak (best: $bestStreak)")
             Result.success(Unit)
-
         } catch (e: Exception) {
-            println("❌ UserRepository - Erreur mise à jour streak : ${e.message}")
             Result.failure(e)
         }
     }
@@ -245,12 +234,8 @@ class UserRepository {
     suspend fun updateLastQuizDate(date: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             updateUserFields(mapOf("lastDailyQuizDate" to date))
-
-            println("✅ UserRepository - Date quiz mise à jour : $date")
             Result.success(Unit)
-
         } catch (e: Exception) {
-            println("❌ UserRepository - Erreur mise à jour date : ${e.message}")
             Result.failure(e)
         }
     }

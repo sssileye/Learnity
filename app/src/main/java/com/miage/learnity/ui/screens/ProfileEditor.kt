@@ -1,7 +1,16 @@
+package com.miage.learnity.ui.screens
+
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -13,15 +22,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.miage.learnity.ui.screens.ProfileViewModel
-
+import com.miage.learnity.R
 
 @Composable
 fun ProfileEditorScreen(
@@ -29,24 +40,27 @@ fun ProfileEditorScreen(
     viewModel: ProfileViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
-    // On récupère le profil depuis le StateFlow du ViewModel
     uiState.profile?.let { currentProfile ->
         ProfileEditor(
             profile = currentProfile,
             isLoading = uiState.isLoading,
+            availableAvatars = viewModel.availableAvatars,
             onCancel = onNavigateBack,
-            onSave = { firstName, lastName, email, redevance ->
-                // On appelle la fonction de ton ViewModel
+            onSave = { firstName, lastName, photoResId, redevance ->
+                // Conversion de l'ID de ressource en String ("avatar_b1") pour Firestore
+                val photoName = viewModel.getResourceName(photoResId, context)
+
                 viewModel.updateProfile(
                     firstName = firstName,
                     lastName = lastName,
+                    photoResName = photoName,
                     redevance = redevance
-                    // Note: Ton ViewModel actuel ne prend pas l'email,
-                    // tu peux l'ajouter dans la signature de updateProfile si besoin
                 )
-                onNavigateBack() // Retour à l'écran précédent après sauvegarde
-            }
+                onNavigateBack()
+            },
+            viewModel = viewModel
         )
     }
 }
@@ -54,20 +68,24 @@ fun ProfileEditorScreen(
 @Composable
 private fun ProfileEditor(
     profile: com.miage.learnity.data.UserProfile,
-    onSave: (String, String, String, Double) -> Unit,
+    availableAvatars: List<Int>,
+    onSave: (String, String, Int, Double) -> Unit,
     onCancel: () -> Unit,
-    isLoading: Boolean
+    isLoading: Boolean,
+    viewModel: ProfileViewModel
 ) {
-    // États (Logique Claude conservée)
+    val context = LocalContext.current
+
+    // États pour les champs
     var firstName by remember { mutableStateOf(profile.firstName) }
     var lastName by remember { mutableStateOf(profile.lastName) }
-    var email by remember { mutableStateOf(profile.email) }
     var redevance by remember { mutableStateOf(profile.redevanceSoutienUnitaire.toString()) }
 
-    var firstNameError by remember { mutableStateOf("") }
-    var lastNameError by remember { mutableStateOf("") }
-    var emailError by remember { mutableStateOf("") }
-    var redevanceError by remember { mutableStateOf("") }
+    // État pour l'avatar sélectionné (on cherche l'ID correspondant au nom stocké)
+    var selectedAvatarResId by remember {
+        val currentId = context.resources.getIdentifier(profile.photoUrl, "drawable", context.packageName)
+        mutableStateOf(if (currentId != 0) currentId else R.drawable.avatar_b1)
+    }
 
     val scrollState = rememberScrollState()
 
@@ -80,7 +98,6 @@ private fun ProfileEditor(
     ) {
         Spacer(Modifier.height(60.dp))
 
-        // Titre stylisé
         Text(
             text = "Modifier mon profil",
             style = MaterialTheme.typography.headlineMedium.copy(
@@ -89,65 +106,84 @@ private fun ProfileEditor(
             )
         )
         Text(
-            text = "Mettez à jour vos informations personnelles",
-            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Black)
+            text = "Choisissez votre avatar et modifiez vos infos",
+            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
+        )
+
+        Spacer(Modifier.height(30.dp))
+
+        // --- GRILLE DE SÉLECTION D'AVATARS ---
+        Text(
+            text = "Sélectionnez un avatar",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        // On utilise une Box avec une hauteur fixe pour la grille au milieu du scroll
+        Box(modifier = Modifier.height(280.dp)) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4), // 4 colonnes pour tes 13 avatars
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(availableAvatars) { avatarId ->
+                    val isSelected = selectedAvatarResId == avatarId
+
+                    Box(
+                        modifier = Modifier
+                            .size(70.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelected) Color(0xFF673AB7).copy(alpha = 0.1f) else Color.Transparent)
+                            .border(
+                                width = if (isSelected) 3.dp else 1.dp,
+                                color = if (isSelected) Color(0xFF673AB7) else Color(0xFFE0E0E0),
+                                shape = CircleShape
+                            )
+                            .clickable { selectedAvatarResId = avatarId }
+                    ) {
+                        Image(
+                            painter = painterResource(id = avatarId),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(30.dp))
+
+        // --- CHAMPS DE SAISIE ---
+        CustomEditField(
+            value = firstName,
+            onValueChange = { firstName = it },
+            label = "Prénom",
+            icon = Icons.Default.Person,
+            errorText = if (firstName.isBlank()) "Prénom requis" else ""
+        )
+
+        CustomEditField(
+            value = lastName,
+            onValueChange = { lastName = it },
+            label = "Nom",
+            icon = Icons.Default.Person,
+            errorText = if (lastName.isBlank()) "Nom requis" else ""
+        )
+
+        CustomEditField(
+            value = redevance,
+            onValueChange = { redevance = it },
+            label = "Redevance unitaire (€)",
+            icon = Icons.Default.ShoppingCart,
+            errorText = if (redevance.toDoubleOrNull() == null) "Montant invalide" else "",
+            keyboardType = KeyboardType.Decimal
         )
 
         Spacer(Modifier.height(40.dp))
 
-        // Champ Prénom
-        CustomEditField(
-            value = firstName,
-            onValueChange = {
-                firstName = it
-                firstNameError = if (it.isBlank()) "Prénom requis" else ""
-            },
-            label = "Prénom",
-            icon = Icons.Default.Person,
-            errorText = firstNameError
-        )
-
-        // Champ Nom
-        CustomEditField(
-            value = lastName,
-            onValueChange = {
-                lastName = it
-                lastNameError = if (it.isBlank()) "Nom requis" else ""
-            },
-            label = "Nom",
-            icon = Icons.Default.Person,
-            errorText = lastNameError
-        )
-
-        // Champ Email
-        CustomEditField(
-            value = email,
-            onValueChange = {
-                email = it
-                emailError = if (!android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Email invalide" else ""
-            },
-            label = "Email",
-            icon = Icons.Default.Email,
-            errorText = emailError,
-            keyboardType = KeyboardType.Email
-        )
-
-        // Champ Redevance
-        CustomEditField(
-            value = redevance,
-            onValueChange = {
-                redevance = it
-                redevanceError = if (it.toDoubleOrNull() == null) "Montant invalide" else ""
-            },
-            label = "Redevance unitaire (€)",
-            icon = Icons.Default.ShoppingCart, // Ou une icône de monnaie
-            errorText = redevanceError,
-            keyboardType = KeyboardType.Decimal
-        )
-
-        Spacer(Modifier.height(48.dp))
-
-        // BOUTONS (Même logique, look amélioré)
+        // --- BOUTONS ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -163,26 +199,22 @@ private fun ProfileEditor(
 
             Button(
                 onClick = {
-                    // Validation finale et onSave...
                     val redValue = redevance.toDoubleOrNull() ?: 0.0
-                    onSave(firstName, lastName, email, redValue)
+                    onSave(firstName, lastName, selectedAvatarResId, redValue)
                 },
                 modifier = Modifier.weight(1f).height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
-                // Dans le bouton Sauvegarder
-                enabled = !isLoading &&
-                        firstNameError.isEmpty() &&
-                        lastNameError.isEmpty() &&
-                        emailError.isEmpty() &&
-                        redevanceError.isEmpty() &&
-                        firstName.isNotBlank() &&
-                        lastName.isNotBlank()
+                enabled = !isLoading && firstName.isNotBlank() && lastName.isNotBlank() && redevance.toDoubleOrNull() != null
             ) {
-                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
-                else Text("Enregistrer")
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                } else {
+                    Text("Enregistrer", fontWeight = FontWeight.Bold)
+                }
             }
         }
+        Spacer(Modifier.height(50.dp))
     }
 }
 
@@ -204,7 +236,7 @@ fun CustomEditField(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             isError = errorText.isNotEmpty(),
-            supportingText = { if (errorText.isNotEmpty()) Text(errorText) },
+            supportingText = { if (errorText.isNotEmpty()) Text(errorText, color = MaterialTheme.colorScheme.error) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = OutlinedTextFieldDefaults.colors(

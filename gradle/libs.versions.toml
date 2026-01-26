@@ -20,6 +20,7 @@ roomCommonJvm = "2.8.4"
 uiGeometry = "1.10.1"
 gson = "2.10.1"
 ui = "1.10.1"
+material3 = "1.4.0"
 
 [libraries]
 # AndroidX & UI
@@ -63,6 +64,7 @@ androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geome
 
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

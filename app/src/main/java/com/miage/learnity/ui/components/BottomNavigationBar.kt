@@ -64,7 +64,7 @@ fun BottomNavigationBar(navController: NavHostController) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_asso),
                     contentDescription = null,
-                    modifier = Modifier.size(dimensions.iconSizeLarge),  // ✅ 48.sdp() (était 28.dp - plus grand car logo)
+                    modifier = Modifier.size(dimensions.iconSizeMedium),
                     tint = Color.Unspecified
                 )
             },

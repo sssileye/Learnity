@@ -77,6 +77,8 @@ dependencies {
 
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.ui)
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation(libs.androidx.compose.material3)
 
     // Tests
     testImplementation(libs.junit)
