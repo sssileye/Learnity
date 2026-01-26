@@ -87,7 +87,11 @@ fun QuizScreen(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())  // ✅ UNIQUEMENT le padding top
+        ) {
             when {
                 isLoading -> LoadingState(progress = loadingProgress, dimensions = dimensions)
                 questions.isEmpty() && !isLoading -> ErrorState(
@@ -613,7 +617,8 @@ private fun QuizTopBar(
                     fontSize = dimensions.bodyMedium
                 )
             }
-        }
+        },
+        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
     )
 }
 

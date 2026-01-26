@@ -76,7 +76,14 @@ fun PdfViewerScreen(
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = paddingValues.calculateTopPadding(),      // ✅ TopBar spacing
+                    bottom = paddingValues.calculateBottomPadding()  // ✅ BottomBar spacing
+                )
+        ) {
             when {
                 isLoading -> LoadingContent(dimensions)
                 contentUrl != null && typeEnum == UserProgressRepository.ContentType.VIDEO -> {
@@ -108,7 +115,8 @@ private fun PdfViewerTopBar(title: String, onBackClick: () -> Unit, dimensions: 
             IconButton(onClick = onBackClick) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour", modifier = Modifier.size(dimensions.iconSizeMedium))
             }
-        }
+        },
+        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
     )
 }
 

@@ -51,7 +51,11 @@ fun ChapterContentScreen(
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())  // ✅ UNIQUEMENT le padding top
+        ) {
             when {
                 isLoading -> LoadingState(dimensions)
                 error != null -> ErrorState(error!!, { viewModel.refresh() }, dimensions)
@@ -77,7 +81,8 @@ private fun ChapterContentTopBar(title: String, onBackClick: () -> Unit, dimensi
             IconButton(onClick = onBackClick) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour", modifier = Modifier.size(dimensions.iconSizeMedium))
             }
-        }
+        },
+        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
     )
 }
 
@@ -91,7 +96,14 @@ private fun ChapterContentLayout(
     dimensions: ResponsiveDimensions
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(dimensions.screenPaddingHorizontal),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                start = dimensions.screenPaddingHorizontal,
+                end = dimensions.screenPaddingHorizontal,
+                top = 4.dp,  // ✅ ESPACE MINIMAL après TopBar
+                bottom = dimensions.screenPaddingHorizontal
+            ),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
         Text(

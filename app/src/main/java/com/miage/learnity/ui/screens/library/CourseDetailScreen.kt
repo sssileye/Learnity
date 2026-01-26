@@ -52,7 +52,11 @@ fun CourseDetailScreen(
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())  // ✅ UNIQUEMENT le padding top
+        ) {
             when {
                 isLoading -> LoadingState(dimensions)
                 error != null -> ErrorState(error ?: "Erreur inconnue", { viewModel.refresh(courseId) }, dimensions)
@@ -82,7 +86,12 @@ private fun CourseContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(dimensions.screenPaddingHorizontal),
+        contentPadding = PaddingValues(
+            start = dimensions.screenPaddingHorizontal,
+            end = dimensions.screenPaddingHorizontal,
+            top = 4.dp,  // ✅ ESPACE MINIMAL après TopBar
+            bottom = dimensions.screenPaddingHorizontal
+        ),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
         item { CourseHeader(course, progress, dimensions) }
@@ -254,7 +263,8 @@ private fun CourseDetailTopBar(title: String, onBackClick: () -> Unit, dimension
             IconButton(onClick = onBackClick) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour", modifier = Modifier.size(dimensions.iconSizeMedium))
             }
-        }
+        },
+        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
     )
 }
 

@@ -18,7 +18,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.miage.learnity.R
 import com.miage.learnity.data.Course
 import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
@@ -35,69 +37,61 @@ fun LibraryScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    Scaffold(
-        topBar = {
-            LibraryTopBar(
-                onRefreshClick = { viewModel.refresh() },
-                dimensions = dimensions
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                isLoading -> LoadingState(dimensions)
-                error != null -> ErrorState(error ?: "Erreur inconnue", { viewModel.refresh() }, dimensions)
-                courses.isEmpty() -> EmptyState(dimensions)
-                else -> CoursesList(courses, onCourseClick, dimensions)
-            }
+    // ✅ PAS DE SCAFFOLD - Utilise le TopNavigationBar global
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            isLoading -> LoadingState(dimensions)
+            error != null -> ErrorState(error ?: "Erreur inconnue", { viewModel.refresh() }, dimensions)
+            courses.isEmpty() -> EmptyState(dimensions)
+            else -> CoursesList(courses, onCourseClick, viewModel::refresh, dimensions)
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LibraryTopBar(
-    onRefreshClick: () -> Unit,
-    dimensions: ResponsiveDimensions
-) {
-    TopAppBar(
-        title = {
-            Text(
-                text = "Bibliothèque de Cours",
-                fontWeight = FontWeight.Bold,
-                fontSize = dimensions.titleMedium  // ✅ 20.ssp()
-            )
-        },
-        actions = {
-            IconButton(onClick = onRefreshClick) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Actualiser",
-                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    )
 }
 
 @Composable
 private fun CoursesList(
     courses: List<Course>,
     onCourseClick: (String) -> Unit,
+    onRefresh: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(dimensions.screenPaddingHorizontal),  // ✅ Responsive
-        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)  // ✅ Responsive
+        contentPadding = PaddingValues(
+            start = dimensions.screenPaddingHorizontal,
+            end = dimensions.screenPaddingHorizontal,
+            top = 4.dp,  // ✅ ESPACE MINIMAL pour coller à la TopBar
+            bottom = dimensions.screenPaddingHorizontal
+        ),
+        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
+        // ✅ HEADER avec titre et bouton refresh
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),  // ✅ RÉDUIT pour moins d'espace
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Bibliothèque de Cours",
+                    fontSize = dimensions.titleLarge,  // ✅ 28.ssp()
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                IconButton(onClick = onRefresh) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Actualiser",
+                        modifier = Modifier.size(dimensions.iconSizeMedium),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
         items(courses) { course ->
             CourseLibraryCard(
                 course = course,
