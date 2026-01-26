@@ -1,6 +1,7 @@
 package com.miage.learnity.ui.screens.library
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -8,13 +9,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.repository.UserProgressRepository
 import com.miage.learnity.ui.components.PdfViewer
-import com.miage.learnity.ui.components.YouTubePlayer
-import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
 
 @Composable
@@ -30,47 +28,35 @@ fun PdfViewerScreen(
     val contentUrl by viewModel.contentUrl.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isMarkedAsRead by viewModel.isMarkedAsRead.collectAsState()
-    val contentType by viewModel.contentType.collectAsState()
 
-    var videoEnded by remember { mutableStateOf(false) }
-
+    // Conversion du type String en Enum ContentType
     val typeEnum = remember(type) {
         when (type) {
             "fdr" -> UserProgressRepository.ContentType.FDR
-            "video" -> UserProgressRepository.ContentType.VIDEO
             else -> UserProgressRepository.ContentType.COURS
         }
     }
 
+    // Chargement initial du contenu
     LaunchedEffect(courseId, chapterId, type) {
         viewModel.loadContent(courseId, chapterId, typeEnum)
-    }
-
-    LaunchedEffect(videoEnded) {
-        if (videoEnded && !isMarkedAsRead) {
-            viewModel.markAsReadOrWatched()
-        }
     }
 
     Scaffold(
         topBar = {
             PdfViewerTopBar(
-                title = when (typeEnum) {
-                    UserProgressRepository.ContentType.COURS -> "Cours"
-                    UserProgressRepository.ContentType.FDR -> "Fiche de Révision"
-                    UserProgressRepository.ContentType.VIDEO -> "Vidéo"
-                },
+                title = if (typeEnum == UserProgressRepository.ContentType.FDR) "Fiche de Révision" else "Cours Complet",
                 onBackClick = onBackClick,
                 dimensions = dimensions
             )
         },
         bottomBar = {
+            // La barre de validation n'apparaît que si le contenu n'est pas déjà validé
             PdfViewerBottomBar(
-                contentType = typeEnum,
                 isMarkedAsRead = isMarkedAsRead,
                 onMarkComplete = {
                     viewModel.markAsReadOrWatched()
-                    onMarkComplete()
+                    onMarkComplete() // Retour à l'écran précédent via NavGraph
                 },
                 dimensions = dimensions
             )
@@ -79,21 +65,12 @@ fun PdfViewerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = paddingValues.calculateTopPadding(),      // ✅ TopBar spacing
-                    bottom = paddingValues.calculateBottomPadding()  // ✅ BottomBar spacing
-                )
+                .padding(paddingValues)
         ) {
             when {
                 isLoading -> LoadingContent(dimensions)
-                contentUrl != null && typeEnum == UserProgressRepository.ContentType.VIDEO -> {
-                    YouTubePlayer(
-                        videoUrl = contentUrl!!,
-                        onVideoEnd = { videoEnded = true },
-                        onError = { error -> println("❌ Erreur YouTube: $error") }
-                    )
-                }
-                contentUrl != null && typeEnum != UserProgressRepository.ContentType.VIDEO -> {
+                contentUrl != null -> {
+                    // Utilisation de ton composable PdfViewer personnalisé
                     PdfViewer(
                         url = contentUrl!!,
                         onError = { error -> println("❌ Erreur PDF : $error") },
@@ -116,52 +93,54 @@ private fun PdfViewerTopBar(title: String, onBackClick: () -> Unit, dimensions: 
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour", modifier = Modifier.size(dimensions.iconSizeMedium))
             }
         },
-        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
+        windowInsets = WindowInsets(0.dp)
     )
 }
 
 @Composable
 private fun PdfViewerBottomBar(
-    contentType: UserProgressRepository.ContentType,
     isMarkedAsRead: Boolean,
     onMarkComplete: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
-    BottomAppBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp
+    Surface(
+        tonalElevation = 8.dp,
+        shadowElevation = 8.dp
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = dimensions.screenPaddingHorizontal, vertical = dimensions.itemSpacing / 1.5f)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(dimensions.screenPaddingHorizontal)
+                .navigationBarsPadding() // Évite les chevauchements avec la barre système
+        ) {
             if (!isMarkedAsRead) {
-                Button(onClick = onMarkComplete, modifier = Modifier.fillMaxWidth().height(dimensions.buttonHeight)) {
+                Button(
+                    onClick = onMarkComplete,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(dimensions.buttonHeight),
+                    shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+                ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null)
-                    Spacer(modifier = Modifier.width(dimensions.itemSpacing / 1.5f))
-                    Text(
-                        text = when (contentType) {
-                            UserProgressRepository.ContentType.VIDEO -> "Marquer la vidéo comme vue"
-                            else -> "J'ai terminé la lecture"
-                        },
-                        fontSize = dimensions.bodyLarge
-                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "J'ai terminé la lecture", fontSize = dimensions.bodyLarge)
                 }
             } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                // État déjà lu : simple message de confirmation
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(dimensions.buttonHeight),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(dimensions.itemSpacing / 1.5f))
-                        Text(
-                            text = when (contentType) {
-                                UserProgressRepository.ContentType.VIDEO -> "Vidéo vue ✓"
-                                else -> "Lecture terminée ✓"
-                            },
-                            fontWeight = FontWeight.Bold,
-                            fontSize = dimensions.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Lecture validée ✓",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
@@ -174,7 +153,7 @@ private fun LoadingContent(dimensions: ResponsiveDimensions) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(modifier = Modifier.size(dimensions.iconSizeLarge))
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-            Text("Chargement du contenu...", fontSize = dimensions.bodyLarge)
+            Text("Ouverture du document...", fontSize = dimensions.bodyLarge)
         }
     }
 }
@@ -185,24 +164,7 @@ private fun ErrorContent(dimensions: ResponsiveDimensions) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(imageVector = Icons.Default.Error, contentDescription = null, modifier = Modifier.size(dimensions.iconSizeLarge), tint = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-            Text(text = "Contenu non disponible", fontSize = dimensions.titleMedium)
+            Text(text = "Le lien du PDF est introuvable", fontSize = dimensions.titleMedium)
         }
-    }
-}
-
-@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
-@Composable
-fun PdfViewerScreenPreview() {
-    LearnityTheme {
-        PdfViewerScreen(
-            courseId = "test",
-            chapterId = "test",
-            type = "cours",
-            onMarkComplete = {},
-            onBackClick = {}
-        )
     }
 }

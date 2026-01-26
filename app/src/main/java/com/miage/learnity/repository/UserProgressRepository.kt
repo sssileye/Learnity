@@ -2,6 +2,7 @@ package com.miage.learnity.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -21,18 +22,21 @@ class UserProgressRepository {
     // ============================================
     // ENUM pour types de contenu
     // ============================================
-    enum class ContentType {
-        COURS, FDR, VIDEO
+    enum class ContentType(val fieldName: String) {
+        COURS("isCoursRead"),
+        FDR("isFdrRead"),
+        VIDEO("isVideoWatched"),
+        QUIZ("isQuizCompleted")
     }
 
     // ============================================
-    // ÉCRITURE (avec notifications)
+    // ÉCRITURE
     // ============================================
 
     /**
-     * Marque le contenu d'un chapitre comme lu
+     * Marque un contenu spécifique comme terminé (Cours, FDR, Vidéo, Quiz)
      */
-    suspend fun markContentAsRead(
+    suspend fun markContentAsCompleted(
         courseId: String,
         chapterId: String,
         contentType: ContentType
@@ -48,149 +52,29 @@ class UserProgressRepository {
                 .collection("chapters")
                 .document(chapterId)
 
-            // ✅ Choisir le bon champ selon le type
-            val fieldToUpdate = when (contentType) {
-                ContentType.COURS -> "isCoursRead"
-                ContentType.FDR -> "isFdrRead"
-                ContentType.VIDEO -> return@withContext Result.failure(
-                    Exception("Use markVideoAsWatched for videos")
-                )
-            }
-
+            // ✅ Mise à jour dynamique du champ selon l'Enum
             progressRef.set(
-                mapOf(fieldToUpdate to true),
+                mapOf(contentType.fieldName to true),
                 SetOptions.merge()
             ).await()
 
-            // Notification locale immédiate
+            // Notification locale pour rafraîchir l'UI si nécessaire
             ProgressManager.notifyProgressChanged(
                 courseId,
                 chapterId,
                 ProgressManager.ProgressType.CONTENT_READ
             )
 
-            println("✅ UserProgressRepo - $fieldToUpdate marked for $courseId/$chapterId")
+            println("✅ UserProgressRepo - ${contentType.fieldName} validé pour $chapterId")
             Result.success(Unit)
         } catch (e: Exception) {
-            println("❌ UserProgressRepo - Error: ${e.message}")
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Marque une vidéo comme vue
-     */
-    suspend fun markVideoAsWatched(
-        courseId: String,
-        chapterId: String
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val userId = auth.currentUser?.uid
-                ?: return@withContext Result.failure(Exception("User not authenticated"))
-
-            val progressRef = firestore.collection("user_progress")
-                .document(userId)
-                .collection("courses")
-                .document(courseId)
-                .collection("chapters")
-                .document(chapterId)
-
-            progressRef.set(
-                mapOf("isVideoWatched" to true),
-                SetOptions.merge()
-            ).await()
-
-            // Notification locale immédiate
-            ProgressManager.notifyProgressChanged(
-                courseId,
-                chapterId,
-                ProgressManager.ProgressType.VIDEO_WATCHED
-            )
-
-            println("✅ UserProgressRepo - Video marked as watched: $courseId/$chapterId")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            println("❌ UserProgressRepo - Error: ${e.message}")
+            println("❌ UserProgressRepo - Erreur écriture: ${e.message}")
             Result.failure(e)
         }
     }
 
     // ============================================
-    // LECTURE SIMPLE (une seule fois)
-    // ============================================
-
-    /**
-     * Récupère la progression d'un chapitre (lecture unique)
-     */
-    suspend fun getChapterProgress(
-        courseId: String,
-        chapterId: String
-    ): Result<ChapterProgressData> = withContext(Dispatchers.IO) {
-        try {
-            val userId = auth.currentUser?.uid
-                ?: return@withContext Result.failure(Exception("User not authenticated"))
-
-            val snapshot = firestore.collection("user_progress")
-                .document(userId)
-                .collection("courses")
-                .document(courseId)
-                .collection("chapters")
-                .document(chapterId)
-                .get()
-                .await()
-
-            val progress = ChapterProgressData(
-                isCoursRead = snapshot.getBoolean("isCoursRead") ?: false,
-                isFdrRead = snapshot.getBoolean("isFdrRead") ?: false,
-                isVideoWatched = snapshot.getBoolean("isVideoWatched") ?: false,
-                isQuizCompleted = snapshot.getBoolean("isQuizCompleted") ?: false
-            )
-
-            Result.success(progress)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Récupère la progression de tous les chapitres d'un cours (lecture unique)
-     */
-    suspend fun getCourseProgress(
-        courseId: String,
-        chapterIds: List<String>
-    ): Result<Map<String, ChapterProgressData>> = withContext(Dispatchers.IO) {
-        try {
-            val userId = auth.currentUser?.uid
-                ?: return@withContext Result.failure(Exception("User not authenticated"))
-
-            val progressMap = mutableMapOf<String, ChapterProgressData>()
-
-            chapterIds.forEach { chapterId ->
-                val snapshot = firestore.collection("user_progress")
-                    .document(userId)
-                    .collection("courses")
-                    .document(courseId)
-                    .collection("chapters")
-                    .document(chapterId)
-                    .get()
-                    .await()
-
-                progressMap[chapterId] = ChapterProgressData(
-                    isCoursRead = snapshot.getBoolean("isCoursRead") ?: false,
-                    isFdrRead = snapshot.getBoolean("isFdrRead") ?: false,
-                    isVideoWatched = snapshot.getBoolean("isVideoWatched") ?: false,
-                    isQuizCompleted = snapshot.getBoolean("isQuizCompleted") ?: false
-                )
-            }
-
-            Result.success(progressMap)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    // ============================================
-    // 🔥 LISTENERS TEMPS RÉEL
+    // 🔥 LISTENERS TEMPS RÉEL (Sécurisés)
     // ============================================
 
     /**
@@ -200,10 +84,8 @@ class UserProgressRepository {
         courseId: String,
         chapterId: String
     ): Flow<ChapterProgressData> = callbackFlow {
-        val userId = auth.currentUser?.uid
-
-        if (userId == null) {
-            close(Exception("User not authenticated"))
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(ChapterProgressData())
             return@callbackFlow
         }
 
@@ -214,10 +96,13 @@ class UserProgressRepository {
             .collection("chapters")
             .document(chapterId)
 
-        // 🔥 Ajouter le listener
         val listener = docRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                println("❌ Listener error: ${error.message}")
+                // Gestion sécurisée de la déconnexion
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    println("ℹ️ UserProgress - Accès révoqué (déconnexion)")
+                    return@addSnapshotListener
+                }
                 close(error)
                 return@addSnapshotListener
             }
@@ -229,31 +114,23 @@ class UserProgressRepository {
                     isVideoWatched = snapshot.getBoolean("isVideoWatched") ?: false,
                     isQuizCompleted = snapshot.getBoolean("isQuizCompleted") ?: false
                 )
-                println("🔥 Firebase Listener - Chapter progress updated: $courseId/$chapterId")
                 trySend(progress)
             } else {
-                // Pas encore de progression
-                trySend(ChapterProgressData())
+                trySend(ChapterProgressData()) // Retourne des flags à false par défaut
             }
         }
 
-        // Cleanup quand le flow est annulé
-        awaitClose {
-            println("🔥 Firebase Listener - Removed for $courseId/$chapterId")
-            listener.remove()
-        }
+        awaitClose { listener.remove() }
     }
 
     /**
-     * 🔥 Observe la progression de tous les chapitres d'un cours en temps réel
+     * 🔥 Observe la progression de TOUS les chapitres d'un cours (utile pour l'Examen Blanc)
      */
     fun observeCourseProgress(
         courseId: String
     ): Flow<Map<String, ChapterProgressData>> = callbackFlow {
-        val userId = auth.currentUser?.uid
-
-        if (userId == null) {
-            close(Exception("User not authenticated"))
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(emptyMap())
             return@callbackFlow
         }
 
@@ -263,36 +140,53 @@ class UserProgressRepository {
             .document(courseId)
             .collection("chapters")
 
-        // 🔥 Ajouter le listener sur toute la collection
         val listener = collectionRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                println("❌ Listener error: ${error.message}")
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
                 close(error)
                 return@addSnapshotListener
             }
 
             if (snapshot != null) {
-                val progressMap = mutableMapOf<String, ChapterProgressData>()
-
-                snapshot.documents.forEach { doc ->
-                    val chapterId = doc.id
-                    progressMap[chapterId] = ChapterProgressData(
+                val progressMap = snapshot.documents.associate { doc ->
+                    doc.id to ChapterProgressData(
                         isCoursRead = doc.getBoolean("isCoursRead") ?: false,
                         isFdrRead = doc.getBoolean("isFdrRead") ?: false,
                         isVideoWatched = doc.getBoolean("isVideoWatched") ?: false,
                         isQuizCompleted = doc.getBoolean("isQuizCompleted") ?: false
                     )
                 }
-
-                println("🔥 Firebase Listener - Course progress updated: $courseId (${progressMap.size} chapters)")
                 trySend(progressMap)
             }
         }
 
-        // Cleanup
-        awaitClose {
-            println("🔥 Firebase Listener - Removed for course $courseId")
-            listener.remove()
+        awaitClose { listener.remove() }
+    }
+
+    // ============================================
+    // LECTURE SIMPLE
+    // ============================================
+
+    suspend fun getChapterProgress(courseId: String, chapterId: String): ChapterProgressData {
+        val userId = auth.currentUser?.uid ?: return ChapterProgressData()
+        return try {
+            val snapshot = firestore.collection("user_progress")
+                .document(userId)
+                .collection("courses")
+                .document(courseId)
+                .collection("chapters")
+                .document(chapterId)
+                .get()
+                .await()
+
+            ChapterProgressData(
+                isCoursRead = snapshot.getBoolean("isCoursRead") ?: false,
+                isFdrRead = snapshot.getBoolean("isFdrRead") ?: false,
+                isVideoWatched = snapshot.getBoolean("isVideoWatched") ?: false,
+                isQuizCompleted = snapshot.getBoolean("isQuizCompleted") ?: false
+            )
+        } catch (e: Exception) {
+            ChapterProgressData()
         }
     }
 }

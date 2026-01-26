@@ -35,12 +35,9 @@ class ChapterContentViewModel(
             _isLoading.value = true
             _error.value = null
 
-            // Charger le chapitre une fois
             courseRepository.getChapter(courseId, chapterId)
                 .onSuccess { chapter ->
-                    _chapter.value = chapter
-
-                    // 🔥 DÉMARRER LE LISTENER TEMPS RÉEL
+                    // On ne met pas à jour tout de suite, on laisse le listener le faire
                     startProgressListener(courseId, chapterId, chapter)
                 }
                 .onFailure {
@@ -51,9 +48,6 @@ class ChapterContentViewModel(
         }
     }
 
-    /**
-     * 🔥 Observe la progression en temps réel
-     */
     private fun startProgressListener(
         courseId: String,
         chapterId: String,
@@ -62,14 +56,19 @@ class ChapterContentViewModel(
         viewModelScope.launch {
             progressRepository.observeChapterProgress(courseId, chapterId)
                 .collect { progress ->
-                    // Mettre à jour le chapitre avec la nouvelle progression
+                    // ⭐ LOGIQUE DE DÉBLOCAGE : AU MOINS UN DES DEUX
+                    val canUnlock = progress.isCoursRead || progress.isFdrRead
+
                     _chapter.value = baseChapter.copy(
                         isCoursRead = progress.isCoursRead,
                         isFdrRead = progress.isFdrRead,
                         isVideoWatched = progress.isVideoWatched,
-                        isQuizCompleted = progress.isQuizCompleted
+                        isQuizCompleted = progress.isQuizCompleted,
+                        // ✅ Le quiz se débloque si le cours OU la FDR est lu(e)
+                        isQuizUnlocked = canUnlock
                     )
-                    println("🔥 ChapterContentVM - Progress updated from Firebase")
+
+                    println("🔥 Progress Update - Cours: ${progress.isCoursRead}, FDR: ${progress.isFdrRead} -> Unlocked: $canUnlock")
                 }
         }
     }

@@ -35,68 +35,58 @@ class PdfViewerViewModel(
     private var currentCourseId: String = ""
     private var currentChapterId: String = ""
 
+    /**
+     * Charge le contenu PDF (Cours ou FDR) et vérifie si déjà lu
+     */
     fun loadContent(courseId: String, chapterId: String, type: UserProgressRepository.ContentType) {
         currentCourseId = courseId
         currentChapterId = chapterId
+        _contentType.value = type
 
         viewModelScope.launch {
             _isLoading.value = true
-            _contentType.value = type
 
-            // Charger le chapitre
+            // 1. Récupérer les infos du chapitre pour avoir l'URL
             courseRepository.getChapter(courseId, chapterId)
                 .onSuccess { chapter ->
                     _chapter.value = chapter
-
-                    // Déterminer l'URL selon le type
-                    _contentUrl.value = when (type) {
-                        UserProgressRepository.ContentType.COURS -> chapter.coursUrl
-                        UserProgressRepository.ContentType.FDR -> chapter.fdrUrl
-                        UserProgressRepository.ContentType.VIDEO -> chapter.videoUrl
+                    _contentUrl.value = if (type == UserProgressRepository.ContentType.FDR) {
+                        chapter.fdrUrl
+                    } else {
+                        chapter.coursUrl
                     }
 
-                    // Charger la progression
-                    progressRepository.getChapterProgress(courseId, chapterId)
-                        .onSuccess { progress ->
-                            _isMarkedAsRead.value = when (type) {
-                                UserProgressRepository.ContentType.VIDEO -> progress.isVideoWatched
-                                UserProgressRepository.ContentType.COURS -> progress.isCoursRead
-                                UserProgressRepository.ContentType.FDR -> progress.isFdrRead
-                            }
-                        }
+                    // 2. Récupérer la progression actuelle
+                    val progress = progressRepository.getChapterProgress(courseId, chapterId)
+                    _isMarkedAsRead.value = when (type) {
+                        UserProgressRepository.ContentType.FDR -> progress.isFdrRead
+                        else -> progress.isCoursRead
+                    }
+                }
+                .onFailure {
+                    println("❌ PdfViewerVM - Erreur chargement chapitre : ${it.message}")
                 }
 
             _isLoading.value = false
         }
     }
 
+    /**
+     * Marque le cours ou la FDR comme lu dans Firebase
+     */
     fun markAsReadOrWatched() {
+        if (currentCourseId.isEmpty() || currentChapterId.isEmpty()) return
+
         viewModelScope.launch {
-            when (_contentType.value) {
-                UserProgressRepository.ContentType.VIDEO -> {
-                    progressRepository.markVideoAsWatched(currentCourseId, currentChapterId)
-                        .onSuccess {
-                            _isMarkedAsRead.value = true
-                            println("✅ Vidéo marquée comme vue")
-                        }
-                        .onFailure {
-                            println("❌ Erreur marquage vidéo: ${it.message}")
-                        }
-                }
-                UserProgressRepository.ContentType.COURS,
-                UserProgressRepository.ContentType.FDR -> {
-                    // ✅ Passer le type de contenu
-                    progressRepository.markContentAsRead(
-                        currentCourseId,
-                        currentChapterId,
-                        _contentType.value
-                    ).onSuccess {
-                        _isMarkedAsRead.value = true
-                        println("✅ Contenu marqué comme lu (${_contentType.value})")
-                    }.onFailure {
-                        println("❌ Erreur marquage contenu: ${it.message}")
-                    }
-                }
+            progressRepository.markContentAsCompleted(
+                courseId = currentCourseId,
+                chapterId = currentChapterId,
+                contentType = _contentType.value
+            ).onSuccess {
+                _isMarkedAsRead.value = true
+                println("✅ PdfViewerVM - Progression sauvegardée pour ${_contentType.value}")
+            }.onFailure {
+                println("❌ PdfViewerVM - Erreur sauvegarde : ${it.message}")
             }
         }
     }

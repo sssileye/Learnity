@@ -11,11 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Chapter
-import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
 
 @Composable
@@ -54,7 +53,7 @@ fun ChapterContentScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())  // ✅ UNIQUEMENT le padding top
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
             when {
                 isLoading -> LoadingState(dimensions)
@@ -82,7 +81,7 @@ private fun ChapterContentTopBar(title: String, onBackClick: () -> Unit, dimensi
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour", modifier = Modifier.size(dimensions.iconSizeMedium))
             }
         },
-        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
+        windowInsets = WindowInsets(0.dp)
     )
 }
 
@@ -101,7 +100,7 @@ private fun ChapterContentLayout(
             .padding(
                 start = dimensions.screenPaddingHorizontal,
                 end = dimensions.screenPaddingHorizontal,
-                top = 4.dp,  // ✅ ESPACE MINIMAL après TopBar
+                top = 4.dp,
                 bottom = dimensions.screenPaddingHorizontal
             ),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
@@ -156,6 +155,7 @@ private fun ChapterContentLayout(
             modifier = Modifier.padding(bottom = dimensions.itemSpacing / 3)
         )
 
+        // ✅ Débloqué si isQuizUnlocked est true (calculé par le VM : isCoursRead || isFdrRead)
         if (chapter.isQuizUnlocked) {
             QuizSection(
                 isQuizCompleted = chapter.isQuizCompleted,
@@ -241,7 +241,7 @@ private fun QuizSection(isQuizCompleted: Boolean, onStartQuiz: () -> Unit, dimen
             ) {
                 Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(dimensions.itemSpacing))
-                Text(text = "Quiz validé avec succès !", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                Text(text = "Quiz validé !", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.primary)
             }
         }
     } else {
@@ -252,7 +252,7 @@ private fun QuizSection(isQuizCompleted: Boolean, onStartQuiz: () -> Unit, dimen
         ) {
             Icon(imageVector = Icons.Default.Quiz, contentDescription = null)
             Spacer(modifier = Modifier.width(dimensions.itemSpacing))
-            Text(text = "Passer le Quiz de Chapitre", fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold)
+            Text(text = "Passer le Quiz", fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -264,12 +264,26 @@ private fun LockedQuizSection(dimensions: ResponsiveDimensions) {
         shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(dimensions.iconSizeLarge * 0.67f))
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(dimensions.iconSizeLarge * 0.67f)
+            )
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
             Text(text = "Quiz Verrouillé", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 3))
-            Text(text = "Complétez la lecture et/ou la vidéo pour débloquer le test", fontSize = dimensions.bodySmall, color = MaterialTheme.colorScheme.outline)
+            // ✅ Texte mis à jour : Cours OU Fiche de Révision
+            Text(
+                text = "Lisez le cours ou la fiche de révision pour débloquer le quiz",
+                fontSize = dimensions.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -280,7 +294,7 @@ private fun LoadingState(dimensions: ResponsiveDimensions) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             CircularProgressIndicator(modifier = Modifier.size(dimensions.iconSizeLarge))
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-            Text(text = "Chargement du chapitre...", fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "Chargement...", fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -295,26 +309,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit, dimensions: Respons
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
             Text(text = message, fontSize = dimensions.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
-            Button(onClick = onRetry, modifier = Modifier.height(dimensions.buttonHeightSmall)) { Text("Réessayer", fontSize = dimensions.bodyLarge) }
+            Button(onClick = onRetry) { Text("Réessayer", fontSize = dimensions.bodyLarge) }
         }
-    }
-}
-
-@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
-@Composable
-fun ChapterContentScreenPreview() {
-    LearnityTheme {
-        ChapterContentScreen(
-            courseId = "test",
-            chapterId = "test",
-            onCoursClick = {},
-            onFdrClick = {},
-            onVideoClick = {},
-            onStartQuiz = {},
-            onBackClick = {}
-        )
     }
 }

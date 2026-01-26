@@ -6,36 +6,23 @@ import com.google.gson.annotations.SerializedName
 // PROFIL UTILISATEUR COMPLET
 // ============================================
 data class UserProfile(
-    // --- Informations d'Identification ---
     val uid: String = "",
     val email: String = "",
     val firstName: String = "",
     val lastName: String = "",
     val photoUrl: String = "avatar_b1",
     val createdAt: Long = System.currentTimeMillis(),
-
-    // --- Système de Redevance (La Dette) ---
-    // Valeur "X" fixée par l'utilisateur pour son engagement
     val redevanceSoutienUnitaire: Double = 1.0,
-    // Dette virtuelle cumulée (Incrémentée par X ou X/10)
     val detteCumulee: Double = 0.0,
-
-    // --- Système de Récompense (Unity Points) ---
     val unityPoints: Int = 0,
-
-    // --- Progression & Winstreak ---
     val currentStreak: Int = 0,
     val bestStreak: Int = 0,
-    // Format "yyyy-MM-dd" pour calculer l'absentéisme au démarrage
     val lastDailyQuizDate: String? = null,
-
-    // --- Engagement Social ---
-    // ID de l'association parrainée
     val selectedAssociationId: String? = null
 )
 
 // ============================================
-// COURSE (Cours - Sans les chapitres)
+// COURSE
 // ============================================
 data class Course(
     val id: String = "",
@@ -45,7 +32,7 @@ data class Course(
 )
 
 // ============================================
-// CHAPTER (Chapitre avec contenu flexible)
+// CHAPTER (Chapitre corrigé)
 // ============================================
 data class Chapter(
     val chapterId: String = "",
@@ -65,106 +52,53 @@ data class Chapter(
     // === QUIZ ===
     val quizId: String? = null,
 
-    // === ÉTATS DE PROGRESSION ===
+    // === ÉTATS DE PROGRESSION (Modifiables via .copy()) ===
     val isVideoWatched: Boolean = false,
     val isCoursRead: Boolean = false,
     val isFdrRead: Boolean = false,
-    val isQuizCompleted: Boolean = false
+    val isQuizCompleted: Boolean = false,
+
+    // ⭐ CORRECTION : Passé en paramètre du constructeur pour être reconnu par le ViewModel
+    val isQuizUnlocked: Boolean = false
 ) {
     /**
-     * ✅ Chapitre 100% complété (tout fait y compris quiz)
+     * ✅ Chapitre 100% complété
+     * (Cours lu ET Quiz fait. La vidéo est bonus selon ta règle)
      */
     val isCompleted: Boolean
-        get() {
-            val videoRequired = videoUrl != null
-            val contentRequired = coursUrl != null || fdrUrl != null
-
-            val videoOk = if (videoRequired) isVideoWatched else true
-            val contentOk = if (contentRequired) {
-                (coursUrl != null && isCoursRead) || (fdrUrl != null && isFdrRead)
-            } else {
-                true
-            }
-
-            return videoOk && contentOk && isQuizCompleted
-        }
+        get() = isCoursRead && isQuizCompleted
 
     /**
-     * ✅ NOUVEAU - Progression en pourcentage (0.0 à 1.0)
-     * Compte tout le contenu indépendamment du quiz
+     * ✅ Progression en pourcentage (0.0 à 1.0)
      */
     val progressPercentage: Float
         get() {
             var completed = 0f
             var total = 0f
 
-            // Compter cours
-            if (coursUrl != null) {
-                total += 1f
-                if (isCoursRead) completed += 1f
-            }
-
-            // Compter FDR
-            if (fdrUrl != null) {
-                total += 1f
-                if (isFdrRead) completed += 1f
-            }
-
-            // Compter vidéo
-            if (videoUrl != null) {
-                total += 1f
-                if (isVideoWatched) completed += 1f
-            }
-
-            // Compter quiz
-            if (quizId != null) {
-                total += 1f
-                if (isQuizCompleted) completed += 1f
-            }
+            if (hasCours) { total += 1f; if (isCoursRead) completed += 1f }
+            if (hasFdr) { total += 1f; if (isFdrRead) completed += 1f }
+            if (hasVideo) { total += 1f; if (isVideoWatched) completed += 1f }
+            if (quizId != null) { total += 1f; if (isQuizCompleted) completed += 1f }
 
             return if (total > 0) completed / total else 0f
         }
 
     /**
-     * ✅ NOUVEAU - Contenu terminé (lecture + vidéo, sans quiz)
+     * ✅ Helper pour savoir si le contenu minimal (Cours) est fini
      */
-    val isContentCompleted: Boolean
-        get() {
-            val videoRequired = videoUrl != null
-            val contentRequired = coursUrl != null || fdrUrl != null
+    val isContentCompleted: Boolean get() = isCoursRead
 
-            val videoOk = if (videoRequired) isVideoWatched else true
-            val contentOk = if (contentRequired) {
-                (coursUrl != null && isCoursRead) || (fdrUrl != null && isFdrRead)
-            } else {
-                true
-            }
-
-            return videoOk && contentOk
-        }
-
-    val isQuizUnlocked: Boolean
-        get() {
-            val videoRequired = videoUrl != null
-            val contentRequired = coursUrl != null || fdrUrl != null
-
-            val videoOk = if (videoRequired) isVideoWatched else true
-            val contentOk = if (contentRequired) {
-                (coursUrl != null && isCoursRead) || (fdrUrl != null && isFdrRead)
-            } else {
-                true
-            }
-
-            return videoOk && contentOk
-        }
-
+    // Helpers rapides
     val hasVideo: Boolean get() = videoUrl != null
     val hasCours: Boolean get() = coursUrl != null
     val hasFdr: Boolean get() = fdrUrl != null
 }
+
 // ============================================
-// QUIZ & QUESTIONS
+// QUIZ, QUESTIONS, ASSOC & PROGRESSION
 // ============================================
+
 data class Quiz(
     val quizId: String = "",
     val courseId: String = "",
@@ -172,39 +106,27 @@ data class Quiz(
     val title: String = "",
     val questions: List<Question> = emptyList()
 )
-// ============================================
-// Association
-// ============================================
+
+data class Question(
+    @SerializedName("text") val questionText: String = "",
+    @SerializedName("options") val options: List<String> = emptyList(),
+    @SerializedName("correct") val correctAnswerIndex: Int = 0,
+    @SerializedName("explanation") val explanation: String? = null
+)
+
 data class Association(
     val name: String = "",
-    val websiteUrl: String = "", // Lien vers le site de don
+    val websiteUrl: String = "",
     val logoName: String = "",
     val description: String = ""
 )
-data class Question(
-    @SerializedName("text")
-    val questionText: String = "",
 
-    @SerializedName("options")
-    val options: List<String> = emptyList(),
-
-    @SerializedName("correct")
-    val correctAnswerIndex: Int = 0,
-
-    @SerializedName("explanation")
-    val explanation: String? = null
-)
-
-// ============================================
-// PROGRESSION
-// ============================================
 data class CourseProgress(
     val completedChapters: Int,
     val totalChapters: Int
 ) {
     val percentage: Float
         get() = if (totalChapters > 0) completedChapters.toFloat() / totalChapters else 0f
-
     val isAllCompleted: Boolean
         get() = completedChapters == totalChapters
 }
