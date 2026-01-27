@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,42 +43,55 @@ fun PdfViewerScreen(
         viewModel.loadContent(courseId, chapterId, typeEnum)
     }
 
-    Scaffold(
-        topBar = {
-            PdfViewerTopBar(
-                title = if (typeEnum == UserProgressRepository.ContentType.FDR) "Fiche de Révision" else "Cours Complet",
-                onBackClick = onBackClick,
-                dimensions = dimensions
-            )
-        },
-        bottomBar = {
-            // La barre de validation n'apparaît que si le contenu n'est pas déjà validé
-            PdfViewerBottomBar(
-                isMarkedAsRead = isMarkedAsRead,
-                onMarkComplete = {
-                    viewModel.markAsReadOrWatched()
-                    onMarkComplete() // Retour à l'écran précédent via NavGraph
-                },
-                dimensions = dimensions
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                isLoading -> LoadingContent(dimensions)
-                contentUrl != null -> {
-                    // Utilisation de ton composable PdfViewer personnalisé
-                    PdfViewer(
-                        url = contentUrl!!,
-                        onError = { error -> println("❌ Erreur PDF : $error") },
-                        onLoadComplete = { pages -> println("✅ PDF chargé : $pages pages") }
-                    )
+    // on définit les couleurs forcées: pour afficher le fond blanc au lieu de la couleur du thème quand c'est black
+    val forcedLightColors = lightColorScheme(
+        background = Color.White,
+        surface = Color.White,
+        onBackground = Color.Black,
+        onSurface = Color.Black
+    )
+
+    // 3. ENFIN, on enveloppe l'UI (Scaffold) dans le thème
+    MaterialTheme(colorScheme = forcedLightColors) {
+        Scaffold(
+            containerColor = Color.White, // Force le fond du Scaffold en blanc
+            topBar = {
+                PdfViewerTopBar(
+                    title = if (typeEnum == UserProgressRepository.ContentType.FDR) "Fiche de Révision" else "Cours Complet",
+                    onBackClick = onBackClick,
+                    dimensions = dimensions
+                )
+            },
+            bottomBar = {
+                // La barre de validation n'apparaît que si le contenu n'est pas déjà validé
+                PdfViewerBottomBar(
+                    isMarkedAsRead = isMarkedAsRead,
+                    onMarkComplete = {
+                        viewModel.markAsReadOrWatched()
+                        onMarkComplete() // Retour à l'écran précédent via NavGraph
+                    },
+                    dimensions = dimensions
+                )
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                when {
+                    isLoading -> LoadingContent(dimensions)
+                    contentUrl != null -> {
+                        // Utilisation de ton composable PdfViewer personnalisé
+                        PdfViewer(
+                            url = contentUrl!!,
+                            onError = { error -> println("❌ Erreur PDF : $error") },
+                            onLoadComplete = { pages -> println("✅ PDF chargé : $pages pages") }
+                        )
+                    }
+
+                    else -> ErrorContent(dimensions)
                 }
-                else -> ErrorContent(dimensions)
             }
         }
     }
