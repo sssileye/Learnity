@@ -13,44 +13,83 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.miage.learnity.data.Association
+import com.miage.learnity.ui.utils.ResponsiveDimensions
 
 @Composable
 fun AssociationCardCustom(
     asso: Association,
-    onDonClick: () -> Unit // Ajout du paramètre pour gérer le clic
+    onDonClick: () -> Unit,
+    dimensions: ResponsiveDimensions
 ) {
     val context = LocalContext.current
     val imageResId = context.resources.getIdentifier(asso.logoName, "drawable", context.packageName)
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).heightIn(min = 80.dp), // Définit une hauteur minimale mais permet de s'agrandir,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f)) // Style transparent
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = dimensions.itemSpacing / 2)
+            .heightIn(min = dimensions.iconSizeLarge * 1.67f),
+        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            modifier = Modifier
+                .padding(dimensions.cardPadding)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Logo de l'association
             Image(
-                painter = painterResource(id = if (imageResId != 0) imageResId else android.R.drawable.ic_menu_gallery),
+                painter = painterResource(
+                    id = if (imageResId != 0) imageResId else android.R.drawable.ic_menu_gallery
+                ),
                 contentDescription = null,
-                modifier = Modifier.size(60.dp).padding(end = 12.dp),
+                modifier = Modifier
+                    .size(dimensions.iconSizeLarge * 1.25f)
+                    .padding(end = dimensions.itemSpacing),
                 contentScale = ContentScale.Fit
             )
 
+            // Infos de l'association
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = asso.name, color = Color.White, fontWeight = FontWeight.Bold)
-                Text(text = asso.description, color = Color.Gray, fontSize = 12.sp)
+                Text(
+                    text = asso.name,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = dimensions.bodyLarge
+                )
+                Spacer(modifier = Modifier.height(dimensions.itemSpacing / 3))
+                Text(
+                    text = asso.description,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = dimensions.bodySmall,
+                    maxLines = 2
+                )
             }
 
+            // Bouton Donner
             Button(
-                onClick = { onDonClick() }, // Déclenche la popup
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63)),
-                shape = RoundedCornerShape(8.dp)
+                onClick = { onDonClick() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE91E63)
+                ),
+                shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
+                modifier = Modifier.height(dimensions.buttonHeightSmall * 0.75f),
+                contentPadding = PaddingValues(
+                    horizontal = dimensions.itemSpacing,
+                    vertical = dimensions.itemSpacing / 2
+                )
             ) {
-                Text("Donner", color = Color.White, fontSize = 12.sp)
+                Text(
+                    "Donner",
+                    color = Color.White,
+                    fontSize = dimensions.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

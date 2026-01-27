@@ -14,12 +14,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp // Gardé pour les border strokes spécifiques ou cas rares
+import androidx.compose.ui.unit.dp
 import com.miage.learnity.data.Association
-import com.miage.learnity.ui.components.* // Import de vos composants responsives
+import com.miage.learnity.ui.components.*
+import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
+import com.miage.learnity.ui.utils.responsiveMaxWidth
 
 @Composable
 fun AssociationScreen() {
@@ -32,7 +33,6 @@ fun AssociationScreen() {
     var showDialog by remember { mutableStateOf(false) }
     var selectedAsso by remember { mutableStateOf<Association?>(null) }
     var montantDon by remember { mutableStateOf("") }
-    // État pour gérer les erreurs de saisie dans la popup
     var isInputError by remember { mutableStateOf(false) }
 
     // Données
@@ -45,33 +45,28 @@ fun AssociationScreen() {
         )
     }
 
-    // Dégradés
-    val backgroundGradient = Brush.horizontalGradient(
-        colors = listOf(Color(0xFF1A1454), Color(0xFF0F0B3A))
-    )
+    // ✅ Dégradé pour la carte dette (accent coloré conservé)
     val cardGradient = Brush.horizontalGradient(
         colors = listOf(Color(0xFFF2994A), Color(0xFFF2C94C))
     )
 
-    // 2. Structure principale
+    // 2. Structure principale - ✅ DARK MODE
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundGradient)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // On utilise LazyColumn pour tout l'écran pour garantir le scroll sur petit écran
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = dimensions.screenPaddingHorizontal), // Marge horizontale responsive
+                .padding(horizontal = dimensions.screenPaddingHorizontal)
+                .responsiveMaxWidth(dimensions),
             verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
             contentPadding = PaddingValues(vertical = dimensions.screenPaddingVertical)
         ) {
 
             // --- ITEM 1 : CARTE DETTE VIRTUELLE ---
             item {
-                // On utilise une Card standard ici car on veut un background gradient spécifique
-                // mais on utilise les dimensions responsives pour la forme et le padding
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
@@ -81,20 +76,20 @@ fun AssociationScreen() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(cardGradient)
-                            .padding(dimensions.cardPadding) // Padding interne responsive
+                            .padding(dimensions.cardPadding)
                     ) {
                         Column {
                             Text(
                                 text = "Dette Virtuelle",
                                 color = Color.White,
-                                fontSize = dimensions.bodyMedium, // Police responsive
+                                fontSize = dimensions.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
                             Text(
                                 text = String.format("%.2f €", detteVirtuelle),
                                 color = Color.White,
-                                fontSize = dimensions.displayLarge, // Très grande police responsive
+                                fontSize = dimensions.displayLarge,
                                 fontWeight = FontWeight.ExtraBold
                             )
                         }
@@ -102,12 +97,12 @@ fun AssociationScreen() {
                 }
             }
 
-            // --- ITEM 2 : TITRE SECTION ---
+            // --- ITEM 2 : TITRE SECTION - ✅ DARK MODE ---
             item {
                 Spacer(modifier = Modifier.height(dimensions.itemSpacing))
                 Text(
                     text = "Nos associations partenaires",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = dimensions.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -115,47 +110,46 @@ fun AssociationScreen() {
 
             // --- ITEMS 3 : LISTE DES ASSOS ---
             items(associations) { asso ->
-                // Ici, on suppose que AssociationCardCustom a été adaptée ou on l'enveloppe
-                // Si AssociationCardCustom n'est pas responsive, vous pouvez l'envelopper dans une Box
-                // Pour l'instant, on l'utilise telle quelle mais on gère l'espacement via le LazyColumn
                 AssociationCardCustom(
                     asso = asso,
                     onDonClick = {
                         selectedAsso = asso
                         showDialog = true
-                        montantDon = "" // Reset du champ
+                        montantDon = ""
                         isInputError = false
-                    }
+                    },
+                    dimensions = dimensions
                 )
             }
 
-            // Espace en bas de liste pour éviter que le contenu soit coupé par la navigation
+            // Espace en bas
             item {
                 Spacer(modifier = Modifier.height(dimensions.bottomNavHeight))
             }
         }
 
-        // 3. Popup de confirmation Responsive
+        // 3. Popup de confirmation - ✅ DARK MODE
         if (showDialog && selectedAsso != null) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                 title = {
                     Text(
                         text = "Donner à ${selectedAsso?.name}",
                         fontSize = dimensions.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)) {
                         Text(
                             text = "Montant à déduire de votre dette :",
-                            fontSize = dimensions.bodyMedium
+                            fontSize = dimensions.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
-                        // Utilisation du composant ResponsiveTextField
                         ResponsiveTextField(
                             value = montantDon,
                             onValueChange = {
@@ -164,13 +158,7 @@ fun AssociationScreen() {
                             },
                             label = "Montant (€)",
                             isError = isInputError,
-                            errorMessage = "Montant invalide ou supérieur à la dette",
-                            // On force le clavier numérique
-                            // Note: ResponsiveTextField doit supporter keyboardOptions, sinon ajouter le paramètre dans le composant
-                            // Si votre ResponsiveTextField actuel ne l'a pas, on passe par modifier ou on l'ajoute.
-                            // Pour cet exemple, je suppose une implémentation standard ou je fallback sur un TextField simple si besoin.
-                            // UPDATE : Votre fichier 1 montre que ResponsiveTextField n'a pas keyboardOptions.
-                            // C'est une amélioration à faire dans ResponsiveTextField, mais pour l'instant cela fonctionnera en texte.
+                            errorMessage = "Montant invalide ou supérieur à la dette"
                         )
                     }
                 },
@@ -195,7 +183,7 @@ fun AssociationScreen() {
                         Text(
                             text = "Annuler",
                             fontSize = dimensions.bodyMedium,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -204,14 +192,14 @@ fun AssociationScreen() {
     }
 }
 
-// Placeholder pour prévisualisation si AssociationCardCustom n'est pas dispo dans le contexte de copie
 // ✅ PREVIEWS MULTI-TAILLES
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
 @Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
 @Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
-@Preview(showBackground = true)
 @Composable
 fun AssociationScreenPreview() {
-    AssociationScreen()
+    LearnityTheme {
+        AssociationScreen()
+    }
 }
