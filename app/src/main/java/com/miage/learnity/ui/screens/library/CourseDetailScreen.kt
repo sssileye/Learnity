@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,6 +39,7 @@ fun CourseDetailScreen(
     val dimensions = rememberResponsiveDimensions()
     val course by viewModel.course.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
+    val isExamUnlocked by viewModel.isExamUnlocked.collectAsState() // ✅ Nouvelle observation
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -55,7 +57,7 @@ fun CourseDetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())  // ✅ UNIQUEMENT le padding top
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
             when {
                 isLoading -> LoadingState(dimensions)
@@ -64,8 +66,12 @@ fun CourseDetailScreen(
                     course = course!!,
                     chapters = chapters,
                     progress = viewModel.getCourseProgress(),
+                    isExamUnlocked = isExamUnlocked, // ✅ Passé au contenu
                     onChapterClick = { chapterId -> onChapterClick(courseId, chapterId) },
-                    onMegaQuizLaunch = { quizViewModel.loadMegaQuiz(courseId); onMegaQuizClick() },
+                    onMegaQuizLaunch = {
+                        quizViewModel.loadMegaQuiz(courseId)
+                        onMegaQuizClick()
+                    },
                     dimensions = dimensions
                 )
             }
@@ -78,44 +84,48 @@ private fun CourseContent(
     course: Course,
     chapters: List<Chapter>,
     progress: CourseProgress,
+    isExamUnlocked: Boolean, // ✅ Paramètre ajouté
     onChapterClick: (String) -> Unit,
     onMegaQuizLaunch: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
-    val isUEComplete = progress.percentage >= 1.0f
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = dimensions.screenPaddingHorizontal,
             end = dimensions.screenPaddingHorizontal,
-            top = 4.dp,  // ✅ ESPACE MINIMAL après TopBar
+            top = 4.dp,
             bottom = dimensions.screenPaddingHorizontal
         ),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
         item { CourseHeader(course, progress, dimensions) }
 
+        // --- SECTION EXAMEN BLANC ---
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = dimensions.itemSpacing / 3),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = dimensions.itemSpacing / 3),
                 shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isUEComplete) Color(0xFF673AB7) else Color(0xFFBDBDBD)
+                    containerColor = if (isExamUnlocked) Color(0xFF673AB7) else Color(0xFFBDBDBD)
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (isUEComplete) 4.dp else 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isExamUnlocked) 4.dp else 0.dp)
             ) {
                 Row(
-                    modifier = Modifier.clickable(enabled = isUEComplete) { onMegaQuizLaunch() }.padding(dimensions.cardPadding),
+                    modifier = Modifier
+                        .clickable(enabled = isExamUnlocked) { onMegaQuizLaunch() }
+                        .padding(dimensions.cardPadding),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
                         modifier = Modifier.size(dimensions.iconSizeMedium * 1.67f),
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = if (isUEComplete) 0.2f else 0.1f)
+                        color = Color.White.copy(alpha = if (isExamUnlocked) 0.2f else 0.1f)
                     ) {
                         Icon(
-                            imageVector = if (isUEComplete) Icons.Default.AutoAwesome else Icons.Default.Lock,
+                            imageVector = if (isExamUnlocked) Icons.Default.AutoAwesome else Icons.Default.Lock,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.padding(dimensions.itemSpacing / 1.5f)
@@ -125,16 +135,29 @@ private fun CourseContent(
                     Spacer(modifier = Modifier.width(dimensions.itemSpacing))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Examen Blanc d'UE", fontSize = dimensions.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                         Text(
-                            text = if (isUEComplete) "20 questions aléatoires sur toute l'UE" else "Complétez l'UE à 100% pour débloquer",
+                            text = "Examen Blanc d'UE",
+                            fontSize = dimensions.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (isExamUnlocked)
+                                "20 questions aléatoires sur toute l'UE"
+                            else
+                                "Validez tous les quiz de chapitres pour débloquer",
                             fontSize = dimensions.bodySmall,
                             color = Color.White.copy(alpha = 0.8f)
                         )
                     }
 
-                    if (isUEComplete) {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(dimensions.iconSizeMedium))
+                    if (isExamUnlocked) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(dimensions.iconSizeMedium)
+                        )
                     }
                 }
             }
@@ -150,7 +173,9 @@ private fun CourseContent(
             )
         }
 
-        items(chapters) { chapter -> ChapterCard(chapter, { onChapterClick(chapter.chapterId) }, dimensions) }
+        items(chapters) { chapter ->
+            ChapterCard(chapter, { onChapterClick(chapter.chapterId) }, dimensions)
+        }
 
         item { Spacer(modifier = Modifier.height(dimensions.itemSpacing * 5)) }
     }
@@ -177,7 +202,7 @@ private fun CourseHeader(course: Course, progress: CourseProgress, dimensions: R
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(text = "Progression globale", fontSize = dimensions.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
                     Text(
-                        text = "${progress.completedChapters}/${progress.totalChapters} chapitres",
+                        text = "${progress.completedChapters}/${progress.totalChapters} chapitres lus",
                         fontSize = dimensions.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -190,12 +215,6 @@ private fun CourseHeader(course: Course, progress: CourseProgress, dimensions: R
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
                 )
-                Text(
-                    text = "${(progress.percentage * 100).toInt()}% complété",
-                    fontSize = dimensions.bodySmall * 0.9f,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.End).padding(top = dimensions.itemSpacing / 3)
-                )
             }
         }
     }
@@ -207,12 +226,23 @@ private fun ChapterCard(chapter: Chapter, onClick: () -> Unit, dimensions: Respo
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = if (chapter.isCompleted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            containerColor = if (chapter.isQuizCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding), verticalAlignment = Alignment.CenterVertically) {
-            Surface(modifier = Modifier.size(dimensions.iconSizeLarge), shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
+            Surface(
+                modifier = Modifier.size(dimensions.iconSizeLarge),
+                shape = CircleShape,
+                color = if (chapter.isQuizCompleted) Color(0xFF4CAF50).copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+            ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(imageVector = getChapterIcon(chapter), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(dimensions.iconSizeMedium))
+                    Icon(
+                        imageVector = if (chapter.isQuizCompleted) Icons.Default.AssignmentTurnedIn else getChapterIcon(chapter),
+                        contentDescription = null,
+                        tint = if (chapter.isQuizCompleted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
+                    )
                 }
             }
 
@@ -223,14 +253,14 @@ private fun ChapterCard(chapter: Chapter, onClick: () -> Unit, dimensions: Respo
                 Text(text = chapter.title, fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold)
                 ChapterInfo(chapter, dimensions)
                 if (chapter.isQuizCompleted) {
-                    Text(text = "✅ Quiz complété", fontSize = dimensions.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = dimensions.itemSpacing / 3))
+                    Text(text = "✅ Quiz validé", fontSize = dimensions.bodySmall, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                 }
             }
 
             Icon(
-                imageVector = if (chapter.isCompleted) Icons.Default.CheckCircle else if (chapter.isCoursRead || chapter.isFdrRead || chapter.isVideoWatched) Icons.Default.Edit else Icons.Default.ChevronRight,
+                imageVector = if (chapter.isQuizCompleted) Icons.Default.CheckCircle else Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = if (chapter.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                tint = if (chapter.isQuizCompleted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(dimensions.iconSizeMedium)
             )
         }
@@ -264,14 +294,14 @@ private fun CourseDetailTopBar(title: String, onBackClick: () -> Unit, dimension
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Retour", modifier = Modifier.size(dimensions.iconSizeMedium))
             }
         },
-        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
+        windowInsets = WindowInsets(0.dp)
     )
 }
 
 @Composable
 private fun LoadingState(dimensions: ResponsiveDimensions) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(modifier = Modifier.size(dimensions.iconSizeLarge))
+        CircularProgressIndicator(modifier = Modifier.size(dimensions.iconSizeLarge), color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -280,9 +310,9 @@ private fun ErrorState(message: String, onRetry: () -> Unit, dimensions: Respons
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(dimensions.screenPaddingHorizontal * 2)) {
             Text(text = "❌", fontSize = dimensions.displayLarge)
-            Text(text = message, fontSize = dimensions.bodyMedium)
+            Text(text = message, fontSize = dimensions.bodyMedium, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-            Button(onClick = onRetry, modifier = Modifier.height(dimensions.buttonHeightSmall)) { Text("Réessayer", fontSize = dimensions.bodyLarge) }
+            Button(onClick = onRetry) { Text("Réessayer") }
         }
     }
 }

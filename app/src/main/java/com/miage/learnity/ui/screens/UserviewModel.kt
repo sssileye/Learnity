@@ -3,8 +3,7 @@ package com.miage.learnity.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.UserProfile
-import com.miage.learnity.model.UnityPointsModel
-import com.miage.learnity.model.VirtualDebtModel
+import com.miage.learnity.model.PointsManager // ✅ Import de ton nouveau manager
 import com.miage.learnity.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,216 +26,109 @@ data class UserUiState(
  * ViewModel pour gérer le profil utilisateur et ses statistiques
  */
 class UserViewModel(
-    private val repository: UserRepository = UserRepository(),
-    private val debtModel: VirtualDebtModel = VirtualDebtModel(),
-    private val pointsModel: UnityPointsModel = UnityPointsModel()
+    private val repository: UserRepository = UserRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserUiState())
     val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
 
     init {
-        loadProfile()
+        // On observe en temps réel dès le début pour éviter les loadProfile() manuels
+        observeProfile()
+        checkAndApplyAttendancePenalty()
     }
 
     // ============================================
-    // CHARGEMENT DU PROFIL
+    // GESTION DU PROFIL (Real-time)
     // ============================================
 
-    /**
-     * Charge le profil utilisateur
-     */
-    fun loadProfile() {
+    private fun observeProfile() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-
-            repository.getUserProfile()
-                .onSuccess { profile ->
-                    _uiState.value = _uiState.value.copy(
-                        profile = profile,
-                        isLoading = false
-                    )
-                    println("✅ UserViewModel - Profil chargé")
-                }
-                .onFailure { exception ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = exception.message ?: "Erreur de chargement"
-                    )
-                    println("❌ UserViewModel - Erreur : ${exception.message}")
-                }
-        }
-    }
-
-    /**
-     * 🔥 Observe le profil en temps réel
-     */
-    fun observeProfile() {
-        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
             repository.observeUserProfile().collect { profile ->
                 _uiState.value = _uiState.value.copy(
                     profile = profile,
                     isLoading = false
                 )
-                println("🔥 UserViewModel - Profil mis à jour en temps réel")
             }
         }
     }
 
     // ============================================
-    // VÉRIFICATION D'ASSIDUITÉ
+    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS
     // ============================================
 
     /**
-     * Vérifie l'assiduité et applique les pénalités si nécessaire
+     * Traite la fin d'un Quiz (Chapitre, Quotidien ou Examen)
+     * Centralise Points, Dette et Streak en un seul appel Repository
      */
+    fun processQuizResult(
+        quizType: PointsManager.QuizType,
+        score: Int,
+        totalQuestions: Int
+    ) {
+        val profile = _uiState.value.profile ?: return
+
+        // 1. Calcul via ton PointsManager (situé dans model)
+        val result = PointsManager.calculateResults(
+            type = quizType,
+            score = score,
+            totalQuestions = totalQuestions,
+            profile = profile
+        )
+
+        // 2. Sauvegarde atomique dans Firebase
+        viewModelScope.launch {
+            repository.updateStatsAfterQuiz(
+                pointsGained = result.pointsGained,
+                debtAdded = result.debtAdded,
+                isDaily = (quizType == PointsManager.QuizType.DAILY)
+            ).onFailure { e ->
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
+
+    // ============================================
+    // VÉRIFICATION D'ASSIDUITÉ (Pénalité Minuit)
+    // ============================================
+
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
-            val profile = _uiState.value.profile ?: return@launch
+            val profile = repository.getUserProfile().getOrNull() ?: return@launch
 
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayStr = sdf.format(Date())
 
-            // Si pas de dernière date, pas de pénalité
-            if (profile.lastDailyQuizDate == null) {
-                println("ℹ️ UserViewModel - Première connexion, pas de pénalité")
-                repository.updateLastQuizDate(todayStr)
-                return@launch
-            }
-
-            // Vérifier si c'est le même jour
-            if (profile.lastDailyQuizDate == todayStr) {
-                println("ℹ️ UserViewModel - Quiz déjà fait aujourd'hui")
-                return@launch
-            }
+            // On ne fait rien si c'est la première fois ou si déjà fait aujourd'hui
+            if (profile.lastDailyQuizDate == null || profile.lastDailyQuizDate == todayStr) return@launch
 
             try {
-                val lastDate = sdf.parse(profile.lastDailyQuizDate!!)
+                val lastDate = sdf.parse(profile.lastDailyQuizDate)
                 val todayDate = sdf.parse(todayStr)
-
                 val diffMillis = todayDate!!.time - lastDate!!.time
                 val daysDiff = TimeUnit.DAYS.convert(diffMillis, TimeUnit.MILLISECONDS).toInt()
 
-                println("📅 UserViewModel - Jours écoulés : $daysDiff")
-
-                when {
-                    daysDiff == 1 -> {
-                        // Jour consécutif : pas de pénalité
-                        println("✅ UserViewModel - Jour consécutif, pas de pénalité")
-                    }
-
-                    daysDiff > 1 -> {
-                        // Jours manqués : appliquer pénalité
-                        val missedDays = daysDiff - 1
-                        val penalty = debtModel.getAbsencePenalty(profile.redevanceSoutienUnitaire) * missedDays
-
-                        println("⚠️ UserViewModel - $missedDays jours manqués, pénalité : $penalty€")
-
-                        // Ajouter la dette et réinitialiser le streak
-                        repository.addDebt(penalty)
-                        repository.updateStreak(0)
-                    }
+                if (daysDiff > 1) {
+                    val missedDays = daysDiff - 1
+                    // ✅ La pénalité d'absence est X (redevance unitaire) par jour raté
+                    val totalPenalty = profile.redevanceSoutienUnitaire * missedDays
+                    repository.applyAbsenteeismPenalty(totalPenalty)
+                    println("⚠️ UserViewModel - Pénalité appliquée : $totalPenalty€")
                 }
-
             } catch (e: Exception) {
-                println("❌ UserViewModel - Erreur calcul assiduité : ${e.message}")
+                println("❌ Erreur assiduité : ${e.message}")
             }
         }
     }
 
     // ============================================
-    // MISE À JOUR DU PROFIL
+    // ACTIONS MANUELLES (Paramètres)
     // ============================================
 
-    /**
-     * Met à jour la redevance unitaire
-     */
     fun updateRedevance(newValue: Double) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-
-            repository.updateUserFields(mapOf("redevanceSoutienUnitaire" to newValue))
-                .onSuccess {
-                    _uiState.value.profile?.let { profile ->
-                        _uiState.value = _uiState.value.copy(
-                            profile = profile.copy(redevanceSoutienUnitaire = newValue),
-                            isLoading = false
-                        )
-                    }
-                    println("✅ UserViewModel - Redevance mise à jour : $newValue€")
-                }
-                .onFailure { exception ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = exception.message
-                    )
-                    println("❌ UserViewModel - Erreur : ${exception.message}")
-                }
-        }
-    }
-
-    /**
-     * Ajoute des Unity Points
-     */
-    fun addPoints(points: Int) {
-        viewModelScope.launch {
-            repository.addUnityPoints(points)
-                .onSuccess {
-                    loadProfile() // Recharger pour obtenir la nouvelle valeur
-                    println("✅ UserViewModel - Points ajoutés : +$points")
-                }
-                .onFailure { exception ->
-                    println("❌ UserViewModel - Erreur ajout points : ${exception.message}")
-                }
-        }
-    }
-
-    /**
-     * Incrémente le streak
-     */
-    fun incrementStreak() {
-        viewModelScope.launch {
-            val currentStreak = _uiState.value.profile?.currentStreak ?: 0
-            val newStreak = currentStreak + 1
-
-            repository.updateStreak(newStreak)
-                .onSuccess {
-                    loadProfile()
-                    println("✅ UserViewModel - Streak incrémenté : $newStreak")
-                }
-        }
-    }
-
-    /**
-     * Réinitialise le streak
-     */
-    fun resetStreak() {
-        viewModelScope.launch {
-            repository.updateStreak(0)
-                .onSuccess {
-                    loadProfile()
-                    println("✅ UserViewModel - Streak réinitialisé")
-                }
-        }
-    }
-
-    // ============================================
-    // GESTION QUIZ DU JOUR
-    // ============================================
-
-    /**
-     * Marque le quiz du jour comme terminé
-     */
-    fun markDailyQuizCompleted() {
-        viewModelScope.launch {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val todayStr = sdf.format(Date())
-
-            repository.updateLastQuizDate(todayStr)
-                .onSuccess {
-                    loadProfile()
-                    println("✅ UserViewModel - Quiz du jour marqué comme complété")
-                }
+            repository.updateRedevanceUnitaire(newValue)
         }
     }
 }

@@ -11,9 +11,11 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
- * Repository pour gérer les profils utilisateurs
+ * Repository pour gérer les profils utilisateurs et leurs statistiques
  */
 class UserRepository {
 
@@ -21,222 +23,151 @@ class UserRepository {
     private val auth = FirebaseAuth.getInstance()
 
     // ============================================
-    // LECTURE (Une seule fois)
+    // LECTURE
+    // ============================================
+
+    suspend fun getUserProfile(): Result<UserProfile?> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+            val doc = firestore.collection("users").document(userId).get().await()
+            Result.success(doc.toObject(UserProfile::class.java))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun observeUserProfile(): Flow<UserProfile?> = callbackFlow {
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(null)
+            return@callbackFlow
+        }
+
+        val listener = firestore.collection("users").document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
+                    return@addSnapshotListener
+                }
+                val profile = snapshot?.toObject(UserProfile::class.java)
+                trySend(profile)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    // ============================================
+    // ⭐ SYSTÈME DE POINTS ET DETTE (Transactionnel)
     // ============================================
 
     /**
-     * Récupère le profil de l'utilisateur connecté
+     * Met à jour les stats après un quiz de manière atomique
      */
-    suspend fun getUserProfile(): Result<UserProfile?> = withContext(Dispatchers.IO) {
+    suspend fun updateStatsAfterQuiz(
+        pointsGained: Int,
+        debtAdded: Double,
+        isDaily: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+        val userRef = firestore.collection("users").document(userId)
+
         try {
-            val userId = auth.currentUser?.uid
-                ?: return@withContext Result.failure(Exception("Utilisateur non connecté"))
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(userRef)
 
-            val doc = firestore.collection("users")
-                .document(userId)
-                .get()
-                .await()
+                val currentPoints = snapshot.getLong("unityPoints") ?: 0
+                val currentDebt = snapshot.getDouble("detteCumulee") ?: 0.0
+                val currentStreak = snapshot.getLong("currentStreak") ?: 0
+                val currentBest = snapshot.getLong("bestStreak") ?: 0
 
-            val profile = doc.toObject(UserProfile::class.java)
+                val updates = mutableMapOf<String, Any>(
+                    "unityPoints" to (currentPoints + pointsGained),
+                    "detteCumulee" to (currentDebt + debtAdded)
+                )
 
-            println("✅ UserRepository - Profil chargé : ${profile?.email}")
-            Result.success(profile)
+                if (isDaily) {
+                    val newStreak = currentStreak + 1
+                    updates["currentStreak"] = newStreak
+                    if (newStreak > currentBest) {
+                        updates["bestStreak"] = newStreak
+                    }
+                    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    updates["lastDailyQuizDate"] = sdf.format(Date())
+                }
 
+                transaction.update(userRef, updates)
+            }.await()
+            Result.success(Unit)
         } catch (e: Exception) {
-            println("❌ UserRepository - Erreur : ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Applique la pénalité d'absentéisme (Dette + Reset Streak)
+     */
+    suspend fun applyAbsenteeismPenalty(amount: Double): Result<Unit> = withContext(Dispatchers.IO) {
+        val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+        val userRef = firestore.collection("users").document(userId)
+
+        try {
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(userRef)
+                val currentDebt = snapshot.getDouble("detteCumulee") ?: 0.0
+
+                transaction.update(userRef, mapOf(
+                    "detteCumulee" to (currentDebt + amount),
+                    "currentStreak" to 0
+                ))
+            }.await()
+            Result.success(Unit)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     // ============================================
-    // ÉCRITURE
+    // ÉCRITURE ET SAUVEGARDE
     // ============================================
 
     /**
-     * Sauvegarde le profil complet
+     * ✅ AJOUTÉ : Sauvegarde le profil complet (utilisé par AuthViewModel)
      */
     suspend fun saveUserProfile(profile: UserProfile): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             firestore.collection("users")
                 .document(profile.uid)
-                .set(profile)
+                .set(profile, SetOptions.merge()) // On utilise merge pour ne pas écraser les champs non présents dans l'objet
                 .await()
-
-            println("✅ UserRepository - Profil sauvegardé : ${profile.email}")
             Result.success(Unit)
-
         } catch (e: Exception) {
-            println("❌ UserRepository - Erreur sauvegarde : ${e.message}")
             Result.failure(e)
         }
     }
 
-    /**
-     * Met à jour des champs spécifiques (merge)
-     */
     suspend fun updateUserFields(fields: Map<String, Any>): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val userId = auth.currentUser?.uid
-                ?: return@withContext Result.failure(Exception("Utilisateur non connecté"))
-
-            firestore.collection("users")
-                .document(userId)
-                .set(fields, SetOptions.merge())
-                .await()
-
-            println("✅ UserRepository - Champs mis à jour : $fields")
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+            firestore.collection("users").document(userId).update(fields).await()
             Result.success(Unit)
-
         } catch (e: Exception) {
-            println("❌ UserRepository - Erreur mise à jour : ${e.message}")
             Result.failure(e)
         }
     }
 
-    /**
-     * Crée un profil initial pour un nouvel utilisateur
-     */
     suspend fun createInitialProfile(uid: String, email: String, firstName: String, lastName: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val initialProfile = UserProfile(
-                uid = uid,
-                email = email,
-                firstName = firstName,
-                lastName = lastName,
-                photoUrl = "avatar_b1",
+                uid = uid, email = email, firstName = firstName, lastName = lastName,
                 createdAt = System.currentTimeMillis(),
-                redevanceSoutienUnitaire = 1.0,
-                detteCumulee = 0.0,
-                unityPoints = 0,
-                currentStreak = 0,
-                bestStreak = 0,
-                lastDailyQuizDate = null,
-                selectedAssociationId = null
+                redevanceSoutienUnitaire = 1.0
             )
-
-            firestore.collection("users")
-                .document(uid)
-                .set(initialProfile)
-                .await()
-
-            println("✅ UserRepository - Profil initial créé avec avatar : $email")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            println("❌ UserRepository - Erreur création profil : ${e.message}")
-            Result.failure(e)
-        }
-    }
-
-    // ============================================
-    // LISTENERS TEMPS RÉEL
-    // ============================================
-
-    /**
-     * 🔥 Observe le profil en temps réel
-     */
-    fun observeUserProfile(): Flow<UserProfile?> = callbackFlow {
-        val userId = auth.currentUser?.uid
-
-        if (userId == null) {
-            trySend(null)
-            return@callbackFlow
-        }
-
-        val listener = firestore.collection("users")
-            .document(userId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    // ⭐ GESTION DU CRASH DÉCONNEXION
-                    // Si l'erreur est liée aux permissions (signOut), on ferme le flux sans crash
-                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
-                        println("ℹ️ UserRepository - Permission refusée (normal lors du signOut)")
-                        return@addSnapshotListener
-                    }
-                    println("❌ UserRepository - Erreur Listener : ${error.message}")
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null && snapshot.exists()) {
-                    val profile = snapshot.toObject(UserProfile::class.java)
-                    trySend(profile)
-                } else {
-                    trySend(null)
-                }
-            }
-
-        awaitClose {
-            println("🔥 UserRepository - Listener supprimé")
-            listener.remove()
-        }
-    }
-
-    // ============================================
-    // OPÉRATIONS SPÉCIFIQUES
-    // ============================================
-
-    /**
-     * Incrémente les Unity Points
-     */
-    suspend fun addUnityPoints(points: Int): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val profile = getUserProfile().getOrNull()
-                ?: return@withContext Result.failure(Exception("Profil non trouvé"))
-
-            val newPoints = profile.unityPoints + points
-            updateUserFields(mapOf("unityPoints" to newPoints))
-
-            Result.success(Unit)
+            // Utilisation de la nouvelle fonction saveUserProfile pour la création
+            saveUserProfile(initialProfile)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Ajoute de la dette
-     */
-    suspend fun addDebt(amount: Double): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val profile = getUserProfile().getOrNull()
-                ?: return@withContext Result.failure(Exception("Profil non trouvé"))
-
-            val newDebt = profile.detteCumulee + amount
-            updateUserFields(mapOf("detteCumulee" to newDebt))
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Met à jour le streak
-     */
-    suspend fun updateStreak(newStreak: Int): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val profile = getUserProfile().getOrNull()
-                ?: return@withContext Result.failure(Exception("Profil non trouvé"))
-
-            val bestStreak = maxOf(profile.bestStreak, newStreak)
-            updateUserFields(mapOf(
-                "currentStreak" to newStreak,
-                "bestStreak" to bestStreak
-            ))
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Met à jour la date du dernier quiz
-     */
-    suspend fun updateLastQuizDate(date: String): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            updateUserFields(mapOf("lastDailyQuizDate" to date))
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    suspend fun updateRedevanceUnitaire(value: Double): Result<Unit> {
+        return updateUserFields(mapOf("redevanceSoutienUnitaire" to value))
     }
 }

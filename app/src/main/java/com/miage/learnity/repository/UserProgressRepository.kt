@@ -39,7 +39,8 @@ class UserProgressRepository {
     suspend fun markContentAsCompleted(
         courseId: String,
         chapterId: String,
-        contentType: ContentType
+        contentType: ContentType,
+        quizType: com.miage.learnity.model.PointsManager.QuizType? = null // ✅ Ajout optionnel du type de quiz
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val userId = auth.currentUser?.uid
@@ -52,17 +53,24 @@ class UserProgressRepository {
                 .collection("chapters")
                 .document(chapterId)
 
-            // ✅ Mise à jour dynamique du champ selon l'Enum
+            // Mise à jour Firestore
             progressRef.set(
                 mapOf(contentType.fieldName to true),
                 SetOptions.merge()
             ).await()
 
-            // Notification locale pour rafraîchir l'UI si nécessaire
+            // ✅ Notification enrichie pour le ProgressManager
+            val progressType = when (contentType) {
+                ContentType.QUIZ -> ProgressManager.ProgressType.QUIZ_COMPLETED
+                ContentType.VIDEO -> ProgressManager.ProgressType.VIDEO_WATCHED
+                else -> ProgressManager.ProgressType.CONTENT_READ
+            }
+
             ProgressManager.notifyProgressChanged(
-                courseId,
-                chapterId,
-                ProgressManager.ProgressType.CONTENT_READ
+                courseId = courseId,
+                chapterId = chapterId,
+                type = progressType,
+                quizType = quizType // Transmet le type (Chapter, Daily, Exam)
             )
 
             println("✅ UserProgressRepo - ${contentType.fieldName} validé pour $chapterId")

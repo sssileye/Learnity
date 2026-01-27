@@ -12,8 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Question
+import com.miage.learnity.model.PointsManager
+import com.miage.learnity.ui.screens.UserViewModel
 import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.theme.successColors
 import com.miage.learnity.ui.utils.*
@@ -42,6 +43,7 @@ fun QuizScreen(
     chapterId: String,
     isReviewMode: Boolean = false,
     viewModel: QuizViewModel = viewModel(),
+    userViewModel: UserViewModel = viewModel(), // ✅ Ajouté pour le système de points
     onBackClick: () -> Unit = {}
 ) {
     val dimensions = rememberResponsiveDimensions()
@@ -54,6 +56,15 @@ fun QuizScreen(
     val hasSeenSummary by viewModel.hasSeenSummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
+
+    // ✅ Identification du type de quiz
+    val quizType = remember(chapterId) {
+        when (chapterId) {
+            "DISCOVERY", "REVIEW" -> PointsManager.QuizType.DAILY
+            "ALL_CHAPTERS" -> PointsManager.QuizType.EXAM
+            else -> PointsManager.QuizType.CHAPTER
+        }
+    }
 
     LaunchedEffect(courseId, chapterId) {
         when (chapterId) {
@@ -75,9 +86,9 @@ fun QuizScreen(
         topBar = {
             if (questions.isNotEmpty() && !isQuizFinished) {
                 QuizTopBar(
-                    title = when (chapterId) {
-                        "DISCOVERY", "REVIEW" -> "Quiz du Jour"
-                        "ALL_CHAPTERS" -> "Synthése de l'UE"
+                    title = when (quizType) {
+                        PointsManager.QuizType.DAILY -> "Quiz du Jour"
+                        PointsManager.QuizType.EXAM -> "Synthèse de l'UE"
                         else -> "Quiz de chapitre"
                     },
                     currentQuestion = currentQuestionIndex + 1,
@@ -91,12 +102,12 @@ fun QuizScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())  // âœ… UNIQUEMENT le padding top
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
             when {
                 isLoading -> LoadingState(progress = loadingProgress, dimensions = dimensions)
                 questions.isEmpty() && !isLoading -> ErrorState(
-                    msg = "Aucun quiz trouvé pour cette sélection.",
+                    msg = "Aucun quiz trouvé.",
                     onRetry = {
                         when (chapterId) {
                             "DISCOVERY" -> viewModel.loadDailyQuiz(isDiscoveryMode = true)
@@ -108,11 +119,23 @@ fun QuizScreen(
                     dimensions = dimensions
                 )
                 isQuizFinished -> {
-                    LaunchedEffect(Unit) { viewModel.markSummaryAsSeen() }
+                    // ✅ TRAITEMENT UNIQUE : Enregistrement des points et progression
+                    LaunchedEffect(Unit) {
+                        viewModel.markSummaryAsSeen()
+                        if (!isReviewMode) {
+                            viewModel.processFinalResults(
+                                quizType = quizType,
+                                userViewModel = userViewModel,
+                                courseId = courseId,
+                                chapterId = chapterId
+                            )
+                        }
+                    }
                     FinalResultContent(
                         questions = questions,
                         userAnswers = userAnswers,
                         score = score,
+                        quizType = quizType,
                         isReviewOnly = isReviewMode,
                         onReviewQuestion = { index -> viewModel.goToQuestionForReview(index) },
                         onRetry = { viewModel.resetQuiz() },
@@ -239,7 +262,7 @@ private fun QuizContent(
             ) {
                 Column(modifier = Modifier.padding(dimensions.cardPadding)) {
                     Text(
-                        text = "💡Explication",
+                        text = "💡 Explication",
                         fontWeight = FontWeight.Bold,
                         fontSize = dimensions.bodyLarge,
                         color = MaterialTheme.successColors.success
@@ -412,7 +435,7 @@ fun QuizOptionCard(
                 ) {
                     Text(
                         text = text,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(dimensions.cardPadding),
                         textAlign = TextAlign.Center,
                         fontSize = dimensions.bodyLarge
@@ -428,7 +451,8 @@ private fun FinalResultContent(
     questions: List<Question>,
     userAnswers: Map<Int, Int>,
     score: Int,
-    isReviewOnly: Boolean = false,
+    quizType: PointsManager.QuizType,
+    isReviewOnly: Boolean,
     onReviewQuestion: (Int) -> Unit,
     onRetry: () -> Unit,
     onBackToCourse: () -> Unit,
@@ -481,13 +505,27 @@ private fun FinalResultContent(
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
         Text(
-            text = "RECAPITULATIF",
+            text = "RÉCAPITULATIF",
             fontWeight = FontWeight.ExtraBold,
             fontSize = dimensions.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = dimensions.bodySmall / 6
         )
         Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
+
+        // ⭐ NOUVEAU : Affichage des Récompenses Unity Points et Dette
+        if (!isReviewOnly) {
+            QuizRewardCard(score = score, totalQuestions = questions.size, quizType = quizType, dimensions = dimensions)
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+        }
+
+        Text(
+            text = "DÉTAILS DES RÉPONSES",
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = dimensions.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
 
         LazyColumn(
             modifier = Modifier
@@ -568,10 +606,99 @@ private fun FinalResultContent(
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text(
-                if (isReviewOnly) "Retour à l'accueil" else "Quitter",
+                if (isReviewOnly) "Retour" else "Quitter",
                 fontWeight = FontWeight.Bold,
                 fontSize = dimensions.bodyLarge
             )
+        }
+    }
+}
+
+// --- COMPOSANT DES RÉCOMPENSES ---
+
+@Composable
+fun QuizRewardCard(
+    score: Int,
+    totalQuestions: Int,
+    quizType: PointsManager.QuizType,
+    dimensions: ResponsiveDimensions
+) {
+    val isPerfect = score == totalQuestions
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isPerfect)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (isPerfect) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(dimensions.cardPadding)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Section Unity Points
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "Unity Points",
+                    fontSize = dimensions.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Stars,
+                        null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(dimensions.iconSizeSmall)
+                    )
+                    Spacer(Modifier.width(4.dp))
+
+                    // Calcul visuel du bonus pour l'affichage
+                    val bonus = when (quizType) {
+                        PointsManager.QuizType.CHAPTER -> if (isPerfect) 3 else 0
+                        PointsManager.QuizType.DAILY -> if (isPerfect) 5 else 0
+                        PointsManager.QuizType.EXAM -> if (isPerfect) 10 else 0
+                    }
+                    Text(
+                        "+${score + bonus}",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = dimensions.titleMedium,
+                        color = MaterialTheme.successColors.success
+                    )
+                }
+            }
+
+            // Section Dette (uniquement pour le Quiz du Jour)
+            if (quizType == PointsManager.QuizType.DAILY) {
+                HorizontalDivider(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(30.dp),
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Impact Dette",
+                        fontSize = dimensions.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val errors = totalQuestions - score
+                    Text(
+                        text = if (errors > 0) "+${String.format("%.2f", errors * 0.10)}€" else "0.00€",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = dimensions.titleMedium,
+                        color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.successColors.success
+                    )
+                }
+            }
         }
     }
 }
@@ -657,7 +784,7 @@ private fun LoadingState(progress: Float, dimensions: ResponsiveDimensions) {
             text = "${(progress * 100).toInt()}%",
             fontSize = dimensions.bodyLarge,
             fontWeight = FontWeight.Bold,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
@@ -684,7 +811,7 @@ private fun ErrorState(msg: String, onRetry: () -> Unit, dimensions: ResponsiveD
             modifier = Modifier.height(dimensions.buttonHeightSmall),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Text("RÃ©essayer", fontSize = dimensions.bodyLarge)
+            Text("Réessayer", fontSize = dimensions.bodyLarge)
         }
     }
 }
