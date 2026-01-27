@@ -32,6 +32,7 @@ import androidx.compose.ui.window.Popup
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Question
 import com.miage.learnity.ui.theme.LearnityTheme
+import com.miage.learnity.ui.theme.successColors
 import com.miage.learnity.ui.utils.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +77,7 @@ fun QuizScreen(
                 QuizTopBar(
                     title = when (chapterId) {
                         "DISCOVERY", "REVIEW" -> "Quiz du Jour"
-                        "ALL_CHAPTERS" -> "Synthèse de l'UE"
+                        "ALL_CHAPTERS" -> "Synthése de l'UE"
                         else -> "Quiz de chapitre"
                     },
                     currentQuestion = currentQuestionIndex + 1,
@@ -90,7 +91,7 @@ fun QuizScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())  // ✅ UNIQUEMENT le padding top
+                .padding(top = paddingValues.calculateTopPadding())  // âœ… UNIQUEMENT le padding top
         ) {
             when {
                 isLoading -> LoadingState(progress = loadingProgress, dimensions = dimensions)
@@ -161,7 +162,7 @@ private fun QuizContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FA))
+            .background(MaterialTheme.colorScheme.background)
             .padding(dimensions.screenPaddingHorizontal)
             .verticalScroll(rememberScrollState())
     ) {
@@ -171,7 +172,7 @@ private fun QuizContent(
                 .fillMaxWidth()
                 .height(dimensions.itemSpacing / 1.5f)
                 .clip(RoundedCornerShape(dimensions.cornerRadiusSmall / 2)),
-            color = Color(0xFF673AB7)
+            color = MaterialTheme.colorScheme.primary
         )
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
@@ -183,12 +184,12 @@ private fun QuizContent(
         ) {
             Box(
                 modifier = Modifier
-                    .background(Brush.verticalGradient(listOf(Color(0xFF42A5F5), Color(0xFF7E57C2))))
+                    .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))))
                     .padding(dimensions.cardPadding)
             ) {
                 Text(
                     text = currentQuestion.questionText,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = dimensions.titleMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -232,22 +233,22 @@ private fun QuizContent(
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9).copy(alpha = 0.3f)),
-                border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.2f)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.successColors.successContainer.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, MaterialTheme.successColors.success.copy(alpha = 0.2f)),
                 shape = RoundedCornerShape(dimensions.cornerRadiusSmall)
             ) {
                 Column(modifier = Modifier.padding(dimensions.cardPadding)) {
                     Text(
-                        text = "💡 Explication",
+                        text = "💡Explication",
                         fontWeight = FontWeight.Bold,
                         fontSize = dimensions.bodyLarge,
-                        color = Color(0xFF2E7D32)
+                        color = MaterialTheme.successColors.success
                     )
                     Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
                     Text(
                         text = currentQuestion.explanation ?: "Pas d'explication disponible.",
                         fontSize = dimensions.bodyMedium,
-                        color = Color(0xFF1B5E20),
+                        color = MaterialTheme.successColors.onSuccessContainer,
                         lineHeight = dimensions.bodyMedium * 1.4f
                     )
                 }
@@ -266,11 +267,11 @@ private fun QuizContent(
                         .padding(bottom = dimensions.itemSpacing)
                         .height(dimensions.buttonHeightSmall),
                     shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                    border = BorderStroke(1.dp, Color(0xFF673AB7))
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                 ) {
-                    Icon(Icons.Default.List, contentDescription = null, tint = Color(0xFF673AB7))
+                    Icon(Icons.Default.List, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(dimensions.itemSpacing / 1.5f))
-                    Text("Retour au récapitulatif", color = Color(0xFF673AB7), fontSize = dimensions.bodyLarge)
+                    Text("Retour au récapitulatif", color = MaterialTheme.colorScheme.primary, fontSize = dimensions.bodyLarge)
                 }
             }
 
@@ -286,10 +287,10 @@ private fun QuizContent(
                         .height(dimensions.buttonHeightSmall)
                         .padding(end = dimensions.itemSpacing / 2),
                     shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                    border = BorderStroke(2.dp, if (currentIndex > 0) Color(0xFF673AB7) else Color.LightGray),
+                    border = BorderStroke(2.dp, if (currentIndex > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF673AB7)
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Text("Précédent", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
@@ -303,7 +304,7 @@ private fun QuizContent(
                         .height(dimensions.buttonHeightSmall)
                         .padding(start = dimensions.itemSpacing / 2),
                     shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text(
                         text = when {
@@ -332,15 +333,15 @@ fun QuizOptionCard(
 ) {
     var showPreview by remember { mutableStateOf(false) }
     val backgroundColor = when {
-        isCorrect -> Color(0xFFE8F5E9)
-        isWrong -> Color(0xFFFFEBEE)
-        isSelected -> Color(0xFFE3F2FD)
-        else -> Color.White
+        isCorrect -> MaterialTheme.successColors.successContainer
+        isWrong -> MaterialTheme.colorScheme.errorContainer
+        isSelected -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surface
     }
     val borderColor = when {
-        isCorrect -> Color(0xFF4CAF50)
-        isWrong -> Color(0xFFF44336)
-        isSelected -> Color(0xFF3F51B5)
+        isCorrect -> MaterialTheme.successColors.success
+        isWrong -> MaterialTheme.colorScheme.error
+        isSelected -> MaterialTheme.colorScheme.primary
         else -> Color.Transparent
     }
 
@@ -366,7 +367,7 @@ fun QuizOptionCard(
             Box(modifier = Modifier.fillMaxSize().padding(dimensions.itemSpacing / 1.5f)) {
                 Surface(
                     shape = CircleShape,
-                    color = Color(0xFF5E35B1),
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .size(dimensions.iconSizeMedium * 0.9f)
                         .align(Alignment.TopEnd)
@@ -376,7 +377,7 @@ fun QuizOptionCard(
                             text = id.toString(),
                             fontSize = dimensions.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -406,12 +407,12 @@ fun QuizOptionCard(
                         .fillMaxWidth(0.85f)
                         .padding(dimensions.screenPaddingHorizontal),
                     shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF323232)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     elevation = CardDefaults.cardElevation(8.dp)
                 ) {
                     Text(
                         text = text,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.padding(dimensions.cardPadding),
                         textAlign = TextAlign.Center,
                         fontSize = dimensions.bodyLarge
@@ -436,7 +437,7 @@ private fun FinalResultContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FA))
+            .background(MaterialTheme.colorScheme.background)
             .padding(dimensions.screenPaddingHorizontal),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -453,25 +454,25 @@ private fun FinalResultContent(
         ) {
             Column(
                 modifier = Modifier
-                    .background(Brush.verticalGradient(listOf(Color(0xFF42A5F5), Color(0xFF7E57C2))))
+                    .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))))
                     .padding(dimensions.cardPadding)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     if (isReviewOnly) "Score enregistré" else "Ton Score",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = dimensions.bodyMedium
                 )
                 Text(
                     text = "${if (questions.isNotEmpty()) (score.toFloat() / questions.size * 100).toInt() else 0}%",
                     fontSize = dimensions.titleLarge,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     "$score / ${questions.size}",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = dimensions.titleMedium,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -480,10 +481,10 @@ private fun FinalResultContent(
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
         Text(
-            text = "RÉCAPITULATIF",
+            text = "RECAPITULATIF",
             fontWeight = FontWeight.ExtraBold,
             fontSize = dimensions.bodyLarge,
-            color = Color.DarkGray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = dimensions.bodySmall / 6
         )
         Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
@@ -504,11 +505,11 @@ private fun FinalResultContent(
                         .fillMaxWidth()
                         .clickable { onReviewQuestion(index) },
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isCorrect) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                        containerColor = if (isCorrect) MaterialTheme.successColors.successContainer else MaterialTheme.colorScheme.errorContainer
                     ),
                     border = BorderStroke(
                         1.dp,
-                        if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
+                        if (isCorrect) MaterialTheme.successColors.success else MaterialTheme.colorScheme.error
                     )
                 ) {
                     Column(modifier = Modifier.padding(dimensions.cardPadding)) {
@@ -520,7 +521,7 @@ private fun FinalResultContent(
                         Text(
                             text = "Ta réponse : ${question.options.getOrNull(userChoice ?: -1) ?: "Aucune"}",
                             fontSize = dimensions.bodySmall,
-                            color = Color.DarkGray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             textDecoration = TextDecoration.Underline
                         )
@@ -529,7 +530,7 @@ private fun FinalResultContent(
                                 text = "Correct : ${question.options[question.correctAnswerIndex]}",
                                 fontSize = dimensions.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32)
+                                color = MaterialTheme.successColors.success
                             )
                         }
                     }
@@ -546,13 +547,13 @@ private fun FinalResultContent(
                     .fillMaxWidth()
                     .height(dimensions.buttonHeight),
                 shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                border = BorderStroke(2.dp, Color(0xFF673AB7))
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
             ) {
                 Text(
                     "Recommencer le quiz",
                     fontWeight = FontWeight.Bold,
                     fontSize = dimensions.bodyLarge,
-                    color = Color(0xFF673AB7)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
@@ -564,7 +565,7 @@ private fun FinalResultContent(
                 .fillMaxWidth()
                 .height(dimensions.buttonHeight),
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text(
                 if (isReviewOnly) "Retour à l'accueil" else "Quitter",
@@ -618,7 +619,7 @@ private fun QuizTopBar(
                 )
             }
         },
-        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
+        windowInsets = WindowInsets(0.dp)
     )
 }
 
@@ -627,14 +628,14 @@ private fun LoadingState(progress: Float, dimensions: ResponsiveDimensions) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FA)),
+            .background(MaterialTheme.colorScheme.background),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = "Analyse de tes cours...",
             fontSize = dimensions.titleMedium,
-            color = Color(0xFF673AB7),
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
         )
 
@@ -646,8 +647,8 @@ private fun LoadingState(progress: Float, dimensions: ResponsiveDimensions) {
                 .fillMaxWidth(0.8f)
                 .height(dimensions.itemSpacing)
                 .clip(RoundedCornerShape(dimensions.itemSpacing / 2)),
-            color = Color(0xFF673AB7),
-            trackColor = Color(0xFFE1BEE7)
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.primaryContainer
         )
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
@@ -664,7 +665,7 @@ private fun LoadingState(progress: Float, dimensions: ResponsiveDimensions) {
         Text(
             text = "Préparation de ton quiz personnalisé",
             fontSize = dimensions.bodySmall,
-            color = Color.LightGray
+            color = MaterialTheme.colorScheme.outline
         )
     }
 }
@@ -681,9 +682,9 @@ private fun ErrorState(msg: String, onRetry: () -> Unit, dimensions: ResponsiveD
         Button(
             onClick = onRetry,
             modifier = Modifier.height(dimensions.buttonHeightSmall),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Text("Réessayer", fontSize = dimensions.bodyLarge)
+            Text("RÃ©essayer", fontSize = dimensions.bodyLarge)
         }
     }
 }
