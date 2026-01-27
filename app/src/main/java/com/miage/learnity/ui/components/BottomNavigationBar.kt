@@ -5,6 +5,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -20,31 +21,27 @@ import com.miage.learnity.ui.utils.*
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
-    // DIMENSIONS RESPONSIVES
     val dimensions = rememberResponsiveDimensions()
 
     val currentRoute by navController.currentBackStackEntryAsState()
     val route = currentRoute?.destination?.route
 
     NavigationBar(
-        modifier = Modifier,  // Hauteur gérée automatiquement par Material3
-        containerColor = Color.White
+        modifier = Modifier,
+        containerColor = MaterialTheme.colorScheme.surface  // ✅ CHANGÉ
     ) {
-        // ═══════════════════════════════════════
-        // ACCUEIL - RESPONSIVE
-        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_homepage_1),
                     contentDescription = null,
-                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
+                    modifier = Modifier.size(dimensions.iconSizeMedium)
                 )
             },
             label = {
                 Text(
                     "Accueil",
-                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                    fontSize = dimensions.bodySmall
                 )
             },
             selected = route == "home",
@@ -56,9 +53,6 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // ═══════════════════════════════════════
-        // MON ASSO - RESPONSIVE
-        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
@@ -71,7 +65,7 @@ fun BottomNavigationBar(navController: NavHostController) {
             label = {
                 Text(
                     "Asso",
-                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                    fontSize = dimensions.bodySmall
                 )
             },
             selected = route == "association",
@@ -83,21 +77,18 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // ═══════════════════════════════════════
-        // COURS - RESPONSIVE
-        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_cours_1),
                     contentDescription = null,
-                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
+                    modifier = Modifier.size(dimensions.iconSizeMedium)
                 )
             },
             label = {
                 Text(
                     "Cours",
-                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                    fontSize = dimensions.bodySmall
                 )
             },
             selected = route == "library",
@@ -109,21 +100,18 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // ═══════════════════════════════════════
-        // CLASSEMENT - RESPONSIVE
-        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_ranking),
                     contentDescription = null,
-                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
+                    modifier = Modifier.size(dimensions.iconSizeMedium)
                 )
             },
             label = {
                 Text(
                     "Ranking",
-                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                    fontSize = dimensions.bodySmall
                 )
             },
             selected = route == "ranking",
@@ -135,21 +123,18 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // ═══════════════════════════════════════
-        // PARAMÈTRES - RESPONSIVE
-        // ═══════════════════════════════════════
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_settings_1),
                     contentDescription = null,
-                    modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
+                    modifier = Modifier.size(dimensions.iconSizeMedium)
                 )
             },
             label = {
                 Text(
                     "Outils",
-                    fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                    fontSize = dimensions.bodySmall
                 )
             },
             selected = route == "settings",
@@ -163,14 +148,15 @@ fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
-// ✅ PREVIEWS MULTI-TAILLES
 @Preview(name = "Petit (320dp)", widthDp = 320, showBackground = true)
 @Preview(name = "Moyen (360dp)", widthDp = 360, showBackground = true)
 @Preview(name = "Grand (410dp)", widthDp = 410, showBackground = true)
 @Preview(name = "Tablette (600dp)", widthDp = 600, showBackground = true)
 @Composable
 fun BottomNavigationBarPreview() {
-    BottomNavigationBar(
-        navController = rememberNavController()
-    )
+    MaterialTheme {
+        BottomNavigationBar(
+            navController = rememberNavController()
+        )
+    }
 }

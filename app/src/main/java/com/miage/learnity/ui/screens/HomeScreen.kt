@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.R
 import com.miage.learnity.repository.QuizRepository
 import com.miage.learnity.ui.utils.*
@@ -26,9 +27,7 @@ fun HomeScreen(
     navController: NavController,
     isDiscoveryMode: Boolean = false
 ) {
-    // 🎨 Dimensions responsives
     val dimensions = rememberResponsiveDimensions()
-
     val repository = remember { QuizRepository() }
     var dailyScore by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
@@ -41,11 +40,11 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FA))
-            .padding(horizontal = dimensions.screenPaddingHorizontal) // ✅ Padding responsive
-            .responsiveMaxWidth(dimensions) // ✅ Limite largeur
+            .background(MaterialTheme.colorScheme.background)  // ✅ CHANGÉ
+            .padding(horizontal = dimensions.screenPaddingHorizontal)
+            .responsiveMaxWidth(dimensions)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing) // ✅ Spacing adaptatif
+        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
         Spacer(modifier = Modifier.height(dimensions.screenPaddingVertical))
 
@@ -63,7 +62,7 @@ fun HomeScreen(
 
         UnityPointsCardResponsive(dimensions)
 
-        Spacer(modifier = Modifier.height(80.dp)) // Pour bottom bar
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 
@@ -102,21 +101,21 @@ private fun DailyQuizCardResponsive(
 
     Column {
         Card(
-            shape = RoundedCornerShape(dimensions.cornerRadiusLarge), // ✅ Border radius adaptatif
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
         ) {
             Box(
                 modifier = Modifier
                     .background(gradient)
-                    .padding(dimensions.cardPadding) // ✅ Padding adaptatif
+                    .padding(dimensions.cardPadding)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "Quiz du jour $emoji",
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = dimensions.titleLarge, // ✅ 28.ssp()
+                        fontSize = dimensions.titleLarge,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -127,14 +126,14 @@ private fun DailyQuizCardResponsive(
                         Text(
                             text = message,
                             color = Color.White,
-                            fontSize = dimensions.bodyLarge, // ✅ 16.ssp()
+                            fontSize = dimensions.bodyLarge,
                             fontWeight = FontWeight.Medium
                         )
 
                         Text(
                             text = "${lastScore?.first}/${lastScore?.second}",
                             color = Color.White,
-                            fontSize = dimensions.displayLarge, // ✅ 40.ssp()
+                            fontSize = dimensions.displayLarge,
                             fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center
                         )
@@ -149,7 +148,7 @@ private fun DailyQuizCardResponsive(
                                 onClick = { onAction(true) },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(dimensions.buttonHeightSmall), // ✅ 48.sdp()
+                                    .height(dimensions.buttonHeightSmall),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color.White.copy(alpha = 0.2f)
                                 ),
@@ -163,7 +162,7 @@ private fun DailyQuizCardResponsive(
                                     "Revoir",
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = dimensions.bodyMedium // ✅ 14.ssp()
+                                    fontSize = dimensions.bodyMedium
                                 )
                             }
 
@@ -194,7 +193,7 @@ private fun DailyQuizCardResponsive(
                             else
                                 "Mode : Révision (UE étudiées)",
                             color = Color.White.copy(alpha = 0.8f),
-                            fontSize = dimensions.bodySmall, // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall,
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.fillMaxWidth()
@@ -206,7 +205,7 @@ private fun DailyQuizCardResponsive(
                             onClick = { onAction(false) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(dimensions.buttonHeight), // ✅ 56.sdp()
+                                .height(dimensions.buttonHeight),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.White
                             ),
@@ -225,7 +224,7 @@ private fun DailyQuizCardResponsive(
                                         painter = painterResource(id = R.drawable.ic_settings_1),
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(dimensions.iconSizeSmall) // ✅ 20.sdp()
+                                        modifier = Modifier.size(dimensions.iconSizeSmall)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(dimensions.itemSpacing))
@@ -246,7 +245,7 @@ private fun DailyQuizCardResponsive(
 
         Text(
             text = "Objectif de semaine : 4 séances / 2 faites.",
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ CHANGÉ
             fontSize = dimensions.bodySmall,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(start = 4.dp)
@@ -288,7 +287,7 @@ private fun VirtualDebtCardResponsive(dimensions: ResponsiveDimensions) {
                     Text(
                         text = "12.50€",
                         color = Color.White,
-                        fontSize = dimensions.titleLarge * 1.2f, // ✅ Taille relative
+                        fontSize = dimensions.titleLarge * 1.2f,
                         fontWeight = FontWeight.ExtraBold
                     )
 
@@ -385,7 +384,7 @@ private fun UnityPointsCardResponsive(dimensions: ResponsiveDimensions) {
                     Box(contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(
                             progress = { 0.75f },
-                            modifier = Modifier.size(dimensions.iconSizeLarge + 16.dp), // ✅ 64.dp
+                            modifier = Modifier.size(dimensions.iconSizeLarge + 16.dp),
                             color = Color.White,
                             trackColor = Color.White.copy(alpha = 0.3f),
                             strokeWidth = 5.dp
@@ -423,3 +422,13 @@ private fun UnityPointsCardResponsive(dimensions: ResponsiveDimensions) {
     }
 }
 
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+@Composable
+fun HomeScreenPreview() {
+    MaterialTheme {
+        HomeScreen(navController = rememberNavController())
+    }
+}

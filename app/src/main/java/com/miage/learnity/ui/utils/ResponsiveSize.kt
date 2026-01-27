@@ -2,12 +2,33 @@ package com.miage.learnity.ui.utils
 
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.miage.learnity.data.FontSize
+
+// ═══════════════════════════════════════════════════════════════
+// 🎯 COMPOSITION LOCAL POUR FONT SIZE
+// ═══════════════════════════════════════════════════════════════
+
+val LocalFontSize = compositionLocalOf { FontSize.MEDIUM }
+
+/**
+ * Convertit FontSize en multiplicateur
+ */
+fun FontSize.toMultiplier(): Float = when (this) {
+    FontSize.SMALL -> 0.85f
+    FontSize.MEDIUM -> 1f
+    FontSize.LARGE -> 1.15f
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 📏 EXTENSIONS RESPONSIVES
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * Extensions pour calculs responsives (Scalable DP)
@@ -45,14 +66,22 @@ fun Int.ssp(): TextUnit {
     return finalValue.sp
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 🎨 RESPONSIVE DIMENSIONS
+// ═══════════════════════════════════════════════════════════════
+
 /**
  * Pourcentages et dimensions regroupées
+ * ✅ Support du Font Size via LocalFontSize
  */
 @Composable
 fun rememberResponsiveDimensions(): ResponsiveDimensions {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
+
+    // ✅ Récupère le multiplicateur de taille de police
+    val fontSizeMultiplier = LocalFontSize.current.toMultiplier()
 
     return ResponsiveDimensions(
         screenPaddingHorizontal = (screenWidth * 0.045f).coerceIn(12.dp, 32.dp),
@@ -61,13 +90,14 @@ fun rememberResponsiveDimensions(): ResponsiveDimensions {
         cardPadding = (screenWidth * 0.045f).coerceIn(12.dp, 24.dp),
         maxContentWidth = (screenWidth * 0.8f).coerceIn(600.dp, 900.dp),
 
-        displayLarge = 40.ssp(),
-        titleLarge = 28.ssp(),
-        titleMedium = 20.ssp(),
-        bodyLarge = 16.ssp(),
-        bodyMedium = 14.ssp(),
-        bodySmall = 12.ssp(),
-        labelLarge = 16.ssp(),
+        // ✅ Application du multiplicateur sur toutes les tailles de texte
+        displayLarge = (40 * fontSizeMultiplier).toInt().ssp(),
+        titleLarge = (28 * fontSizeMultiplier).toInt().ssp(),
+        titleMedium = (20 * fontSizeMultiplier).toInt().ssp(),
+        bodyLarge = (16 * fontSizeMultiplier).toInt().ssp(),
+        bodyMedium = (14 * fontSizeMultiplier).toInt().ssp(),
+        bodySmall = (12 * fontSizeMultiplier).toInt().ssp(),
+        labelLarge = (16 * fontSizeMultiplier).toInt().ssp(),
 
         iconSizeSmall = 20.sdp(),
         iconSizeMedium = 24.sdp(),

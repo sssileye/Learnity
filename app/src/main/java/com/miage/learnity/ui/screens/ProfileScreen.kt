@@ -28,11 +28,6 @@ import com.miage.learnity.R
 import com.miage.learnity.ui.utils.*
 import kotlinx.coroutines.launch
 
-private val IconBg = Color(0xfff0f1f3)
-private val PrimaryText = Color(0xff1b1c1e)
-private val SecondaryText = Color(0xff8a8e95)
-private val MidSheet = Color(0xfff3f4f6)
-
 @Composable
 fun ProfileScreen(
     isDiscoveryMode: Boolean,
@@ -41,9 +36,7 @@ fun ProfileScreen(
     onEditClick: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
-    // ✅ DIMENSIONS RESPONSIVES
     val dimensions = rememberResponsiveDimensions()
-
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -62,7 +55,7 @@ fun ProfileScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.background  // ✅ CHANGÉ
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -75,11 +68,11 @@ fun ProfileScreen(
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(dimensions.profilePictureSize * 2.7f)  // ✅ 260.sdp()
+                    .height(dimensions.profilePictureSize * 2.7f)
             )
 
             Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.height(dimensions.profilePictureSize * 0.83f))  // ✅ 80.sdp()
+                Spacer(modifier = Modifier.height(dimensions.profilePictureSize * 0.83f))
 
                 when {
                     uiState.isLoading && uiState.profile == null -> LoadingProfileState(dimensions)
@@ -115,7 +108,6 @@ private fun ProfileContent(
 ) {
     val context = LocalContext.current
 
-    // ⭐ LOGIQUE DYNAMIQUE ULTRA-SÉCURISÉE
     val avatarResId = remember(profile.photoUrl) {
         val photoName = if (profile.photoUrl.isNullOrBlank()) "avatar_b1" else profile.photoUrl
 
@@ -131,13 +123,12 @@ private fun ProfileContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ✅ AVATAR AVEC BOUTON ÉDITION - RESPONSIVE
         Box(contentAlignment = Alignment.BottomEnd) {
             Surface(
                 shape = CircleShape,
-                shadowElevation = dimensions.cardElevation * 4,  // ✅ 8.dp
-                color = Color.White,
-                modifier = Modifier.size(dimensions.profilePictureSize * 1.15f)  // ✅ 110.sdp()
+                shadowElevation = dimensions.cardElevation * 4,
+                color = MaterialTheme.colorScheme.surface,  // ✅ CHANGÉ
+                modifier = Modifier.size(dimensions.profilePictureSize * 1.15f)
             ) {
                 Image(
                     painter = painterResource(id = avatarResId),
@@ -145,79 +136,75 @@ private fun ProfileContent(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .padding(dimensions.itemSpacing / 3)  // ✅ 4.dp
+                        .padding(dimensions.itemSpacing / 3)
                 )
             }
             Surface(
                 shape = CircleShape,
-                color = Color(0xFF673AB7),
+                color = MaterialTheme.colorScheme.primary,  // ✅ CHANGÉ
                 modifier = Modifier
-                    .size(dimensions.iconSizeMedium * 1.42f)  // ✅ 34.sdp()
+                    .size(dimensions.iconSizeMedium * 1.42f)
                     .clickable { onEditClick() }
                     .offset(x = (-4).dp, y = (-4).dp),
-                shadowElevation = dimensions.cardElevation * 2  // ✅ 4.dp
+                shadowElevation = dimensions.cardElevation * 2
             ) {
                 Icon(
                     Icons.Default.Edit,
                     null,
-                    tint = Color.White,
-                    modifier = Modifier.padding(dimensions.itemSpacing / 1.5f)  // ✅ 8.dp
+                    tint = MaterialTheme.colorScheme.onPrimary,  // ✅ CHANGÉ
+                    modifier = Modifier.padding(dimensions.itemSpacing / 1.5f)
                 )
             }
         }
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))  // ✅ 16.sdp()
+        Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
 
-        // ✅ NOM ET EMAIL - RESPONSIVE
         Text(
             text = "${profile.firstName} ${profile.lastName}",
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
-            fontSize = dimensions.titleMedium * 1.1f  // ✅ 22.ssp()
+            fontSize = dimensions.titleMedium * 1.1f
         )
         Text(
             text = profile.email,
             color = Color.White.copy(alpha = 0.9f),
-            fontSize = dimensions.bodyMedium  // ✅ 14.ssp()
+            fontSize = dimensions.bodyMedium
         )
     }
 
-    Spacer(Modifier.height(dimensions.itemSpacing * 2))  // ✅ 24.sdp()
+    Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
-    // ✅ CONTENU SCROLLABLE - RESPONSIVE
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .background(
-                MidSheet,
+                MaterialTheme.colorScheme.surfaceVariant,  // ✅ CHANGÉ
                 RoundedCornerShape(
-                    topStart = dimensions.cornerRadiusLarge * 2.5f,  // ✅ 40.dp
+                    topStart = dimensions.cornerRadiusLarge * 2.5f,
                     topEnd = dimensions.cornerRadiusLarge * 2.5f
                 )
             )
             .padding(
                 horizontal = dimensions.screenPaddingHorizontal,
-                vertical = dimensions.itemSpacing * 2  // ✅ 24.sdp()
+                vertical = dimensions.itemSpacing * 2
             ),
-        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)  // ✅ 20.sdp()
+        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)
     ) {
-        // ✅ TABLEAU DE BORD
         Surface(
-            color = Color.White,
-            shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),  // ✅ 24.dp
+            color = MaterialTheme.colorScheme.surface,  // ✅ CHANGÉ
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
             shadowElevation = dimensions.cardElevation
         ) {
             Column(modifier = Modifier.padding(dimensions.cardPadding)) {
                 Text(
                     "TABLEAU DE BORD",
-                    fontSize = dimensions.bodySmall * 0.92f,  // ✅ 11.ssp()
+                    fontSize = dimensions.bodySmall * 0.92f,
                     fontWeight = FontWeight.Bold,
-                    color = SecondaryText
+                    color = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ CHANGÉ
                 )
-                Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))  // ✅ 16.sdp()
+                Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
 
-                // ✅ CARTES STATS - RESPONSIVE
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
@@ -247,7 +234,6 @@ private fun ProfileContent(
 
                 Spacer(Modifier.height(dimensions.itemSpacing))
 
-                // ✅ DETTE VIRTUELLE - RESPONSIVE
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -272,22 +258,21 @@ private fun ProfileContent(
                         Text(
                             String.format("%.2f €", profile.detteCumulee),
                             color = Color.White,
-                            fontSize = dimensions.titleMedium * 1.2f,  // ✅ 24.ssp()
+                            fontSize = dimensions.titleMedium * 1.2f,
                             fontWeight = FontWeight.ExtraBold
                         )
                         Text(
                             "(Redevance: ${profile.redevanceSoutienUnitaire}€)",
                             color = Color.White.copy(alpha = 0.8f),
-                            fontSize = dimensions.bodySmall * 0.83f  // ✅ 10.ssp()
+                            fontSize = dimensions.bodySmall * 0.83f
                         )
                     }
                 }
             }
         }
 
-        // ✅ PARAMÈTRES - RESPONSIVE
         Surface(
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,  // ✅ CHANGÉ
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
             shadowElevation = dimensions.cardElevation
         ) {
@@ -296,7 +281,7 @@ private fun ProfileContent(
                     "PARAMÈTRES",
                     fontSize = dimensions.bodySmall * 0.92f,
                     fontWeight = FontWeight.Bold,
-                    color = SecondaryText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ CHANGÉ
                     modifier = Modifier.padding(
                         horizontal = dimensions.cardPadding,
                         vertical = dimensions.itemSpacing / 1.5f
@@ -310,13 +295,13 @@ private fun ProfileContent(
                         horizontal = dimensions.cardPadding,
                         vertical = dimensions.itemSpacing / 1.5f
                     ),
-                    color = IconBg
+                    color = MaterialTheme.colorScheme.outlineVariant  // ✅ CHANGÉ
                 )
                 MenuItemRow("Déconnexion", R.drawable.btn_6, { onLogout() }, dimensions)
             }
         }
 
-        Spacer(modifier = Modifier.height(dimensions.bottomNavHeight * 1.56f))  // ✅ 100.dp
+        Spacer(modifier = Modifier.height(dimensions.bottomNavHeight * 1.56f))
     }
 }
 
@@ -335,7 +320,7 @@ private fun StatsCard(
             .aspectRatio(1.3f)
             .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
             .background(gradient)
-            .padding(dimensions.itemSpacing / 1.5f)  // ✅ 8.sdp()
+            .padding(dimensions.itemSpacing / 1.5f)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -346,25 +331,25 @@ private fun StatsCard(
                 painterResource(id = icon),
                 null,
                 tint = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.size(dimensions.iconSizeSmall)  // ✅ 20.sdp()
+                modifier = Modifier.size(dimensions.iconSizeSmall)
             )
-            Spacer(Modifier.height(dimensions.itemSpacing / 3))  // ✅ 4.sdp()
+            Spacer(Modifier.height(dimensions.itemSpacing / 3))
             Text(
                 title,
                 color = Color.White.copy(alpha = 0.9f),
-                fontSize = dimensions.bodySmall * 0.92f  // ✅ 11.ssp()
+                fontSize = dimensions.bodySmall * 0.92f
             )
             Text(
                 value,
                 color = Color.White,
-                fontSize = dimensions.bodyLarge * 1.13f,  // ✅ 18.ssp()
+                fontSize = dimensions.bodyLarge * 1.13f,
                 fontWeight = FontWeight.ExtraBold
             )
             if (subtitle != null) {
                 Text(
                     "Record : $subtitle",
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = dimensions.bodySmall * 0.75f  // ✅ 9.ssp()
+                    fontSize = dimensions.bodySmall * 0.75f
                 )
             }
         }
@@ -390,16 +375,19 @@ private fun QuizModeToggleRow(
         Surface(
             shape = CircleShape,
             color = if (isDiscoveryMode)
-                Color(0xFF673AB7).copy(alpha = 0.1f)
+                MaterialTheme.colorScheme.primaryContainer  // ✅ CHANGÉ
             else
-                IconBg,
-            modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)  // ✅ 40.sdp()
+                MaterialTheme.colorScheme.surfaceVariant,  // ✅ CHANGÉ
+            modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     painterResource(id = R.drawable.ic_settings_1),
                     null,
-                    tint = if (isDiscoveryMode) Color(0xFF673AB7) else SecondaryText,
+                    tint = if (isDiscoveryMode)
+                        MaterialTheme.colorScheme.primary  // ✅ CHANGÉ
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ CHANGÉ
                     modifier = Modifier.size(dimensions.iconSizeSmall)
                 )
             }
@@ -408,14 +396,14 @@ private fun QuizModeToggleRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 "Mode Quiz",
-                fontSize = dimensions.bodyLarge * 0.94f,  // ✅ 15.ssp()
+                fontSize = dimensions.bodyLarge * 0.94f,
                 fontWeight = FontWeight.SemiBold,
-                color = PrimaryText
+                color = MaterialTheme.colorScheme.onSurface  // ✅ CHANGÉ
             )
             Text(
                 if (isDiscoveryMode) "Découverte" else "Révision",
                 fontSize = dimensions.bodySmall,
-                color = SecondaryText
+                color = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ CHANGÉ
             )
         }
         Switch(checked = isDiscoveryMode, onCheckedChange = { onToggle() })
@@ -435,34 +423,34 @@ private fun MenuItemRow(
             .clickable { onClick() }
             .padding(
                 horizontal = dimensions.cardPadding,
-                vertical = dimensions.itemSpacing * 0.83f  // ✅ 10.sdp()
+                vertical = dimensions.itemSpacing * 0.83f
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
             shape = CircleShape,
-            color = IconBg,
-            modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)  // ✅ 40.sdp()
+            color = MaterialTheme.colorScheme.surfaceVariant,  // ✅ CHANGÉ
+            modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)
         ) {
             Image(
                 painterResource(id = iconRes),
                 null,
-                modifier = Modifier.padding(dimensions.itemSpacing * 0.83f)  // ✅ 10.dp
+                modifier = Modifier.padding(dimensions.itemSpacing * 0.83f)
             )
         }
         Spacer(Modifier.width(dimensions.itemSpacing))
         Text(
             title,
-            fontSize = dimensions.bodyLarge * 0.94f,  // ✅ 15.ssp()
+            fontSize = dimensions.bodyLarge * 0.94f,
             fontWeight = FontWeight.SemiBold,
-            color = PrimaryText,
+            color = MaterialTheme.colorScheme.onSurface,  // ✅ CHANGÉ
             modifier = Modifier.weight(1f)
         )
         Icon(
             painterResource(R.drawable.arrow),
             null,
-            tint = SecondaryText.copy(alpha = 0.5f),
-            modifier = Modifier.size(dimensions.iconSizeMedium * 0.67f)  // ✅ 16.sdp()
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ CHANGÉ
+            modifier = Modifier.size(dimensions.iconSizeMedium * 0.67f)
         )
     }
 }
@@ -471,7 +459,7 @@ private fun MenuItemRow(
 private fun LoadingProfileState(dimensions: ResponsiveDimensions) {
     Box(Modifier.fillMaxSize(), Alignment.Center) {
         CircularProgressIndicator(
-            color = Color(0xFF673AB7),
+            color = MaterialTheme.colorScheme.primary,  // ✅ CHANGÉ
             modifier = Modifier.size(dimensions.iconSizeLarge)
         )
     }
@@ -503,7 +491,6 @@ private fun ErrorProfileState(
     }
 }
 
-// ✅ PREVIEWS MULTI-TAILLES
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
 @Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
@@ -511,7 +498,6 @@ private fun ErrorProfileState(
 @Composable
 fun ProfileScreenPreview() {
     MaterialTheme {
-        val dimensions = rememberResponsiveDimensions()
         ProfileContent(
             profile = com.miage.learnity.data.UserProfile(
                 firstName = "Axel",
@@ -528,7 +514,7 @@ fun ProfileScreenPreview() {
             onModeChange = {},
             onLogout = {},
             onEditClick = {},
-            dimensions = dimensions
+            dimensions = rememberResponsiveDimensions()
         )
     }
 }

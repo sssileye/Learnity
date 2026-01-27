@@ -5,6 +5,8 @@ import com.google.gson.annotations.SerializedName
 // ============================================
 // PROFIL UTILISATEUR COMPLET
 // ============================================
+
+
 data class UserProfile(
     val uid: String = "",
     val email: String = "",
@@ -130,3 +132,13 @@ data class CourseProgress(
     val isAllCompleted: Boolean
         get() = completedChapters == totalChapters
 }
+
+enum class FontSize {
+    SMALL,
+    MEDIUM,
+    LARGE
+}
+data class SettingsData(
+    val isDarkMode: Boolean = false,
+    val fontSize: FontSize = FontSize.MEDIUM
+)
