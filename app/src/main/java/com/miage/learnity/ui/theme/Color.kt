@@ -25,6 +25,10 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
+// Cette couleur correspond au gris anthracite de ton image
+val DeepGrey = Color(0xFF212121)
+val OnDeepGrey = Color(0xFFFFFFFF) // Texte blanc sur fond gris
+
 val Gray1 = Color(0xFF757575)
 val GradientPurple1 = Color(0xFF9E5ECE)
 val GradientPurple2 = Color(0xFF635BFF)

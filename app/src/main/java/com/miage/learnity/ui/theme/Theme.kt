@@ -49,7 +49,14 @@ private val DarkColorScheme = darkColorScheme(
     error = ErrorDark,
     errorContainer = ErrorContainerDark,
     onError = OnErrorDark,
-    onErrorContainer = OnErrorContainerDark
+    onErrorContainer = OnErrorContainerDark,
+    //Change le fond noir par ton nouveau gris
+    background = DeepGrey,
+    surface = DeepGrey,
+
+    // la couleur du texte reste lisible (blanc)
+    onBackground = OnDeepGrey,
+    onSurface = OnDeepGrey
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -66,7 +73,7 @@ private val LightColorScheme = lightColorScheme(
 fun LearnityTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
