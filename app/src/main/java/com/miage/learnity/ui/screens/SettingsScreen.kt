@@ -95,7 +95,7 @@ fun SettingsScreen(
         SettingsSectionCard(title = "Sécurité et Données") {
             SettingsItemRow(
                 icon = Icons.Outlined.Info,
-                title = "Quiz sauvegardés (Offline)"
+                title = "Quiz sauvegardés (Offline) "
             )
 
             HorizontalDivider(
