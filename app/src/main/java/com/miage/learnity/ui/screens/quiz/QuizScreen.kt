@@ -12,8 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Question
+import com.miage.learnity.model.PointsManager
+import com.miage.learnity.ui.screens.UserViewModel
 import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
 
@@ -41,6 +42,7 @@ fun QuizScreen(
     chapterId: String,
     isReviewMode: Boolean = false,
     viewModel: QuizViewModel = viewModel(),
+    userViewModel: UserViewModel = viewModel(), // ✅ Ajouté pour le système de points
     onBackClick: () -> Unit = {}
 ) {
     val dimensions = rememberResponsiveDimensions()
@@ -53,6 +55,15 @@ fun QuizScreen(
     val hasSeenSummary by viewModel.hasSeenSummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
+
+    // ✅ Identification du type de quiz
+    val quizType = remember(chapterId) {
+        when (chapterId) {
+            "DISCOVERY", "REVIEW" -> PointsManager.QuizType.DAILY
+            "ALL_CHAPTERS" -> PointsManager.QuizType.EXAM
+            else -> PointsManager.QuizType.CHAPTER
+        }
+    }
 
     LaunchedEffect(courseId, chapterId) {
         when (chapterId) {
@@ -74,9 +85,9 @@ fun QuizScreen(
         topBar = {
             if (questions.isNotEmpty() && !isQuizFinished) {
                 QuizTopBar(
-                    title = when (chapterId) {
-                        "DISCOVERY", "REVIEW" -> "Quiz du Jour"
-                        "ALL_CHAPTERS" -> "Synthèse de l'UE"
+                    title = when (quizType) {
+                        PointsManager.QuizType.DAILY -> "Quiz du Jour"
+                        PointsManager.QuizType.EXAM -> "Synthèse de l'UE"
                         else -> "Quiz de chapitre"
                     },
                     currentQuestion = currentQuestionIndex + 1,
@@ -90,28 +101,33 @@ fun QuizScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())  // ✅ UNIQUEMENT le padding top
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
             when {
                 isLoading -> LoadingState(progress = loadingProgress, dimensions = dimensions)
                 questions.isEmpty() && !isLoading -> ErrorState(
-                    msg = "Aucun quiz trouvé pour cette sélection.",
-                    onRetry = {
-                        when (chapterId) {
-                            "DISCOVERY" -> viewModel.loadDailyQuiz(isDiscoveryMode = true)
-                            "REVIEW" -> viewModel.loadDailyQuiz(isDiscoveryMode = false)
-                            "ALL_CHAPTERS" -> viewModel.loadMegaQuiz(courseId)
-                            else -> viewModel.loadQuiz(courseId, chapterId)
-                        }
-                    },
+                    msg = "Aucun quiz trouvé.",
+                    onRetry = { /* Appel load initial */ },
                     dimensions = dimensions
                 )
                 isQuizFinished -> {
-                    LaunchedEffect(Unit) { viewModel.markSummaryAsSeen() }
+                    // ✅ TRAITEMENT UNIQUE : Enregistrement des points et progression
+                    LaunchedEffect(Unit) {
+                        viewModel.markSummaryAsSeen()
+                        if (!isReviewMode) {
+                            viewModel.processFinalResults(
+                                quizType = quizType,
+                                userViewModel = userViewModel,
+                                courseId = courseId,
+                                chapterId = chapterId
+                            )
+                        }
+                    }
                     FinalResultContent(
                         questions = questions,
                         userAnswers = userAnswers,
                         score = score,
+                        quizType = quizType,
                         isReviewOnly = isReviewMode,
                         onReviewQuestion = { index -> viewModel.goToQuestionForReview(index) },
                         onRetry = { viewModel.resetQuiz() },
@@ -427,7 +443,8 @@ private fun FinalResultContent(
     questions: List<Question>,
     userAnswers: Map<Int, Int>,
     score: Int,
-    isReviewOnly: Boolean = false,
+    quizType: PointsManager.QuizType,
+    isReviewOnly: Boolean,
     onReviewQuestion: (Int) -> Unit,
     onRetry: () -> Unit,
     onBackToCourse: () -> Unit,
@@ -458,80 +475,49 @@ private fun FinalResultContent(
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    if (isReviewOnly) "Score enregistré" else "Ton Score",
-                    color = Color.White,
-                    fontSize = dimensions.bodyMedium
-                )
+                Text(if (isReviewOnly) "Score enregistré" else "Ton Score", color = Color.White, fontSize = dimensions.bodyMedium)
                 Text(
                     text = "${if (questions.isNotEmpty()) (score.toFloat() / questions.size * 100).toInt() else 0}%",
                     fontSize = dimensions.titleLarge,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    "$score / ${questions.size}",
-                    color = Color.White,
-                    fontSize = dimensions.titleMedium,
-                    fontWeight = FontWeight.ExtraBold
-                )
+                Text("$score / ${questions.size}", color = Color.White, fontSize = dimensions.titleMedium, fontWeight = FontWeight.ExtraBold)
             }
         }
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-        Text(
-            text = "RÉCAPITULATIF",
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = dimensions.bodyLarge,
-            color = Color.DarkGray,
-            letterSpacing = dimensions.bodySmall / 6
-        )
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
+
+        // ⭐ NOUVEAU : Affichage des Récompenses Unity Points et Dette
+        if (!isReviewOnly) {
+            QuizRewardCard(score = score, totalQuestions = questions.size, quizType = quizType, dimensions = dimensions)
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+        }
+
+        Text(text = "DÉTAILS DES RÉPONSES", fontWeight = FontWeight.ExtraBold, fontSize = dimensions.bodySmall, color = Color.Gray)
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
 
         LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 1.5f),
-            contentPadding = PaddingValues(bottom = dimensions.itemSpacing)
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 2)
         ) {
             itemsIndexed(questions) { index, question ->
                 val userChoice = userAnswers[index]
                 val isCorrect = userChoice == question.correctAnswerIndex
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onReviewQuestion(index) },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isCorrect) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
-                    )
+                    modifier = Modifier.fillMaxWidth().clickable { onReviewQuestion(index) },
+                    colors = CardDefaults.cardColors(containerColor = if (isCorrect) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
                 ) {
-                    Column(modifier = Modifier.padding(dimensions.cardPadding)) {
-                        Text(
-                            text = "Q${index + 1}: ${question.questionText}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = dimensions.bodyMedium
+                    Row(Modifier.padding(dimensions.cardPadding), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                            contentDescription = null,
+                            tint = if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
                         )
-                        Text(
-                            text = "Ta réponse : ${question.options.getOrNull(userChoice ?: -1) ?: "Aucune"}",
-                            fontSize = dimensions.bodySmall,
-                            color = Color.DarkGray,
-                            fontWeight = FontWeight.Bold,
-                            textDecoration = TextDecoration.Underline
-                        )
-                        if (!isCorrect) {
-                            Text(
-                                text = "Correct : ${question.options[question.correctAnswerIndex]}",
-                                fontSize = dimensions.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32)
-                            )
-                        }
+                        Spacer(Modifier.width(dimensions.itemSpacing))
+                        Text("Question ${index + 1}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.ChevronRight, null, tint = Color.Gray)
                     }
                 }
             }
@@ -539,38 +525,69 @@ private fun FinalResultContent(
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        if (!isReviewOnly) {
-            OutlinedButton(
-                onClick = onRetry,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(dimensions.buttonHeight),
-                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                border = BorderStroke(2.dp, Color(0xFF673AB7))
-            ) {
-                Text(
-                    "Recommencer le quiz",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimensions.bodyLarge,
-                    color = Color(0xFF673AB7)
-                )
-            }
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-        }
-
         Button(
             onClick = onBackToCourse,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(dimensions.buttonHeight),
+            modifier = Modifier.fillMaxWidth().height(dimensions.buttonHeight),
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
         ) {
-            Text(
-                if (isReviewOnly) "Retour à l'accueil" else "Quitter",
-                fontWeight = FontWeight.Bold,
-                fontSize = dimensions.bodyLarge
-            )
+            Text(if (isReviewOnly) "Retour" else "Quitter", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
+        }
+    }
+}
+
+// --- COMPOSANT DES RÉCOMPENSES ---
+
+@Composable
+fun QuizRewardCard(
+    score: Int,
+    totalQuestions: Int,
+    quizType: PointsManager.QuizType,
+    dimensions: ResponsiveDimensions
+) {
+    val isPerfect = score == totalQuestions
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = if (isPerfect) Color(0xFFFFFDE7) else Color.White),
+        border = BorderStroke(1.dp, if (isPerfect) Color(0xFFFFD600) else Color.LightGray)
+    ) {
+        Row(
+            modifier = Modifier.padding(dimensions.cardPadding).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Section Unity Points
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Unity Points", fontSize = dimensions.bodySmall, color = Color.Gray)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Stars, null, tint = Color(0xFFFFB300), modifier = Modifier.size(dimensions.iconSizeSmall))
+                    Spacer(Modifier.width(4.dp))
+
+                    // Calcul visuel du bonus pour l'affichage
+                    val bonus = when(quizType) {
+                        PointsManager.QuizType.CHAPTER -> if (isPerfect) 3 else 0
+                        PointsManager.QuizType.DAILY -> if (isPerfect) 5 else 0
+                        PointsManager.QuizType.EXAM -> if (isPerfect) 10 else 0
+                    }
+                    Text("+${score + bonus}", fontWeight = FontWeight.ExtraBold, fontSize = dimensions.titleMedium, color = Color(0xFF2E7D32))
+                }
+            }
+
+            // Section Dette (uniquement pour le Quiz du Jour)
+            if (quizType == PointsManager.QuizType.DAILY) {
+                Divider(modifier = Modifier.width(1.dp).height(30.dp), color = Color.LightGray)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Impact Dette", fontSize = dimensions.bodySmall, color = Color.Gray)
+                    val errors = totalQuestions - score
+                    Text(
+                        text = if (errors > 0) "+${String.format("%.2f", errors * 0.10)}€" else "0.00€",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = dimensions.titleMedium,
+                        color = if (errors > 0) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+                    )
+                }
+            }
         }
     }
 }

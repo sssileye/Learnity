@@ -4,13 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Question
 import com.miage.learnity.data.Quiz
+import com.miage.learnity.model.PointsManager // ✅ Import du manager (dans model)
 import com.miage.learnity.repository.QuizRepository
+import com.miage.learnity.repository.UserProgressRepository
+import com.miage.learnity.ui.screens.UserViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class QuizViewModel(private val repository: QuizRepository = QuizRepository()) : ViewModel() {
+class QuizViewModel(
+    private val repository: QuizRepository = QuizRepository(),
+    private val progressRepository: UserProgressRepository = UserProgressRepository()
+) : ViewModel() {
 
     // --- États du Quiz ---
     private val _quiz = MutableStateFlow<Quiz?>(null)
@@ -36,7 +42,6 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // ⭐ État pour la barre de progression (0.0 à 1.0)
     private val _loadingProgress = MutableStateFlow(0f)
     val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
 
@@ -88,16 +93,11 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         }
     }
 
-    /**
-     * ⭐ MISE À JOUR : Charge le Quiz du Jour avec progression
-     */
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
         resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
             _loadingProgress.value = 0f
-
-            // Appel au repository avec le callback de progression
             repository.getDailyQuiz(isDiscoveryMode) { progress ->
                 _loadingProgress.value = progress
             }.onSuccess { dailyQuiz ->
@@ -134,7 +134,8 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
             _currentQuestionIndex.value++
             _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
         } else {
-            finishQuiz()
+            // La fin du quiz est déclenchée ici par l'écran via processFinalResults
+            _isQuizFinished.value = true
         }
     }
 
@@ -146,22 +147,50 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
     }
 
     // ============================================
-    // RÉCAPITULATIF ET FIN
+    // ⭐ SYSTÈME DE POINTS ET FINALISATION
     // ============================================
 
-    fun finishQuiz() {
+    /**
+     * ✅ NOUVEAU : Traite les résultats finaux (Appelé par QuizScreen)
+     */
+    fun processFinalResults(
+        quizType: PointsManager.QuizType,
+        userViewModel: UserViewModel,
+        courseId: String,
+        chapterId: String
+    ) {
         val currentQuiz = _quiz.value ?: return
-
         calculateAndSetScore(_userAnswers.value)
+        val finalScore = _score.value
+        val totalQuestions = _questions.value.size
 
         viewModelScope.launch {
+            // 1. Sauvegarde des réponses brutes (Historique)
             repository.saveQuizResult(
                 courseId = currentQuiz.courseId,
                 chapterId = currentQuiz.chapterId,
-                score = _score.value,
-                total = _questions.value.size,
+                score = finalScore,
+                total = totalQuestions,
                 userAnswers = _userAnswers.value
             )
+
+            // 2. Calcul et MAJ des Points / Dette / Streak via UserViewModel
+            userViewModel.processQuizResult(
+                quizType = quizType,
+                score = finalScore,
+                totalQuestions = totalQuestions
+            )
+
+            // 3. Si c'est un quiz de chapitre, on valide le chapitre dans Firestore
+            if (quizType == PointsManager.QuizType.CHAPTER) {
+                progressRepository.markContentAsCompleted(
+                    courseId = courseId,
+                    chapterId = chapterId,
+                    contentType = UserProgressRepository.ContentType.QUIZ,
+                    quizType = quizType
+                )
+            }
+
             _isQuizFinished.value = true
         }
     }
@@ -176,9 +205,11 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         _score.value = finalScore
     }
 
-    fun markSummaryAsSeen() {
-        _hasSeenSummary.value = true
-    }
+    // ============================================
+    // UTILS
+    // ============================================
+
+    fun markSummaryAsSeen() { _hasSeenSummary.value = true }
 
     fun goToQuestionForReview(index: Int) {
         _currentQuestionIndex.value = index
@@ -186,13 +217,7 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         _isQuizFinished.value = false
     }
 
-    fun returnToSummary() {
-        _isQuizFinished.value = true
-    }
-
-    // ============================================
-    // UTILS
-    // ============================================
+    fun returnToSummary() { _isQuizFinished.value = true }
 
     private fun resetQuizState() {
         _currentQuestionIndex.value = 0
@@ -207,7 +232,5 @@ class QuizViewModel(private val repository: QuizRepository = QuizRepository()) :
         _loadingProgress.value = 0f
     }
 
-    fun resetQuiz() {
-        resetQuizState()
-    }
+    fun resetQuiz() { resetQuizState() }
 }

@@ -23,6 +23,10 @@ class CourseDetailViewModel(
     private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
     val chapters: StateFlow<List<Chapter>> = _chapters.asStateFlow()
 
+    // ⭐ NOUVEAU : État pour le déblocage de l'examen blanc
+    private val _isExamUnlocked = MutableStateFlow(false)
+    val isExamUnlocked: StateFlow<Boolean> = _isExamUnlocked.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -30,88 +34,68 @@ class CourseDetailViewModel(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private var baseChapters: List<Chapter> = emptyList()
-    private var currentCourseId: String = ""
 
     fun loadCourse(courseId: String) {
-        currentCourseId = courseId
-
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
-            // Charger le cours
-            courseRepository.getCourse(courseId)
-                .onSuccess { course ->
-                    _course.value = course
-                }
-                .onFailure { exception ->
-                    _error.value = exception.message ?: "Erreur de chargement du cours"
-                }
+            courseRepository.getCourse(courseId).onSuccess { _course.value = it }
+                .onFailure { _error.value = it.message ?: "Erreur chargement cours" }
 
-            // Charger les chapitres
-            courseRepository.getChapters(courseId)
-                .onSuccess { chapters ->
-                    baseChapters = chapters
-                    _chapters.value = chapters
-
-                    // 🔥 DÉMARRER LE LISTENER TEMPS RÉEL
-                    startProgressListener(courseId)
-                }
-                .onFailure { exception ->
-                    _error.value = exception.message ?: "Erreur de chargement des chapitres"
-                }
+            courseRepository.getChapters(courseId).onSuccess { chapters ->
+                baseChapters = chapters
+                _chapters.value = chapters
+                startProgressListener(courseId)
+            }.onFailure { _error.value = it.message ?: "Erreur chargement chapitres" }
 
             _isLoading.value = false
         }
     }
 
-    /**
-     * 🔥 Observe la progression du cours en temps réel
-     */
     private fun startProgressListener(courseId: String) {
         viewModelScope.launch {
             progressRepository.observeCourseProgress(courseId)
                 .collect { progressMap ->
-                    // Fusionner les chapitres avec la progression
-                    _chapters.value = baseChapters.map { chapter ->
+                    val updatedChapters = baseChapters.map { chapter ->
                         val progress = progressMap[chapter.chapterId]
+
+                        // ✅ Extraction des flags de progression
+                        val isCoursRead = progress?.isCoursRead ?: false
+                        val isFdrRead = progress?.isFdrRead ?: false
+
                         chapter.copy(
-                            isCoursRead = progress?.isCoursRead ?: false,
-                            isFdrRead = progress?.isFdrRead ?: false,
+                            isCoursRead = isCoursRead,
+                            isFdrRead = isFdrRead,
                             isVideoWatched = progress?.isVideoWatched ?: false,
-                            isQuizCompleted = progress?.isQuizCompleted ?: false
+                            isQuizCompleted = progress?.isQuizCompleted ?: false,
+                            // ✅ Un quiz de chapitre est débloqué si le cours OU la FDR est lu(e)
+                            isQuizUnlocked = isCoursRead || isFdrRead
                         )
                     }
-                    println("🔥 CourseDetailVM - Progress updated from Firebase (${progressMap.size} chapters)")
+
+                    _chapters.value = updatedChapters
+
+                    // ⭐ LOGIQUE DÉBLOCAGE EXAMEN BLANC :
+                    // On vérifie que TOUS les chapitres ont leur quiz complété
+                    _isExamUnlocked.value = updatedChapters.isNotEmpty() &&
+                            updatedChapters.all { it.isQuizCompleted }
+
+                    println("🔥 CourseDetailVM - Exam Unlocked: ${_isExamUnlocked.value}")
                 }
         }
     }
 
-
     fun getCourseProgress(): CourseProgress {
         val chapters = _chapters.value
-
-        // Option 1 : Progression stricte (quiz obligatoire)
-        val strictCompleted = chapters.count { it.isCompleted }
-
-        // Option 2 : Progression du contenu (sans quiz)
+        // On utilise la logique de "Contenu complété" pour la barre de progression
         val contentCompleted = chapters.count { it.isContentCompleted }
 
-        // Option 3 : Progression moyenne en pourcentage
-        val avgProgress = if (chapters.isNotEmpty()) {
-            chapters.sumOf { it.progressPercentage.toDouble() }.toFloat() / chapters.size
-        } else {
-            0f
-        }
-
-        // ✅ Utilise la progression du contenu (plus encourageante)
         return CourseProgress(
-            completedChapters = contentCompleted,  // ✅ Sans quiz obligatoire
+            completedChapters = contentCompleted,
             totalChapters = chapters.size
         )
     }
 
-    fun refresh(courseId: String) {
-        loadCourse(courseId)
-    }
+    fun refresh(courseId: String) { loadCourse(courseId) }
 }
