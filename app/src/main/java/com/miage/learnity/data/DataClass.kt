@@ -51,6 +51,7 @@ data class Chapter(
 
     // === QUIZ ===
     val quizId: String? = null,
+    val bestScore: Int = 0,
 
     // === ÉTATS DE PROGRESSION (Modifiables via .copy()) ===
     val isVideoWatched: Boolean = false,

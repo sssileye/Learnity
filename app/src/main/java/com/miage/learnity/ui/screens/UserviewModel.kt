@@ -3,7 +3,7 @@ package com.miage.learnity.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.UserProfile
-import com.miage.learnity.model.PointsManager // ✅ Import de ton nouveau manager
+import com.miage.learnity.model.PointsManager
 import com.miage.learnity.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,20 +26,20 @@ data class UserUiState(
  * ViewModel pour gérer le profil utilisateur et ses statistiques
  */
 class UserViewModel(
-    private val repository: UserRepository = UserRepository()
+    // ✅ 'val' au lieu de 'private val' pour permettre l'accès depuis QuizViewModel
+    val repository: UserRepository = UserRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserUiState())
     val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
 
     init {
-        // On observe en temps réel dès le début pour éviter les loadProfile() manuels
         observeProfile()
         checkAndApplyAttendancePenalty()
     }
 
     // ============================================
-    // GESTION DU PROFIL (Real-time)
+    // GESTION DU PROFIL (Temps réel)
     // ============================================
 
     private fun observeProfile() {
@@ -55,21 +55,23 @@ class UserViewModel(
     }
 
     // ============================================
-    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS
+    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS (High Score)
     // ============================================
 
     /**
-     * Traite la fin d'un Quiz (Chapitre, Quotidien ou Examen)
-     * Centralise Points, Dette et Streak en un seul appel Repository
+     * Appelle la transaction sécurisée pour mettre à jour les points
+     * en fonction du record personnel de l'utilisateur.
      */
     fun processQuizResult(
         quizType: PointsManager.QuizType,
         score: Int,
-        totalQuestions: Int
+        totalQuestions: Int,
+        courseId: String,
+        chapterId: String
     ) {
         val profile = _uiState.value.profile ?: return
 
-        // 1. Calcul via ton PointsManager (situé dans model)
+        // 1. Calcul des gains potentiels via le PointsManager
         val result = PointsManager.calculateResults(
             type = quizType,
             score = score,
@@ -77,12 +79,17 @@ class UserViewModel(
             profile = profile
         )
 
-        // 2. Sauvegarde atomique dans Firebase
+        // 2. Sauvegarde via la transaction High Score du Repository
         viewModelScope.launch {
-            repository.updateStatsAfterQuiz(
-                pointsGained = result.pointsGained,
-                debtAdded = result.debtAdded,
-                isDaily = (quizType == PointsManager.QuizType.DAILY)
+            repository.updateStatsWithHighscore(
+                courseId = courseId,
+                chapterId = chapterId,
+                newScore = score,
+                totalQuestions = totalQuestions,
+                quizType = quizType,
+                pointsCalculated = result.pointsGained,
+                bonusCalculated = result.bonusGained,
+                debtCalculated = result.debtAdded
             ).onFailure { e ->
                 _uiState.value = _uiState.value.copy(error = e.message)
             }
@@ -90,7 +97,7 @@ class UserViewModel(
     }
 
     // ============================================
-    // VÉRIFICATION D'ASSIDUITÉ (Pénalité Minuit)
+    // VÉRIFICATION D'ASSIDUITÉ (Pénalité)
     // ============================================
 
     fun checkAndApplyAttendancePenalty() {
@@ -100,7 +107,6 @@ class UserViewModel(
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayStr = sdf.format(Date())
 
-            // On ne fait rien si c'est la première fois ou si déjà fait aujourd'hui
             if (profile.lastDailyQuizDate == null || profile.lastDailyQuizDate == todayStr) return@launch
 
             try {
@@ -110,20 +116,18 @@ class UserViewModel(
                 val daysDiff = TimeUnit.DAYS.convert(diffMillis, TimeUnit.MILLISECONDS).toInt()
 
                 if (daysDiff > 1) {
-                    val missedDays = daysDiff - 1
-                    // ✅ La pénalité d'absence est X (redevance unitaire) par jour raté
+                    val missedDays = (daysDiff - 1).toDouble()
                     val totalPenalty = profile.redevanceSoutienUnitaire * missedDays
                     repository.applyAbsenteeismPenalty(totalPenalty)
-                    println("⚠️ UserViewModel - Pénalité appliquée : $totalPenalty€")
                 }
             } catch (e: Exception) {
-                println("❌ Erreur assiduité : ${e.message}")
+                _uiState.value = _uiState.value.copy(error = "Erreur assiduité : ${e.message}")
             }
         }
     }
 
     // ============================================
-    // ACTIONS MANUELLES (Paramètres)
+    // ACTIONS PARAMÈTRES
     // ============================================
 
     fun updateRedevance(newValue: Double) {

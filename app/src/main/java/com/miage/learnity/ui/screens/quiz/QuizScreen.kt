@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,16 +21,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Question
 import com.miage.learnity.model.PointsManager
 import com.miage.learnity.ui.screens.UserViewModel
-import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +38,7 @@ fun QuizScreen(
     chapterId: String,
     isReviewMode: Boolean = false,
     viewModel: QuizViewModel = viewModel(),
-    userViewModel: UserViewModel = viewModel(), // ✅ Ajouté pour le système de points
+    userViewModel: UserViewModel = viewModel(),
     onBackClick: () -> Unit = {}
 ) {
     val dimensions = rememberResponsiveDimensions()
@@ -56,7 +52,10 @@ fun QuizScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
 
-    // ✅ Identification du type de quiz
+    val wasAlreadyDone by viewModel.wasAlreadyCompleted.collectAsState()
+    val oldBestScore by viewModel.oldBestScore.collectAsState() // ✅ Récupération du record
+    val userUiState by userViewModel.uiState.collectAsState()
+
     val quizType = remember(chapterId) {
         when (chapterId) {
             "DISCOVERY", "REVIEW" -> PointsManager.QuizType.DAILY
@@ -71,13 +70,6 @@ fun QuizScreen(
             "REVIEW" -> viewModel.loadDailyQuiz(isDiscoveryMode = false)
             "ALL_CHAPTERS" -> viewModel.loadMegaQuiz(courseId)
             else -> viewModel.loadQuiz(courseId, chapterId)
-        }
-    }
-
-    LaunchedEffect(questions, isReviewMode) {
-        if (isReviewMode && questions.isNotEmpty() && !isQuizFinished) {
-            viewModel.loadOldAnswers()
-            viewModel.returnToSummary()
         }
     }
 
@@ -98,37 +90,26 @@ fun QuizScreen(
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding())) {
             when {
                 isLoading -> LoadingState(progress = loadingProgress, dimensions = dimensions)
-                questions.isEmpty() && !isLoading -> ErrorState(
-                    msg = "Aucun quiz trouvé.",
-                    onRetry = { /* Appel load initial */ },
-                    dimensions = dimensions
-                )
+                questions.isEmpty() && !isLoading -> ErrorState(msg = "Aucun quiz trouvé.", onRetry = { onBackClick() }, dimensions = dimensions)
                 isQuizFinished -> {
-                    // ✅ TRAITEMENT UNIQUE : Enregistrement des points et progression
                     LaunchedEffect(Unit) {
                         viewModel.markSummaryAsSeen()
                         if (!isReviewMode) {
-                            viewModel.processFinalResults(
-                                quizType = quizType,
-                                userViewModel = userViewModel,
-                                courseId = courseId,
-                                chapterId = chapterId
-                            )
+                            viewModel.processFinalResults(quizType, userViewModel, courseId, chapterId)
                         }
                     }
                     FinalResultContent(
                         questions = questions,
                         userAnswers = userAnswers,
                         score = score,
+                        oldBestScore = oldBestScore, // ✅ Passé ici
                         quizType = quizType,
-                        isReviewOnly = isReviewMode,
+                        isReviewMode = isReviewMode,
+                        wasAlreadyDone = wasAlreadyDone,
+                        redevance = userUiState.profile?.redevanceSoutienUnitaire ?: 1.0,
                         onReviewQuestion = { index -> viewModel.goToQuestionForReview(index) },
                         onRetry = { viewModel.resetQuiz() },
                         onBackToCourse = onBackClick,
@@ -145,7 +126,7 @@ fun QuizScreen(
                             userAnswerIndex = userAnswers[currentQuestionIndex],
                             isAnswerRevealed = isAnswerRevealed,
                             showReturnToSummary = hasSeenSummary,
-                            onAnswerSelected = { index -> viewModel.selectAnswer(index) },
+                            onAnswerSelected = { viewModel.selectAnswer(it) },
                             onValidate = { viewModel.validateAnswer() },
                             onNext = { viewModel.nextQuestion() },
                             onPrevious = { viewModel.previousQuestion() },
@@ -218,9 +199,7 @@ private fun QuizContent(
         val chunks = currentQuestion.options.chunked(2)
         chunks.forEachIndexed { rowIndex, pair ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Max),
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
             ) {
                 pair.forEachIndexed { columnIndex, option ->
@@ -253,18 +232,13 @@ private fun QuizContent(
                 shape = RoundedCornerShape(dimensions.cornerRadiusSmall)
             ) {
                 Column(modifier = Modifier.padding(dimensions.cardPadding)) {
-                    Text(
-                        text = "💡 Explication",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = dimensions.bodyLarge,
-                        color = Color(0xFF2E7D32)
-                    )
+                    Text("💡 Explication", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge, color = Color(0xFF2E7D32))
                     Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
                     Text(
                         text = currentQuestion.explanation ?: "Pas d'explication disponible.",
                         fontSize = dimensions.bodyMedium,
                         color = Color(0xFF1B5E20),
-                        lineHeight = dimensions.bodyMedium * 1.4f
+                        lineHeight = (dimensions.bodyMedium.value * 1.4).sp
                     )
                 }
             }
@@ -277,47 +251,31 @@ private fun QuizContent(
             if (showReturnToSummary) {
                 OutlinedButton(
                     onClick = onReturnToSummary,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = dimensions.itemSpacing)
-                        .height(dimensions.buttonHeightSmall),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = dimensions.itemSpacing).height(dimensions.buttonHeightSmall),
                     shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                     border = BorderStroke(1.dp, Color(0xFF673AB7))
                 ) {
-                    Icon(Icons.Default.List, contentDescription = null, tint = Color(0xFF673AB7))
-                    Spacer(modifier = Modifier.width(dimensions.itemSpacing / 1.5f))
-                    Text("Retour au récapitulatif", color = Color(0xFF673AB7), fontSize = dimensions.bodyLarge)
+                    Icon(Icons.Default.List, null, tint = Color(0xFF673AB7))
+                    Spacer(Modifier.width(dimensions.itemSpacing / 1.5f))
+                    Text("Retour au récapitulatif", color = Color(0xFF673AB7))
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 OutlinedButton(
                     onClick = onPrevious,
                     enabled = currentIndex > 0,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(dimensions.buttonHeightSmall)
-                        .padding(end = dimensions.itemSpacing / 2),
+                    modifier = Modifier.weight(1f).height(dimensions.buttonHeightSmall).padding(end = dimensions.itemSpacing / 2),
                     shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                    border = BorderStroke(2.dp, if (currentIndex > 0) Color(0xFF673AB7) else Color.LightGray),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF673AB7)
-                    )
+                    border = BorderStroke(2.dp, if (currentIndex > 0) Color(0xFF673AB7) else Color.LightGray)
                 ) {
-                    Text("Précédent", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
+                    Text("Précédent", fontWeight = FontWeight.Bold)
                 }
 
                 Button(
                     onClick = { if (!isAnswerRevealed) onValidate() else onNext() },
                     enabled = userAnswerIndex != null,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(dimensions.buttonHeightSmall)
-                        .padding(start = dimensions.itemSpacing / 2),
+                    modifier = Modifier.weight(1f).height(dimensions.buttonHeightSmall).padding(start = dimensions.itemSpacing / 2),
                     shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
                 ) {
@@ -327,8 +285,7 @@ private fun QuizContent(
                             currentIndex == totalQuestions - 1 && !showReturnToSummary -> "Terminer"
                             else -> "Suivant"
                         },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = dimensions.bodyLarge
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -362,76 +319,28 @@ fun QuizOptionCard(
 
     Box(contentAlignment = Alignment.Center) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(dimensions.iconSizeLarge * 2.3f)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onLongPress = { showPreview = true },
-                        onTap = { onClick() }
-                    )
-                },
+            modifier = Modifier.fillMaxWidth().height(dimensions.iconSizeLarge * 2.3f).pointerInput(Unit) {
+                detectTapGestures(onLongPress = { showPreview = true }, onTap = { onClick() })
+            },
             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-            colors = CardDefaults.cardColors(backgroundColor),
-            border = BorderStroke(
-                width = if (isSelected || isCorrect || isWrong) 3.dp else 1.dp,
-                color = borderColor.copy(alpha = if (isSelected || isCorrect || isWrong) 1f else 0.2f)
-            ),
+            colors = CardDefaults.cardColors(containerColor = backgroundColor),
+            border = BorderStroke(if (isSelected || isCorrect || isWrong) 3.dp else 1.dp, borderColor.copy(alpha = 0.5f)),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize().padding(dimensions.itemSpacing / 1.5f)) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color(0xFF5E35B1),
-                    modifier = Modifier
-                        .size(dimensions.iconSizeMedium * 0.9f)
-                        .align(Alignment.TopEnd)
-                ) {
+                Surface(shape = CircleShape, color = Color(0xFF5E35B1), modifier = Modifier.size(dimensions.iconSizeMedium * 0.9f).align(Alignment.TopEnd)) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = id.toString(),
-                            fontSize = dimensions.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Text(text = id.toString(), fontSize = dimensions.bodySmall, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
-                Text(
-                    text = text,
-                    fontSize = dimensions.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    lineHeight = dimensions.bodyMedium * 1.2f,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .fillMaxWidth()
-                        .padding(horizontal = dimensions.itemSpacing / 3)
-                )
+                Text(text = text, fontSize = dimensions.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).fillMaxWidth(), maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         }
 
         if (showPreview) {
-            Popup(
-                alignment = Alignment.Center,
-                onDismissRequest = { showPreview = false }
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .padding(dimensions.screenPaddingHorizontal),
-                    shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF323232)),
-                    elevation = CardDefaults.cardElevation(8.dp)
-                ) {
-                    Text(
-                        text = text,
-                        color = Color.White,
-                        modifier = Modifier.padding(dimensions.cardPadding),
-                        textAlign = TextAlign.Center,
-                        fontSize = dimensions.bodyLarge
-                    )
+            Popup(alignment = Alignment.Center, onDismissRequest = { showPreview = false }) {
+                Card(modifier = Modifier.fillMaxWidth(0.85f).padding(16.dp), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF323232))) {
+                    Text(text = text, color = Color.White, modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center)
                 }
             }
         }
@@ -443,148 +352,150 @@ private fun FinalResultContent(
     questions: List<Question>,
     userAnswers: Map<Int, Int>,
     score: Int,
+    oldBestScore: Int, // ✅ Ajouté ici
     quizType: PointsManager.QuizType,
-    isReviewOnly: Boolean,
+    isReviewMode: Boolean,
+    wasAlreadyDone: Boolean,
+    redevance: Double,
     onReviewQuestion: (Int) -> Unit,
     onRetry: () -> Unit,
     onBackToCourse: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F7FA))
-            .padding(dimensions.screenPaddingHorizontal),
+        modifier = Modifier.fillMaxSize().background(Color(0xFFF5F7FA)).padding(dimensions.screenPaddingHorizontal).verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = if (isReviewOnly) "Récapitulatif" else "Quiz Terminé",
-            fontSize = dimensions.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
+        Text("Résultats", fontSize = dimensions.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(dimensions.cornerRadiusLarge)
-        ) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(dimensions.cornerRadiusLarge)) {
             Column(
-                modifier = Modifier
-                    .background(Brush.verticalGradient(listOf(Color(0xFF42A5F5), Color(0xFF7E57C2))))
-                    .padding(dimensions.cardPadding)
-                    .fillMaxWidth(),
+                modifier = Modifier.background(Brush.verticalGradient(listOf(Color(0xFF42A5F5), Color(0xFF7E57C2)))).padding(dimensions.cardPadding).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(if (isReviewOnly) "Score enregistré" else "Ton Score", color = Color.White, fontSize = dimensions.bodyMedium)
-                Text(
-                    text = "${if (questions.isNotEmpty()) (score.toFloat() / questions.size * 100).toInt() else 0}%",
-                    fontSize = dimensions.titleLarge,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Ton Score", color = Color.White)
+                Text(text = "${if (questions.isNotEmpty()) (score.toFloat() / questions.size * 100).toInt() else 0}%", fontSize = dimensions.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
                 Text("$score / ${questions.size}", color = Color.White, fontSize = dimensions.titleMedium, fontWeight = FontWeight.ExtraBold)
             }
         }
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        // ⭐ NOUVEAU : Affichage des Récompenses Unity Points et Dette
-        if (!isReviewOnly) {
-            QuizRewardCard(score = score, totalQuestions = questions.size, quizType = quizType, dimensions = dimensions)
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-        }
-
-        Text(text = "DÉTAILS DES RÉPONSES", fontWeight = FontWeight.ExtraBold, fontSize = dimensions.bodySmall, color = Color.Gray)
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 2)
-        ) {
-            itemsIndexed(questions) { index, question ->
-                val userChoice = userAnswers[index]
-                val isCorrect = userChoice == question.correctAnswerIndex
-
-                Card(
-                    modifier = Modifier.fillMaxWidth().clickable { onReviewQuestion(index) },
-                    colors = CardDefaults.cardColors(containerColor = if (isCorrect) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
-                ) {
-                    Row(Modifier.padding(dimensions.cardPadding), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                            contentDescription = null,
-                            tint = if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
-                        )
-                        Spacer(Modifier.width(dimensions.itemSpacing))
-                        Text("Question ${index + 1}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        Icon(Icons.Default.ChevronRight, null, tint = Color.Gray)
-                    }
+        if ((quizType == PointsManager.QuizType.DAILY && wasAlreadyDone) || isReviewMode) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = dimensions.itemSpacing),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+                border = BorderStroke(1.dp, Color(0xFF1976D2).copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(dimensions.cardPadding), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF1976D2), modifier = Modifier.size(32.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("Mode Entraînement", fontWeight = FontWeight.Bold, color = Color(0xFF1976D2), fontSize = dimensions.bodyLarge)
+                    Text(
+                        text = if (quizType == PointsManager.QuizType.DAILY)
+                            "Tes points et ta dette pour ce quiz ont déjà été enregistrés lors de ta première tentative aujourd'hui."
+                        else "Consultation de tes résultats précédents. Aucun point n'est ajouté.",
+                        textAlign = TextAlign.Center,
+                        fontSize = dimensions.bodySmall,
+                        color = Color(0xFF1976D2)
+                    )
                 }
             }
+        } else {
+            // ✅ Correction de l'ordre des arguments : score, total, type, redevance, oldBestScore, dimensions
+            QuizRewardCard(score, questions.size, quizType, redevance, oldBestScore, dimensions)
         }
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        Button(
-            onClick = onBackToCourse,
-            modifier = Modifier.fillMaxWidth().height(dimensions.buttonHeight),
-            shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
-        ) {
-            Text(if (isReviewOnly) "Retour" else "Quitter", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
+        Text("DÉTAILS DES RÉPONSES", fontWeight = FontWeight.ExtraBold, fontSize = dimensions.bodySmall, color = Color.Gray)
+
+        questions.forEachIndexed { index, question ->
+            val isCorrect = userAnswers[index] == question.correctAnswerIndex
+            ResultItem(index, isCorrect, onClick = { onReviewQuestion(index) }, dimensions = dimensions)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+
+        Button(onClick = onBackToCourse, modifier = Modifier.fillMaxWidth().height(dimensions.buttonHeight), shape = RoundedCornerShape(dimensions.cornerRadiusLarge), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))) {
+            Text("Quitter", fontWeight = FontWeight.Bold)
         }
     }
 }
 
-// --- COMPOSANT DES RÉCOMPENSES ---
-
 @Composable
 fun QuizRewardCard(
     score: Int,
-    totalQuestions: Int,
-    quizType: PointsManager.QuizType,
+    total: Int,
+    type: PointsManager.QuizType,
+    redevance: Double,
+    oldBestScore: Int,
     dimensions: ResponsiveDimensions
 ) {
-    val isPerfect = score == totalQuestions
+    val pointsGained = if (score > oldBestScore) (score - oldBestScore) else 0
+    val isNewPerfect = score == total && oldBestScore < total
+    val bonus = if (isNewPerfect) {
+        when(type) {
+            PointsManager.QuizType.CHAPTER -> 3
+            PointsManager.QuizType.DAILY -> 5
+            PointsManager.QuizType.EXAM -> 10
+        }
+    } else 0
+
+    val totalNetGain = pointsGained + bonus
+    val hasProgressed = totalNetGain > 0
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = if (isPerfect) Color(0xFFFFFDE7) else Color.White),
-        border = BorderStroke(1.dp, if (isPerfect) Color(0xFFFFD600) else Color.LightGray)
+        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+        colors = CardDefaults.cardColors(
+            containerColor = if (hasProgressed) Color(0xFFFFFDE7) else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (hasProgressed) Color(0xFFFFD600) else Color.LightGray.copy(alpha = 0.5f)
+        )
     ) {
         Row(
-            modifier = Modifier.padding(dimensions.cardPadding).fillMaxWidth(),
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Section Unity Points
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Unity Points", fontSize = dimensions.bodySmall, color = Color.Gray)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Stars, null, tint = Color(0xFFFFB300), modifier = Modifier.size(dimensions.iconSizeSmall))
-                    Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "Nouveaux Unity Points",
+                    fontSize = dimensions.bodySmall,
+                    color = Color.Gray
+                )
+                Text(
+                    text = if (hasProgressed) "+$totalNetGain" else "0",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (hasProgressed) Color(0xFF2E7D32) else Color.Gray
+                )
 
-                    // Calcul visuel du bonus pour l'affichage
-                    val bonus = when(quizType) {
-                        PointsManager.QuizType.CHAPTER -> if (isPerfect) 3 else 0
-                        PointsManager.QuizType.DAILY -> if (isPerfect) 5 else 0
-                        PointsManager.QuizType.EXAM -> if (isPerfect) 10 else 0
-                    }
-                    Text("+${score + bonus}", fontWeight = FontWeight.ExtraBold, fontSize = dimensions.titleMedium, color = Color(0xFF2E7D32))
+                if (!hasProgressed && score > 0) {
+                    Text(
+                        text = "Record : $oldBestScore pts",
+                        fontSize = 10.sp,
+                        color = Color.LightGray
+                    )
                 }
             }
 
-            // Section Dette (uniquement pour le Quiz du Jour)
-            if (quizType == PointsManager.QuizType.DAILY) {
-                Divider(modifier = Modifier.width(1.dp).height(30.dp), color = Color.LightGray)
+            if (type == PointsManager.QuizType.DAILY) {
+                Box(modifier = Modifier.width(1.dp).height(30.dp).background(Color.LightGray))
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Impact Dette", fontSize = dimensions.bodySmall, color = Color.Gray)
-                    val errors = totalQuestions - score
+                    val errors = total - score
+                    val debt = (redevance / total.toDouble()) * errors
                     Text(
-                        text = if (errors > 0) "+${String.format("%.2f", errors * 0.10)}€" else "0.00€",
+                        text = "+${"%.2f".format(debt)}€",
                         fontWeight = FontWeight.Bold,
-                        fontSize = dimensions.titleMedium,
-                        color = if (errors > 0) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+                        color = if (errors > 0) Color.Red else Color(0xFF2E7D32)
                     )
                 }
             }
@@ -592,130 +503,45 @@ fun QuizRewardCard(
     }
 }
 
+@Composable
+fun ResultItem(index: Int, isCorrect: Boolean, onClick: () -> Unit, dimensions: ResponsiveDimensions) {
+    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }, colors = CardDefaults.cardColors(containerColor = if (isCorrect) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel, null, tint = if (isCorrect) Color(0xFF4CAF50) else Color.Red)
+            Spacer(Modifier.width(16.dp))
+            Text("Question ${index + 1}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Icon(Icons.Default.ChevronRight, null)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuizTopBar(
-    title: String,
-    currentQuestion: Int,
-    totalQuestions: Int,
-    onBackClick: () -> Unit,
-    dimensions: ResponsiveDimensions
-) {
+private fun QuizTopBar(title: String, currentQuestion: Int, totalQuestions: Int, onBackClick: () -> Unit, dimensions: ResponsiveDimensions) {
     TopAppBar(
-        title = {
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold,
-                fontSize = dimensions.titleMedium
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = null,
-                    modifier = Modifier.size(dimensions.iconSizeMedium)
-                )
-            }
-        },
+        title = { Text(title, fontWeight = FontWeight.Bold, fontSize = dimensions.titleMedium) },
+        navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.Default.ArrowBack, null) } },
         actions = {
-            Surface(
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.padding(end = dimensions.itemSpacing / 1.5f)
-            ) {
-                Text(
-                    text = "$currentQuestion/$totalQuestions",
-                    modifier = Modifier.padding(
-                        horizontal = dimensions.itemSpacing,
-                        vertical = dimensions.itemSpacing / 2
-                    ),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimensions.bodyMedium
-                )
+            Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.padding(end = 8.dp)) {
+                Text(text = "$currentQuestion/$totalQuestions", modifier = Modifier.padding(8.dp), fontWeight = FontWeight.Bold)
             }
-        },
-        windowInsets = WindowInsets(0.dp)  // ✅ Supprime l'espace système par défaut
+        }
     )
 }
 
 @Composable
 private fun LoadingState(progress: Float, dimensions: ResponsiveDimensions) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F7FA)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Analyse de tes cours...",
-            fontSize = dimensions.titleMedium,
-            color = Color(0xFF673AB7),
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
-
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(dimensions.itemSpacing)
-                .clip(RoundedCornerShape(dimensions.itemSpacing / 2)),
-            color = Color(0xFF673AB7),
-            trackColor = Color(0xFFE1BEE7)
-        )
-
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-
-        Text(
-            text = "${(progress * 100).toInt()}%",
-            fontSize = dimensions.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray
-        )
-
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
-
-        Text(
-            text = "Préparation de ton quiz personnalisé",
-            fontSize = dimensions.bodySmall,
-            color = Color.LightGray
-        )
+    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F7FA)), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("Chargement...", fontWeight = FontWeight.Bold, color = Color(0xFF673AB7))
+        Spacer(modifier = Modifier.height(16.dp))
+        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth(0.8f).height(8.dp).clip(CircleShape), color = Color(0xFF673AB7))
     }
 }
 
 @Composable
 private fun ErrorState(msg: String, onRetry: () -> Unit, dimensions: ResponsiveDimensions) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = msg, fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.error)
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-        Button(
-            onClick = onRetry,
-            modifier = Modifier.height(dimensions.buttonHeightSmall),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
-        ) {
-            Text("Réessayer", fontSize = dimensions.bodyLarge)
-        }
-    }
-}
-
-@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
-@Composable
-fun QuizScreenPreview() {
-    LearnityTheme {
-        QuizScreen(
-            courseId = "test",
-            chapterId = "test",
-            onBackClick = {}
-        )
+    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text(msg, color = Color.Red)
+        Button(onClick = onRetry) { Text("Réessayer") }
     }
 }
