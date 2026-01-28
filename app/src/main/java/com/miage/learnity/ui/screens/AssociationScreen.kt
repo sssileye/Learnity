@@ -34,7 +34,7 @@ fun AssociationScreen(
 
     // 🎯 RÉCUPÉRATION DE LA VRAIE DETTE (Remplace ta variable supprimée)
     val uiState by userViewModel.uiState.collectAsState()
-    val detteVirtuelle = uiState.profile?.virtualDebt ?: 0.0
+    val detteVirtuelle = uiState.profile?.detteCumulee ?: 0.0
 
     // ✅ ON GARDE UNIQUEMENT LES ÉTATS DE LA POPUP
     var showDialog by remember { mutableStateOf(false) }

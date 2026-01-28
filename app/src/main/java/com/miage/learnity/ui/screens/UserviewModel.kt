@@ -9,6 +9,7 @@ import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -28,7 +29,7 @@ data class UserUiState(
  */
 class UserViewModel(
     val repository: UserRepository = UserRepository(),
-    private val progressRepository: UserProgressRepository = UserProgressRepository() // ✅ Ajouté pour récupérer le record
+    private val progressRepository: UserProgressRepository = UserProgressRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserUiState())
@@ -40,23 +41,32 @@ class UserViewModel(
     }
 
     // ============================================
-    // GESTION DU PROFIL (Temps réel)
+    // GESTION DU PROFIL (Temps réel via Firestore Snapshots)
     // ============================================
 
     private fun observeProfile() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            repository.observeUserProfile().collect { profile ->
-                _uiState.value = _uiState.value.copy(
-                    profile = profile,
-                    isLoading = false
-                )
-            }
+
+            repository.observeUserProfile()
+                .catch { e ->
+                    _uiState.value = _uiState.value.copy(
+                        error = "Erreur de connexion : ${e.message}",
+                        isLoading = false
+                    )
+                }
+                .collect { profile ->
+                    _uiState.value = _uiState.value.copy(
+                        profile = profile,
+                        isLoading = false,
+                        error = null
+                    )
+                }
         }
     }
 
     // ============================================
-    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS (CORRIGÉ)
+    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS
     // ============================================
 
     fun processQuizResult(
@@ -69,43 +79,44 @@ class UserViewModel(
         val profile = _uiState.value.profile ?: return
 
         viewModelScope.launch {
-            // 1. Récupération du record actuel pour éviter les doublons de points
+            // 1. Récupération du record actuel (Important pour calculer le gain réel)
             val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
             val oldBestScore = progress?.bestScore ?: 0
             val wasAlreadyPerfect = oldBestScore >= totalQuestions
 
-            // 2. Calcul des gains via le PointsManager (avec les nouveaux paramètres de sécurité)
+            // 2. Calcul des gains différentiels
             val result = PointsManager.calculateResults(
                 type = quizType,
                 score = score,
                 totalQuestions = totalQuestions,
-                oldBestScore = oldBestScore,       // ✅ Paramètre ajouté
+                oldBestScore = oldBestScore,
                 profile = profile,
-                wasAlreadyPerfect = wasAlreadyPerfect // ✅ Paramètre ajouté
+                wasAlreadyPerfect = wasAlreadyPerfect
             )
 
-            // 3. Sauvegarde via la transaction sécurisée
+            // 3. Sauvegarde via Transaction (Points + Record + Dette potentielle)
             repository.updateStatsWithHighscore(
                 courseId = courseId,
                 chapterId = chapterId,
                 newScore = score,
                 totalQuestions = totalQuestions,
                 quizType = quizType,
-                pointsCalculated = result.progressionPoints, // ✅ Renommé selon PointsManager
-                bonusCalculated = result.bonusGained,      // ✅ Renommé selon PointsManager
+                pointsCalculated = result.progressionPoints,
+                bonusCalculated = result.bonusGained,
                 debtCalculated = result.debtAdded
             ).onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = e.message)
+                _uiState.value = _uiState.value.copy(error = "Erreur sauvegarde : ${e.message}")
             }
         }
     }
 
     // ============================================
-    // VÉRIFICATION D'ASSIDUITÉ (Pénalité)
+    // VÉRIFICATION D'ASSIDUITÉ (Pénalité de retard)
     // ============================================
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
+            // Utilisation de la version suspend pour un check initial propre
             val profile = repository.getUserProfile().getOrNull() ?: return@launch
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayStr = sdf.format(Date())
@@ -118,6 +129,7 @@ class UserViewModel(
                 val diffMillis = todayDate!!.time - lastDate!!.time
                 val daysDiff = TimeUnit.DAYS.convert(diffMillis, TimeUnit.MILLISECONDS).toInt()
 
+                // Si plus de 24h d'écart entre aujourd'hui et le dernier quiz (exclu)
                 if (daysDiff > 1) {
                     val missedDays = (daysDiff - 1).toDouble()
                     val totalPenalty = profile.redevanceSoutienUnitaire * missedDays
@@ -139,10 +151,13 @@ class UserViewModel(
         }
     }
 
+    /**
+     * Déduit un montant de la dette après confirmation du don réel
+     */
     fun makeDonation(amount: Double) {
         viewModelScope.launch {
             repository.deductFromDebt(amount).onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = "Erreur don : ${e.message}")
+                _uiState.value = _uiState.value.copy(error = "Erreur lors du don : ${e.message}")
             }
         }
     }

@@ -19,7 +19,7 @@ data class UserProfile(
     val bestStreak: Int = 0,
     val lastDailyQuizDate: String? = null,
     val selectedAssociationId: String? = null,
-    val virtualDebt: Double = 0.0
+    //val virtualDebt: Double = 0.0
 )
 
 // ============================================
