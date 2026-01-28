@@ -13,11 +13,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class UserRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+
+    private val db = FirebaseFirestore.getInstance()
 
     // ============================================
     // LECTURE
@@ -172,5 +176,24 @@ class UserRepository {
             firestore.collection("users").document(userId).update("redevanceSoutienUnitaire", value).await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
+    }
+
+    // Fonction pour déduire de la dette virtuelle de l'utilisateur
+    suspend fun deductFromDebt(amount: Double): Result<Unit> {
+        val userId = auth.currentUser?.uid ?: return Result.failure(Exception("Non connecté"))
+        val userRef = db.collection("users").document(userId)
+
+        return try {
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(userRef)
+                val currentDebt = snapshot.getDouble("virtualDebt") ?: 0.0
+                // On déduit sans descendre sous 0
+                val newDebt = (currentDebt - amount).coerceAtLeast(0.0)
+                transaction.update(userRef, "virtualDebt", newDebt)
+            }.await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

@@ -28,7 +28,7 @@ data class UserUiState(
  */
 class UserViewModel(
     val repository: UserRepository = UserRepository(),
-    private val progressRepository: UserProgressRepository = UserProgressRepository() // ✅ Ajouté pour vérifier le record
+    private val progressRepository: UserProgressRepository = UserProgressRepository() // ✅ Ajouté pour récupérer le record
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserUiState())
@@ -38,6 +38,10 @@ class UserViewModel(
         observeProfile()
         checkAndApplyAttendancePenalty()
     }
+
+    // ============================================
+    // GESTION DU PROFIL (Temps réel)
+    // ============================================
 
     private fun observeProfile() {
         viewModelScope.launch {
@@ -52,7 +56,7 @@ class UserViewModel(
     }
 
     // ============================================
-    // ⭐ TRAITEMENT DES RÉSULTATS (CORRIGÉ)
+    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS (CORRIGÉ)
     // ============================================
 
     fun processQuizResult(
@@ -65,30 +69,30 @@ class UserViewModel(
         val profile = _uiState.value.profile ?: return
 
         viewModelScope.launch {
-            // 1. On récupère le record actuel en base pour le calcul
+            // 1. Récupération du record actuel pour éviter les doublons de points
             val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
             val oldBestScore = progress?.bestScore ?: 0
-            val wasAlreadyPerfect = oldBestScore == totalQuestions
+            val wasAlreadyPerfect = oldBestScore >= totalQuestions
 
-            // 2. Calcul des gains REELS via le PointsManager (Sécurité progression)
+            // 2. Calcul des gains via le PointsManager (avec les nouveaux paramètres de sécurité)
             val result = PointsManager.calculateResults(
                 type = quizType,
                 score = score,
                 totalQuestions = totalQuestions,
-                oldBestScore = oldBestScore, // ✅ Paramètre manquant corrigé
+                oldBestScore = oldBestScore,       // ✅ Paramètre ajouté
                 profile = profile,
-                wasAlreadyPerfect = wasAlreadyPerfect // ✅ Paramètre bonus ajouté
+                wasAlreadyPerfect = wasAlreadyPerfect // ✅ Paramètre ajouté
             )
 
-            // 3. Sauvegarde via la transaction Firestore
+            // 3. Sauvegarde via la transaction sécurisée
             repository.updateStatsWithHighscore(
                 courseId = courseId,
                 chapterId = chapterId,
                 newScore = score,
                 totalQuestions = totalQuestions,
                 quizType = quizType,
-                pointsCalculated = result.progressionPoints, // ✅ Renommé
-                bonusCalculated = result.bonusGained,
+                pointsCalculated = result.progressionPoints, // ✅ Renommé selon PointsManager
+                bonusCalculated = result.bonusGained,      // ✅ Renommé selon PointsManager
                 debtCalculated = result.debtAdded
             ).onFailure { e ->
                 _uiState.value = _uiState.value.copy(error = e.message)
@@ -97,7 +101,7 @@ class UserViewModel(
     }
 
     // ============================================
-    // VÉRIFICATION D'ASSIDUITÉ
+    // VÉRIFICATION D'ASSIDUITÉ (Pénalité)
     // ============================================
 
     fun checkAndApplyAttendancePenalty() {
@@ -125,9 +129,21 @@ class UserViewModel(
         }
     }
 
+    // ============================================
+    // ACTIONS PARAMÈTRES & DONS
+    // ============================================
+
     fun updateRedevance(newValue: Double) {
         viewModelScope.launch {
             repository.updateRedevanceUnitaire(newValue)
+        }
+    }
+
+    fun makeDonation(amount: Double) {
+        viewModelScope.launch {
+            repository.deductFromDebt(amount).onFailure { e ->
+                _uiState.value = _uiState.value.copy(error = "Erreur don : ${e.message}")
+            }
         }
     }
 }
