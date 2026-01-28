@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.SetOptions
+import com.miage.learnity.model.PointsManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -12,7 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Repository pour gérer la progression des utilisateurs
+ * Repository pour gérer la progression des utilisateurs et leurs records
  */
 class UserProgressRepository {
 
@@ -34,13 +35,14 @@ class UserProgressRepository {
     // ============================================
 
     /**
-     * Marque un contenu spécifique comme terminé (Cours, FDR, Vidéo, Quiz)
+     * Marque un contenu comme terminé.
+     * Note : Pour le QUIZ, les points et scores sont gérés par le UserRepository.updateStatsWithHighscore
      */
     suspend fun markContentAsCompleted(
         courseId: String,
         chapterId: String,
         contentType: ContentType,
-        quizType: com.miage.learnity.model.PointsManager.QuizType? = null // ✅ Ajout optionnel du type de quiz
+        quizType: PointsManager.QuizType? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val userId = auth.currentUser?.uid
@@ -53,30 +55,13 @@ class UserProgressRepository {
                 .collection("chapters")
                 .document(chapterId)
 
-            // Mise à jour Firestore
             progressRef.set(
                 mapOf(contentType.fieldName to true),
                 SetOptions.merge()
             ).await()
 
-            // ✅ Notification enrichie pour le ProgressManager
-            val progressType = when (contentType) {
-                ContentType.QUIZ -> ProgressManager.ProgressType.QUIZ_COMPLETED
-                ContentType.VIDEO -> ProgressManager.ProgressType.VIDEO_WATCHED
-                else -> ProgressManager.ProgressType.CONTENT_READ
-            }
-
-            ProgressManager.notifyProgressChanged(
-                courseId = courseId,
-                chapterId = chapterId,
-                type = progressType,
-                quizType = quizType // Transmet le type (Chapter, Daily, Exam)
-            )
-
-            println("✅ UserProgressRepo - ${contentType.fieldName} validé pour $chapterId")
             Result.success(Unit)
         } catch (e: Exception) {
-            println("❌ UserProgressRepo - Erreur écriture: ${e.message}")
             Result.failure(e)
         }
     }
@@ -85,9 +70,6 @@ class UserProgressRepository {
     // 🔥 LISTENERS TEMPS RÉEL (Sécurisés)
     // ============================================
 
-    /**
-     * 🔥 Observe la progression d'un chapitre en temps réel
-     */
     fun observeChapterProgress(
         courseId: String,
         chapterId: String
@@ -106,34 +88,20 @@ class UserProgressRepository {
 
         val listener = docRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                // Gestion sécurisée de la déconnexion
-                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
-                    println("ℹ️ UserProgress - Accès révoqué (déconnexion)")
-                    return@addSnapshotListener
-                }
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
                 close(error)
                 return@addSnapshotListener
             }
 
             if (snapshot != null && snapshot.exists()) {
-                val progress = ChapterProgressData(
-                    isCoursRead = snapshot.getBoolean("isCoursRead") ?: false,
-                    isFdrRead = snapshot.getBoolean("isFdrRead") ?: false,
-                    isVideoWatched = snapshot.getBoolean("isVideoWatched") ?: false,
-                    isQuizCompleted = snapshot.getBoolean("isQuizCompleted") ?: false
-                )
-                trySend(progress)
+                trySend(mapSnapshotToProgress(snapshot))
             } else {
-                trySend(ChapterProgressData()) // Retourne des flags à false par défaut
+                trySend(ChapterProgressData())
             }
         }
-
         awaitClose { listener.remove() }
     }
 
-    /**
-     * 🔥 Observe la progression de TOUS les chapitres d'un cours (utile pour l'Examen Blanc)
-     */
     fun observeCourseProgress(
         courseId: String
     ): Flow<Map<String, ChapterProgressData>> = callbackFlow {
@@ -157,17 +125,11 @@ class UserProgressRepository {
 
             if (snapshot != null) {
                 val progressMap = snapshot.documents.associate { doc ->
-                    doc.id to ChapterProgressData(
-                        isCoursRead = doc.getBoolean("isCoursRead") ?: false,
-                        isFdrRead = doc.getBoolean("isFdrRead") ?: false,
-                        isVideoWatched = doc.getBoolean("isVideoWatched") ?: false,
-                        isQuizCompleted = doc.getBoolean("isQuizCompleted") ?: false
-                    )
+                    doc.id to mapSnapshotToProgress(doc)
                 }
                 trySend(progressMap)
             }
         }
-
         awaitClose { listener.remove() }
     }
 
@@ -175,9 +137,12 @@ class UserProgressRepository {
     // LECTURE SIMPLE
     // ============================================
 
-    suspend fun getChapterProgress(courseId: String, chapterId: String): ChapterProgressData {
-        val userId = auth.currentUser?.uid ?: return ChapterProgressData()
-        return try {
+    /**
+     * ✅ CORRIGÉ : Retourne un Result pour être compatible avec QuizViewModel.onSuccess
+     */
+    suspend fun getChapterProgress(courseId: String, chapterId: String): Result<ChapterProgressData> = withContext(Dispatchers.IO) {
+        val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
             val snapshot = firestore.collection("user_progress")
                 .document(userId)
                 .collection("courses")
@@ -187,24 +152,38 @@ class UserProgressRepository {
                 .get()
                 .await()
 
-            ChapterProgressData(
-                isCoursRead = snapshot.getBoolean("isCoursRead") ?: false,
-                isFdrRead = snapshot.getBoolean("isFdrRead") ?: false,
-                isVideoWatched = snapshot.getBoolean("isVideoWatched") ?: false,
-                isQuizCompleted = snapshot.getBoolean("isQuizCompleted") ?: false
-            )
+            if (snapshot.exists()) {
+                Result.success(mapSnapshotToProgress(snapshot))
+            } else {
+                Result.success(ChapterProgressData())
+            }
         } catch (e: Exception) {
-            ChapterProgressData()
+            Result.failure(e)
         }
+    }
+
+    // --- HELPER ---
+    private fun mapSnapshotToProgress(doc: com.google.firebase.firestore.DocumentSnapshot): ChapterProgressData {
+        return ChapterProgressData(
+            isCoursRead = doc.getBoolean("isCoursRead") ?: false,
+            isFdrRead = doc.getBoolean("isFdrRead") ?: false,
+            isVideoWatched = doc.getBoolean("isVideoWatched") ?: false,
+            isQuizCompleted = doc.getBoolean("isQuizCompleted") ?: false,
+            // ✅ Ajout des nouveaux champs indispensables
+            bestScore = doc.getLong("bestScore")?.toInt() ?: 0,
+            isPerfectCompleted = doc.getBoolean("isPerfectCompleted") ?: false
+        )
     }
 }
 
 /**
- * Data class pour la progression d'un chapitre
+ * Data class enrichie pour la progression d'un chapitre
  */
 data class ChapterProgressData(
     val isCoursRead: Boolean = false,
     val isFdrRead: Boolean = false,
     val isVideoWatched: Boolean = false,
-    val isQuizCompleted: Boolean = false
+    val isQuizCompleted: Boolean = false,
+    val bestScore: Int = 0, // ✅ Record de l'utilisateur
+    val isPerfectCompleted: Boolean = false // ✅ Flag pour le bonus unique
 )

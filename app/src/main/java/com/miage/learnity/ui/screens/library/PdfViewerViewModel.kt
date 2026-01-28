@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.repository.CourseRepository
+import com.miage.learnity.repository.ChapterProgressData // ✅ Import de la Data Class
 import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,8 +57,12 @@ class PdfViewerViewModel(
                         chapter.coursUrl
                     }
 
-                    // 2. Récupérer la progression actuelle
-                    val progress = progressRepository.getChapterProgress(courseId, chapterId)
+                    // 2. ✅ CORRECTION : Déballer le Result de la progression
+                    val progressResult = progressRepository.getChapterProgress(courseId, chapterId)
+
+                    // On récupère les données ou un objet vide par défaut si échec
+                    val progress = progressResult.getOrNull() ?: ChapterProgressData()
+
                     _isMarkedAsRead.value = when (type) {
                         UserProgressRepository.ContentType.FDR -> progress.isFdrRead
                         else -> progress.isCoursRead

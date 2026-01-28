@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -144,7 +145,7 @@ private fun ChapterContentLayout(
         }
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-        HorizontalDivider(modifier = Modifier.padding(horizontal = dimensions.itemSpacing / 1.5f), thickness = 0.5.dp)
+        HorizontalDivider(thickness = 0.5.dp)
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
         Text(
@@ -155,7 +156,7 @@ private fun ChapterContentLayout(
             modifier = Modifier.padding(bottom = dimensions.itemSpacing / 3)
         )
 
-        // ✅ Débloqué si isQuizUnlocked est true (calculé par le VM : isCoursRead || isFdrRead)
+        // ✅ Quiz accessible si débloqué, même si déjà complété
         if (chapter.isQuizUnlocked) {
             QuizSection(
                 isQuizCompleted = chapter.isQuizCompleted,
@@ -226,33 +227,37 @@ private fun ContentOptionCard(
     }
 }
 
+/**
+ * ✅ MODIFIÉ : Autorise le replay du quiz même si déjà validé
+ */
 @Composable
 private fun QuizSection(isQuizCompleted: Boolean, onStartQuiz: () -> Unit, dimensions: ResponsiveDimensions) {
-    if (isQuizCompleted) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(dimensions.itemSpacing))
-                Text(text = "Quiz validé !", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.primary)
-            }
-        }
-    } else {
+    Column(verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 2)) {
         Button(
             onClick = onStartQuiz,
             modifier = Modifier.fillMaxWidth().height(dimensions.buttonHeight),
-            shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+            shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isQuizCompleted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+            )
         ) {
-            Icon(imageVector = Icons.Default.Quiz, contentDescription = null)
+            Icon(imageVector = if (isQuizCompleted) Icons.Default.Replay else Icons.Default.Quiz, contentDescription = null)
             Spacer(modifier = Modifier.width(dimensions.itemSpacing))
-            Text(text = "Passer le Quiz", fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold)
+            Text(
+                text = if (isQuizCompleted) "Refaire le Quiz" else "Passer le Quiz",
+                fontSize = dimensions.bodyLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (isQuizCompleted) {
+            Text(
+                text = "✅ Quiz déjà validé. Refaire le quiz te permet d'améliorer ton record et gagner des Unity Points supplémentaires !",
+                fontSize = dimensions.bodySmall,
+                color = Color(0xFF2E7D32),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = dimensions.itemSpacing)
+            )
         }
     }
 }
@@ -277,7 +282,6 @@ private fun LockedQuizSection(dimensions: ResponsiveDimensions) {
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
             Text(text = "Quiz Verrouillé", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 3))
-            // ✅ Texte mis à jour : Cours OU Fiche de Révision
             Text(
                 text = "Lisez le cours ou la fiche de révision pour débloquer le quiz",
                 fontSize = dimensions.bodySmall,

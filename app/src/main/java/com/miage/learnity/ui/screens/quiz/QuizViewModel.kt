@@ -4,7 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Question
 import com.miage.learnity.data.Quiz
-import com.miage.learnity.model.PointsManager // ✅ Import du manager (dans model)
+import com.miage.learnity.data.UserProfile
+import com.miage.learnity.model.PointsManager
 import com.miage.learnity.repository.QuizRepository
 import com.miage.learnity.repository.UserProgressRepository
 import com.miage.learnity.ui.screens.UserViewModel
@@ -24,6 +25,13 @@ class QuizViewModel(
 
     private val _questions = MutableStateFlow<List<Question>>(emptyList())
     val questions: StateFlow<List<Question>> = _questions.asStateFlow()
+
+    // ✅ NOUVEAU : On stocke l'ancien record pour calculer le gain net sur le front
+    private val _oldBestScore = MutableStateFlow(0)
+    val oldBestScore: StateFlow<Int> = _oldBestScore.asStateFlow()
+
+    private val _wasAlreadyCompleted = MutableStateFlow(false)
+    val wasAlreadyCompleted: StateFlow<Boolean> = _wasAlreadyCompleted.asStateFlow()
 
     // --- Navigation & Progression ---
     private val _currentQuestionIndex = MutableStateFlow(0)
@@ -62,6 +70,7 @@ class QuizViewModel(
         resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
+            fetchUserProgress(courseId, chapterId)
             repository.getQuizForChapter(courseId, chapterId).onSuccess { loadedQuiz ->
                 _quiz.value = loadedQuiz
                 _questions.value = loadedQuiz.questions
@@ -70,21 +79,11 @@ class QuizViewModel(
         }
     }
 
-    fun loadOldAnswers() {
-        viewModelScope.launch {
-            repository.getDailyQuizAnswers().onSuccess { oldAnswers ->
-                if (oldAnswers != null) {
-                    _userAnswers.value = oldAnswers
-                    calculateAndSetScore(oldAnswers)
-                }
-            }
-        }
-    }
-
     fun loadMegaQuiz(courseId: String) {
         resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
+            fetchUserProgress(courseId, "ALL_CHAPTERS")
             repository.getMegaQuizForCourse(courseId).onSuccess { megaQuiz ->
                 _quiz.value = megaQuiz
                 _questions.value = megaQuiz.questions
@@ -97,17 +96,25 @@ class QuizViewModel(
         resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
-            _loadingProgress.value = 0f
+            fetchUserProgress("DAILY_COURSE", "DAILY_CHAPTER")
             repository.getDailyQuiz(isDiscoveryMode) { progress ->
                 _loadingProgress.value = progress
             }.onSuccess { dailyQuiz ->
                 _quiz.value = dailyQuiz
                 _questions.value = dailyQuiz.questions
-                _loadingProgress.value = 1f
-            }.onFailure {
-                _isLoading.value = false
             }
             _isLoading.value = false
+        }
+    }
+
+    private suspend fun fetchUserProgress(courseId: String, chapterId: String) {
+        progressRepository.getChapterProgress(courseId, chapterId).onSuccess { progress ->
+            _wasAlreadyCompleted.value = progress?.isQuizCompleted == true
+            // ✅ On mémorise le record AVANT le début du quiz pour le comparatif final
+            _oldBestScore.value = progress?.bestScore ?: 0
+        }.onFailure {
+            _wasAlreadyCompleted.value = false
+            _oldBestScore.value = 0
         }
     }
 
@@ -123,9 +130,8 @@ class QuizViewModel(
 
     fun validateAnswer() {
         _isCurrentAnswerRevealed.value = true
-        val currentIndex = _currentQuestionIndex.value
-        if (currentIndex >= _maxIndexReached.value) {
-            _maxIndexReached.value = currentIndex + 1
+        if (_currentQuestionIndex.value >= _maxIndexReached.value) {
+            _maxIndexReached.value = _currentQuestionIndex.value + 1
         }
     }
 
@@ -134,25 +140,26 @@ class QuizViewModel(
             _currentQuestionIndex.value++
             _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
         } else {
-            // La fin du quiz est déclenchée ici par l'écran via processFinalResults
-            _isQuizFinished.value = true
+            finishQuiz()
         }
     }
 
     fun previousQuestion() {
         if (_currentQuestionIndex.value > 0) {
             _currentQuestionIndex.value--
-            _isCurrentAnswerRevealed.value = true
+            _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
         }
+    }
+
+    private fun finishQuiz() {
+        calculateAndSetScore(_userAnswers.value)
+        _isQuizFinished.value = true
     }
 
     // ============================================
     // ⭐ SYSTÈME DE POINTS ET FINALISATION
     // ============================================
 
-    /**
-     * ✅ NOUVEAU : Traite les résultats finaux (Appelé par QuizScreen)
-     */
     fun processFinalResults(
         quizType: PointsManager.QuizType,
         userViewModel: UserViewModel,
@@ -160,47 +167,43 @@ class QuizViewModel(
         chapterId: String
     ) {
         val currentQuiz = _quiz.value ?: return
+        val profile = userViewModel.uiState.value.profile ?: UserProfile()
+
         calculateAndSetScore(_userAnswers.value)
         val finalScore = _score.value
         val totalQuestions = _questions.value.size
 
+        // Calcul des gains basés sur le score actuel
+        val calculation = PointsManager.calculateResults(
+            type = quizType,
+            score = finalScore,
+            totalQuestions = totalQuestions,
+            profile = profile
+        )
+
         viewModelScope.launch {
-            // 1. Sauvegarde des réponses brutes (Historique)
-            repository.saveQuizResult(
-                courseId = currentQuiz.courseId,
-                chapterId = currentQuiz.chapterId,
-                score = finalScore,
-                total = totalQuestions,
-                userAnswers = _userAnswers.value
-            )
+            // 1. Sauvegarde historique locale
+            repository.saveQuizResult(courseId, chapterId, finalScore, totalQuestions, _userAnswers.value)
 
-            // 2. Calcul et MAJ des Points / Dette / Streak via UserViewModel
-            userViewModel.processQuizResult(
+            // 2. Transaction Firestore : Le back gérera la soustraction (NewScore - OldScore)
+            // Mais on envoie les points théoriques calculés pour le score actuel.
+            userViewModel.repository.updateStatsWithHighscore(
+                courseId = courseId,
+                chapterId = chapterId,
+                newScore = finalScore,
+                totalQuestions = totalQuestions,
                 quizType = quizType,
-                score = finalScore,
-                totalQuestions = totalQuestions
+                pointsCalculated = calculation.pointsGained,
+                bonusCalculated = calculation.bonusGained,
+                debtCalculated = calculation.debtAdded
             )
-
-            // 3. Si c'est un quiz de chapitre, on valide le chapitre dans Firestore
-            if (quizType == PointsManager.QuizType.CHAPTER) {
-                progressRepository.markContentAsCompleted(
-                    courseId = courseId,
-                    chapterId = chapterId,
-                    contentType = UserProgressRepository.ContentType.QUIZ,
-                    quizType = quizType
-                )
-            }
-
-            _isQuizFinished.value = true
         }
     }
 
     private fun calculateAndSetScore(answers: Map<Int, Int>) {
         var finalScore = 0
         _questions.value.forEachIndexed { index, question ->
-            if (answers[index] == question.correctAnswerIndex) {
-                finalScore++
-            }
+            if (answers[index] == question.correctAnswerIndex) finalScore++
         }
         _score.value = finalScore
     }
@@ -230,6 +233,8 @@ class QuizViewModel(
         _quiz.value = null
         _questions.value = emptyList()
         _loadingProgress.value = 0f
+        _wasAlreadyCompleted.value = false
+        _oldBestScore.value = 0 // Réinitialisation du record
     }
 
     fun resetQuiz() { resetQuizState() }
