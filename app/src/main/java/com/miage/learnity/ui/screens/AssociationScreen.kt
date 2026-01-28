@@ -17,22 +17,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp // Gardé pour les border strokes spécifiques ou cas rares
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Association
 import com.miage.learnity.ui.components.* // Import de vos composants responsives
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 @Composable
-fun AssociationScreen() {
+fun AssociationScreen(
+    // Injection du ViewModel global
+    userViewModel: UserViewModel = viewModel()
+) {
     // 1. Initialisation des dimensions responsives
     val dimensions = rememberResponsiveDimensions()
     val context = LocalContext.current
 
-    // États
-    var detteVirtuelle by remember { mutableFloatStateOf(12.50f) }
+    // 🎯 RÉCUPÉRATION DE LA VRAIE DETTE (Remplace ta variable supprimée)
+    val uiState by userViewModel.uiState.collectAsState()
+    val detteVirtuelle = uiState.profile?.virtualDebt ?: 0.0
+
+    // ✅ ON GARDE UNIQUEMENT LES ÉTATS DE LA POPUP
     var showDialog by remember { mutableStateOf(false) }
     var selectedAsso by remember { mutableStateOf<Association?>(null) }
     var montantDon by remember { mutableStateOf("") }
-    // État pour gérer les erreurs de saisie dans la popup
     var isInputError by remember { mutableStateOf(false) }
 
     // Données
@@ -178,10 +185,16 @@ fun AssociationScreen() {
                     ResponsiveSmallButton(
                         text = "Confirmer",
                         onClick = {
-                            val montant = montantDon.replace(",", ".").toFloatOrNull() ?: 0f
+                            // On convertit le texte en nombre (Double pour correspondre au ViewModel)
+                            val montant = montantDon.replace(",", ".").toDoubleOrNull() ?: 0.0
+
                             if (montant > 0 && montant <= detteVirtuelle) {
-                                detteVirtuelle -= montant
+                                // 🎯 ACTION : On enregistre le don dans Firebase
+                                userViewModel.makeDonation(montant)
+
                                 showDialog = false
+
+                                // Redirection externe
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(selectedAsso?.websiteUrl))
                                 context.startActivity(intent)
                             } else {
@@ -207,9 +220,9 @@ fun AssociationScreen() {
 // Placeholder pour prévisualisation si AssociationCardCustom n'est pas dispo dans le contexte de copie
 // ✅ PREVIEWS MULTI-TAILLES
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+//@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+//@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+//@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
 @Preview(showBackground = true)
 @Composable
 fun AssociationScreenPreview() {

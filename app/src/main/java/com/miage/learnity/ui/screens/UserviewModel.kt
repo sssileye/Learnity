@@ -129,10 +129,23 @@ class UserViewModel(
     // ============================================
     // ACTIONS PARAMÈTRES
     // ============================================
-
     fun updateRedevance(newValue: Double) {
         viewModelScope.launch {
             repository.updateRedevanceUnitaire(newValue)
+        }
+    }
+
+    /**
+     * Lance la mise à jour de la dette suite à un don
+     */
+    fun makeDonation(amount: Double) {
+        viewModelScope.launch {
+            repository.deductFromDebt(amount).onFailure { e ->
+                // Mise à jour de l'état d'erreur si besoin
+                _uiState.value = _uiState.value.copy(error = "Erreur don : ${e.message}")
+            }
+            // Note : observeProfile() recevra automatiquement la nouvelle valeur
+            // de Firebase et mettra à jour l'UI partout.
         }
     }
 }

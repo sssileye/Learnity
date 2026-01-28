@@ -18,7 +18,8 @@ data class UserProfile(
     val currentStreak: Int = 0,
     val bestStreak: Int = 0,
     val lastDailyQuizDate: String? = null,
-    val selectedAssociationId: String? = null
+    val selectedAssociationId: String? = null,
+    val virtualDebt: Double = 0.0
 )
 
 // ============================================
