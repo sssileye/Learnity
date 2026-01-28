@@ -24,9 +24,6 @@ data class UserUiState(
     val error: String? = null
 )
 
-/**
- * ViewModel pour gérer le profil utilisateur et ses statistiques
- */
 class UserViewModel(
     val repository: UserRepository = UserRepository(),
     private val progressRepository: UserProgressRepository = UserProgressRepository()
@@ -40,14 +37,9 @@ class UserViewModel(
         checkAndApplyAttendancePenalty()
     }
 
-    // ============================================
-    // GESTION DU PROFIL (Temps réel via Firestore Snapshots)
-    // ============================================
-
     private fun observeProfile() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-
             repository.observeUserProfile()
                 .catch { e ->
                     _uiState.value = _uiState.value.copy(
@@ -66,7 +58,7 @@ class UserViewModel(
     }
 
     // ============================================
-    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS
+    // ⭐ LOGIQUE ANTI-BUG : COMPARAISON AU RECORD ABSOLU
     // ============================================
 
     fun processQuizResult(
@@ -79,22 +71,26 @@ class UserViewModel(
         val profile = _uiState.value.profile ?: return
 
         viewModelScope.launch {
-            // 1. Récupération du record actuel (Important pour calculer le gain réel)
+            // 1. FORCER la récupération du record actuel en base de données
+            // On ne fait PAS confiance au score qui vient de l'écran de quiz
             val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
-            val oldBestScore = progress?.bestScore ?: 0
-            val wasAlreadyPerfect = oldBestScore >= totalQuestions
 
-            // 2. Calcul des gains différentiels
+            // C'est ici que ton bug se joue : si progress est null, on met 0.
+            val absoluteBestScore = progress?.bestScore ?: 0
+            val wasAlreadyPerfect = absoluteBestScore >= totalQuestions
+
+            // 2. Calcul des gains par rapport au VRAI record absolu
             val result = PointsManager.calculateResults(
                 type = quizType,
                 score = score,
                 totalQuestions = totalQuestions,
-                oldBestScore = oldBestScore,
+                oldBestScore = absoluteBestScore, // On compare 1 à 4 -> Gain 0
                 profile = profile,
                 wasAlreadyPerfect = wasAlreadyPerfect
             )
 
-            // 3. Sauvegarde via Transaction (Points + Record + Dette potentielle)
+            // 3. On n'appelle la mise à jour que si on a vraiment gagné quelque chose
+            // ou si on a battu le record visuel.
             repository.updateStatsWithHighscore(
                 courseId = courseId,
                 chapterId = chapterId,
@@ -111,12 +107,11 @@ class UserViewModel(
     }
 
     // ============================================
-    // VÉRIFICATION D'ASSIDUITÉ (Pénalité de retard)
+    // RESTE DES FONCTIONS (ASSIDUITÉ & DONS)
     // ============================================
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
-            // Utilisation de la version suspend pour un check initial propre
             val profile = repository.getUserProfile().getOrNull() ?: return@launch
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayStr = sdf.format(Date())
@@ -129,7 +124,6 @@ class UserViewModel(
                 val diffMillis = todayDate!!.time - lastDate!!.time
                 val daysDiff = TimeUnit.DAYS.convert(diffMillis, TimeUnit.MILLISECONDS).toInt()
 
-                // Si plus de 24h d'écart entre aujourd'hui et le dernier quiz (exclu)
                 if (daysDiff > 1) {
                     val missedDays = (daysDiff - 1).toDouble()
                     val totalPenalty = profile.redevanceSoutienUnitaire * missedDays
@@ -141,19 +135,12 @@ class UserViewModel(
         }
     }
 
-    // ============================================
-    // ACTIONS PARAMÈTRES & DONS
-    // ============================================
-
     fun updateRedevance(newValue: Double) {
         viewModelScope.launch {
             repository.updateRedevanceUnitaire(newValue)
         }
     }
 
-    /**
-     * Déduit un montant de la dette après confirmation du don réel
-     */
     fun makeDonation(amount: Double) {
         viewModelScope.launch {
             repository.deductFromDebt(amount).onFailure { e ->

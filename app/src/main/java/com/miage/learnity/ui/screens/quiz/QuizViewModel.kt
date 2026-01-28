@@ -18,6 +18,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// ... (tes imports restent identiques)
+
 class QuizViewModel(
     private val repository: QuizRepository = QuizRepository(),
     private val progressRepository: UserProgressRepository = UserProgressRepository()
@@ -62,7 +64,6 @@ class QuizViewModel(
     private val _score = MutableStateFlow(0)
     val score: StateFlow<Int> = _score.asStateFlow()
 
-    // ✅ NOUVEAU : Stocke le gain réel de la session (pour le récapitulatif)
     private val _sessionPointsGained = MutableStateFlow(0)
     val sessionPointsGained: StateFlow<Int> = _sessionPointsGained.asStateFlow()
 
@@ -74,7 +75,6 @@ class QuizViewModel(
     // ============================================
 
     fun loadQuiz(courseId: String, chapterId: String) {
-        resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
             fetchUserProgress(courseId, chapterId)
@@ -86,19 +86,14 @@ class QuizViewModel(
         }
     }
 
+    // Mega Quiz et Daily Quiz utilisent la même logique de reset interne
     fun loadMegaQuiz(courseId: String) {
-        resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
-
-            // ✅ Correction : On récupère le record actuel de l'examen blanc en base
             progressRepository.getChapterProgress(courseId, "ALL_CHAPTERS").onSuccess { progress ->
                 _oldBestScore.value = progress?.bestScore ?: 0
                 _wasAlreadyCompleted.value = (progress?.bestScore ?: 0) >= 20
-            }.onFailure {
-                _oldBestScore.value = 0
             }
-
             repository.getMegaQuizForCourse(courseId).onSuccess { loadedQuiz ->
                 _quiz.value = loadedQuiz
                 _questions.value = loadedQuiz.questions
@@ -108,7 +103,6 @@ class QuizViewModel(
     }
 
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
-        resetQuizState()
         viewModelScope.launch {
             _isLoading.value = true
             repository.getDailyQuiz(isDiscoveryMode) { progress ->
@@ -116,11 +110,8 @@ class QuizViewModel(
             }.onSuccess { dailyQuiz ->
                 _quiz.value = dailyQuiz
                 _questions.value = dailyQuiz.questions
-
                 repository.getLastDailyQuizScore().onSuccess { result ->
-                    if (result != null) {
-                        _oldBestScore.value = result.first
-                    }
+                    if (result != null) _oldBestScore.value = result.first
                 }
             }
             _isLoading.value = false
@@ -131,8 +122,6 @@ class QuizViewModel(
         progressRepository.getChapterProgress(courseId, chapterId).onSuccess { progress ->
             _wasAlreadyCompleted.value = progress?.isQuizCompleted == true
             _oldBestScore.value = progress?.bestScore ?: 0
-        }.onFailure {
-            _oldBestScore.value = 0
         }
     }
 
@@ -146,16 +135,13 @@ class QuizViewModel(
         courseId: String,
         chapterId: String
     ) {
-        val profile = userViewModel.uiState.value.profile ?: UserProfile()
+        val profile = userViewModel.uiState.value.profile ?: return // Sécurité
         calculateAndSetScore(_userAnswers.value)
 
         val finalScore = _score.value
         val totalQuestions = _questions.value.size
+        val wasAlreadyPerfect = _oldBestScore.value >= totalQuestions
 
-        // 1. Déterminer si le bonus de perfection a déjà été récolté
-        val wasAlreadyPerfect = _oldBestScore.value == totalQuestions
-
-        // 2. Calculer les résultats via PointsManager (Progression réelle + Bonus)
         val calculation = PointsManager.calculateResults(
             type = quizType,
             score = finalScore,
@@ -165,24 +151,21 @@ class QuizViewModel(
             wasAlreadyPerfect = wasAlreadyPerfect
         )
 
-        // 3. Calculer le gain TOTAL réel pour la session (Progression + Bonus)
-        // C'est cette valeur qui sera affichée dans le récapitulatif (+0 si pas d'amélioration)
-        val realGainForSession = calculation.progressionPoints + calculation.bonusGained
-        _sessionPointsGained.value = realGainForSession
+        _sessionPointsGained.value = calculation.progressionPoints + calculation.bonusGained
 
         viewModelScope.launch {
-            // A. Sauvegarde dans l'HISTORIQUE
+            // Sauvegarde Historique
             val historyEntry = QuizHistory(
                 date = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date()),
                 hour = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
                 score = finalScore,
                 total = totalQuestions,
-                pointsGained = realGainForSession,
+                pointsGained = _sessionPointsGained.value,
                 timestamp = System.currentTimeMillis()
             )
             repository.saveQuizHistory(courseId, chapterId, historyEntry)
 
-            // B. Mise à jour de la base de données (Transaction Firestore)
+            // Sauvegarde Firebase Transactionnelle
             userViewModel.repository.updateStatsWithHighscore(
                 courseId = courseId,
                 chapterId = chapterId,
@@ -197,7 +180,7 @@ class QuizViewModel(
     }
 
     // ============================================
-    // LOGIQUE DU JEU
+    // LOGIQUE DU JEU & NAVIGATION
     // ============================================
 
     fun selectAnswer(selectedIndex: Int) {
@@ -218,13 +201,9 @@ class QuizViewModel(
             _currentQuestionIndex.value++
             _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
         } else {
-            finishQuiz()
+            calculateAndSetScore(_userAnswers.value)
+            _isQuizFinished.value = true
         }
-    }
-
-    private fun finishQuiz() {
-        calculateAndSetScore(_userAnswers.value)
-        _isQuizFinished.value = true
     }
 
     private fun calculateAndSetScore(answers: Map<Int, Int>) {
@@ -235,34 +214,20 @@ class QuizViewModel(
         _score.value = finalScore
     }
 
-    // ============================================
-    // RESET & NAVIGATION
-    // ============================================
-
-    fun resetQuizState() {
-        _currentQuestionIndex.value = 0
-        _maxIndexReached.value = 0
-        _userAnswers.value = emptyMap()
-        _isCurrentAnswerRevealed.value = false
-        _isQuizFinished.value = false
-        _hasSeenSummary.value = false
-        _score.value = 0
-        _sessionPointsGained.value = 0
-        _oldBestScore.value = 0
-    }
-
     fun markSummaryAsSeen() { _hasSeenSummary.value = true }
+
     fun goToQuestionForReview(index: Int) {
         _currentQuestionIndex.value = index
         _isCurrentAnswerRevealed.value = true
         _isQuizFinished.value = false
     }
+
     fun returnToSummary() { _isQuizFinished.value = true }
+
     fun previousQuestion() {
         if (_currentQuestionIndex.value > 0) {
             _currentQuestionIndex.value--
             _isCurrentAnswerRevealed.value = true
         }
     }
-    fun resetQuiz() { resetQuizState() }
 }

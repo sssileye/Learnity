@@ -128,7 +128,6 @@ fun QuizScreen(
                         wasAlreadyDone = wasAlreadyDone,
                         redevance = userUiState.profile?.redevanceSoutienUnitaire ?: 1.0,
                         onReviewQuestion = { index -> viewModel.goToQuestionForReview(index) },
-                        onRetry = { viewModel.resetQuiz() },
                         onBackToCourse = onBackClick,
                         dimensions = dimensions
                     )
@@ -411,101 +410,95 @@ private fun FinalResultContent(
     wasAlreadyDone: Boolean,
     redevance: Double,
     onReviewQuestion: (Int) -> Unit,
-    onRetry: () -> Unit,
+    // ✅ onRetry supprimé ici
     onBackToCourse: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
+    // On retire le .verticalScroll sur la Column pour laisser la LazyColumn gérer le flux
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(dimensions.screenPaddingHorizontal)
-            .verticalScroll(rememberScrollState()),
+            .padding(dimensions.screenPaddingHorizontal),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Résultats", fontSize = dimensions.titleLarge, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(dimensions.cornerRadiusLarge)) {
-            Column(
-                modifier = Modifier
-                    .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))))
-                    .padding(dimensions.cardPadding)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    if (isReviewMode) "Score enregistré" else "Ton Score",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = dimensions.bodyMedium
-                )
-                Text(
-                    text = "${if (questions.isNotEmpty()) (score.toFloat() / questions.size * 100).toInt() else 0}%",
-                    fontSize = dimensions.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "$score / ${questions.size}",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = dimensions.titleMedium,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+        // --- HEADER FIXE ---
         Text(
-            text = "RÉCAPITULATIF",
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = dimensions.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = dimensions.bodySmall / 6
+            text = "Résultats",
+            fontSize = dimensions.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = dimensions.itemSpacing)
         )
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 1.5f))
-
-        // Affichage des récompenses selon le contexte
-        if ((quizType == PointsManager.QuizType.DAILY && wasAlreadyDone) || isReviewMode) {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = dimensions.itemSpacing),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
-            ) {
-                Column(modifier = Modifier.padding(dimensions.cardPadding), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(32.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("Mode Entraînement", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, fontSize = dimensions.bodyLarge)
-                    Text(
-                        text = if (quizType == PointsManager.QuizType.DAILY)
-                            "Tes points et ta dette pour ce quiz ont déjà été enregistrés lors de ta première tentative aujourd'hui."
-                        else "Consultation de tes résultats précédents. Aucun point n'est ajouté.",
-                        textAlign = TextAlign.Center,
-                        fontSize = dimensions.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-            }
-        } else {
-            QuizRewardCard(score, questions.size, quizType, redevance, oldBestScore, dimensions)
-        }
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        Text(
-            text = "DÉTAILS DES RÉPONSES",
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = dimensions.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-
+        // --- LISTE SCROLLABLE CONTENANT TOUT LE RESTE ---
         LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 1.5f),
             contentPadding = PaddingValues(bottom = dimensions.itemSpacing)
         ) {
+            // Section Score
+            item {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(dimensions.cornerRadiusLarge)) {
+                    Column(
+                        modifier = Modifier
+                            .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))))
+                            .padding(dimensions.cardPadding)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            if (isReviewMode) "Score enregistré" else "Ton Score",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontSize = dimensions.bodyMedium
+                        )
+                        Text(
+                            text = "${if (questions.isNotEmpty()) (score.toFloat() / questions.size * 100).toInt() else 0}%",
+                            fontSize = dimensions.displayLarge,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "$score / ${questions.size}",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontSize = dimensions.titleMedium,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+            }
+
+            // Section Récompenses ou Mode Entraînement
+            item {
+                if ((quizType == PointsManager.QuizType.DAILY && wasAlreadyDone) || isReviewMode) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+                    ) {
+                        Row(modifier = Modifier.padding(dimensions.cardPadding), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.secondary)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Points déjà enregistrés pour aujourd'hui.", fontSize = dimensions.bodySmall)
+                        }
+                    }
+                } else {
+                    QuizRewardCard(score, questions.size, quizType, redevance, oldBestScore, dimensions)
+                }
+            }
+
+            item {
+                Text(
+                    text = "DÉTAILS DES RÉPONSES",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = dimensions.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            // Liste des questions
             itemsIndexed(questions) { index, question ->
                 val userChoice = userAnswers[index]
                 val isCorrect = userChoice == question.correctAnswerIndex
@@ -517,69 +510,31 @@ private fun FinalResultContent(
                     colors = CardDefaults.cardColors(
                         containerColor = if (isCorrect) MaterialTheme.successColors.successContainer else MaterialTheme.colorScheme.errorContainer
                     ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isCorrect) MaterialTheme.successColors.success else MaterialTheme.colorScheme.error
-                    )
+                    border = BorderStroke(1.dp, if (isCorrect) MaterialTheme.successColors.success else MaterialTheme.colorScheme.error)
                 ) {
                     Column(modifier = Modifier.padding(dimensions.cardPadding)) {
-                        Text(
-                            text = "Q${index + 1}: ${question.questionText}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = dimensions.bodyMedium
-                        )
+                        Text("Q${index + 1}: ${question.questionText}", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyMedium)
                         Text(
                             text = "Ta réponse : ${question.options.getOrNull(userChoice ?: -1) ?: "Aucune"}",
                             fontSize = dimensions.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             textDecoration = TextDecoration.Underline
                         )
-                        if (!isCorrect) {
-                            Text(
-                                text = "Correct : ${question.options[question.correctAnswerIndex]}",
-                                fontSize = dimensions.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.successColors.success
-                            )
-                        }
                     }
                 }
             }
         }
 
-        if (!isReviewMode) {
-            OutlinedButton(
-                onClick = onRetry,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(dimensions.buttonHeight),
-                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-            ) {
-                Text(
-                    "Recommencer le quiz",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimensions.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-        }
-
+        // --- BOUTON FIXE EN BAS ---
         Button(
             onClick = onBackToCourse,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(vertical = dimensions.itemSpacing)
                 .height(dimensions.buttonHeight),
-            shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge)
         ) {
-            Text(
-                if (isReviewMode) "Retour" else "Quitter",
-                fontWeight = FontWeight.Bold,
-                fontSize = dimensions.bodyLarge
-            )
+            Text(if (isReviewMode) "Retour" else "Quitter le quiz", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge)
         }
     }
 }
