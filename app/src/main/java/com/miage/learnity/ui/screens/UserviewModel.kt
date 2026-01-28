@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.UserProfile
 import com.miage.learnity.model.PointsManager
 import com.miage.learnity.repository.UserRepository
+import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,8 +27,8 @@ data class UserUiState(
  * ViewModel pour gérer le profil utilisateur et ses statistiques
  */
 class UserViewModel(
-    // ✅ 'val' au lieu de 'private val' pour permettre l'accès depuis QuizViewModel
-    val repository: UserRepository = UserRepository()
+    val repository: UserRepository = UserRepository(),
+    private val progressRepository: UserProgressRepository = UserProgressRepository() // ✅ Ajouté pour vérifier le record
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserUiState())
@@ -37,10 +38,6 @@ class UserViewModel(
         observeProfile()
         checkAndApplyAttendancePenalty()
     }
-
-    // ============================================
-    // GESTION DU PROFIL (Temps réel)
-    // ============================================
 
     private fun observeProfile() {
         viewModelScope.launch {
@@ -55,13 +52,9 @@ class UserViewModel(
     }
 
     // ============================================
-    // ⭐ LE CŒUR : TRAITEMENT DES RÉSULTATS (High Score)
+    // ⭐ TRAITEMENT DES RÉSULTATS (CORRIGÉ)
     // ============================================
 
-    /**
-     * Appelle la transaction sécurisée pour mettre à jour les points
-     * en fonction du record personnel de l'utilisateur.
-     */
     fun processQuizResult(
         quizType: PointsManager.QuizType,
         score: Int,
@@ -71,23 +64,30 @@ class UserViewModel(
     ) {
         val profile = _uiState.value.profile ?: return
 
-        // 1. Calcul des gains potentiels via le PointsManager
-        val result = PointsManager.calculateResults(
-            type = quizType,
-            score = score,
-            totalQuestions = totalQuestions,
-            profile = profile
-        )
-
-        // 2. Sauvegarde via la transaction High Score du Repository
         viewModelScope.launch {
+            // 1. On récupère le record actuel en base pour le calcul
+            val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
+            val oldBestScore = progress?.bestScore ?: 0
+            val wasAlreadyPerfect = oldBestScore == totalQuestions
+
+            // 2. Calcul des gains REELS via le PointsManager (Sécurité progression)
+            val result = PointsManager.calculateResults(
+                type = quizType,
+                score = score,
+                totalQuestions = totalQuestions,
+                oldBestScore = oldBestScore, // ✅ Paramètre manquant corrigé
+                profile = profile,
+                wasAlreadyPerfect = wasAlreadyPerfect // ✅ Paramètre bonus ajouté
+            )
+
+            // 3. Sauvegarde via la transaction Firestore
             repository.updateStatsWithHighscore(
                 courseId = courseId,
                 chapterId = chapterId,
                 newScore = score,
                 totalQuestions = totalQuestions,
                 quizType = quizType,
-                pointsCalculated = result.pointsGained,
+                pointsCalculated = result.progressionPoints, // ✅ Renommé
                 bonusCalculated = result.bonusGained,
                 debtCalculated = result.debtAdded
             ).onFailure { e ->
@@ -97,13 +97,12 @@ class UserViewModel(
     }
 
     // ============================================
-    // VÉRIFICATION D'ASSIDUITÉ (Pénalité)
+    // VÉRIFICATION D'ASSIDUITÉ
     // ============================================
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
             val profile = repository.getUserProfile().getOrNull() ?: return@launch
-
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayStr = sdf.format(Date())
 
@@ -125,10 +124,6 @@ class UserViewModel(
             }
         }
     }
-
-    // ============================================
-    // ACTIONS PARAMÈTRES
-    // ============================================
 
     fun updateRedevance(newValue: Double) {
         viewModelScope.launch {

@@ -107,7 +107,15 @@ data class Quiz(
     val title: String = "",
     val questions: List<Question> = emptyList()
 )
-
+data class QuizHistory(
+    val id: String = "",          // ID unique du document Firestore
+    val date: String = "",        // Ex: "28/01/26"
+    val hour: String = "",        // Ex: "10:34"
+    val score: Int = 0,
+    val total: Int = 0,
+    val pointsGained: Int = 0,    // Le gain net (nouveaux points)
+    val timestamp: Long = 0L      // Pour le tri (du plus récent au plus ancien)
+)
 data class Question(
     @SerializedName("text") val questionText: String = "",
     @SerializedName("options") val options: List<String> = emptyList(),

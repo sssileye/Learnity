@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.data.Course
 import com.miage.learnity.data.CourseProgress
+import com.miage.learnity.data.QuizHistory
 import com.miage.learnity.repository.CourseRepository
+import com.miage.learnity.repository.QuizRepository
 import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,7 +19,8 @@ import kotlinx.coroutines.launch
 
 class CourseDetailViewModel(
     private val courseRepository: CourseRepository = CourseRepository(),
-    private val progressRepository: UserProgressRepository = UserProgressRepository()
+    private val progressRepository: UserProgressRepository = UserProgressRepository(),
+    private val quizRepository: QuizRepository = QuizRepository() // ✅ Ajouté pour l'historique
 ) : ViewModel() {
 
     private val _course = MutableStateFlow<Course?>(null)
@@ -25,6 +28,10 @@ class CourseDetailViewModel(
 
     private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
     val chapters: StateFlow<List<Chapter>> = _chapters.asStateFlow()
+
+    // ⭐ État pour l'historique des Examens Blancs
+    private val _examHistory = MutableStateFlow<List<QuizHistory>>(emptyList())
+    val examHistory: StateFlow<List<QuizHistory>> = _examHistory.asStateFlow()
 
     private val _isExamUnlocked = MutableStateFlow(false)
     val isExamUnlocked: StateFlow<Boolean> = _isExamUnlocked.asStateFlow()
@@ -35,9 +42,9 @@ class CourseDetailViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // ⭐ SOLUTION AU BUG DU 2/2 : Un Flow qui calcule la progression en temps réel
+    // Calcul de la progression en temps réel
     val courseProgress: StateFlow<CourseProgress> = _chapters.map { list ->
-        val completed = list.count { it.isQuizCompleted } // Ou it.isContentCompleted selon ta règle
+        val completed = list.count { it.isQuizCompleted }
         CourseProgress(completedChapters = completed, totalChapters = list.size)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CourseProgress(0, 0))
 
@@ -48,22 +55,41 @@ class CourseDetailViewModel(
             _isLoading.value = true
             _error.value = null
 
+            // 1. Charger les détails du cours
             courseRepository.getCourse(courseId).onSuccess { _course.value = it }
                 .onFailure { _error.value = it.message ?: "Erreur chargement cours" }
 
+            // 2. Charger les chapitres
             courseRepository.getChapters(courseId).onSuccess { chapters ->
                 baseChapters = chapters
                 _chapters.value = chapters
                 startProgressListener(courseId)
             }.onFailure { _error.value = it.message ?: "Erreur chargement chapitres" }
 
+            // 3. Charger l'historique des examens blancs de cette UE
+            loadExamHistory(courseId)
+
             _isLoading.value = false
         }
     }
 
     /**
+     * ✅ RÉCUPÉRATION DE L'HISTORIQUE DES EXAMENS BLANCS
+     * On filtre sur "ALL_CHAPTERS" pour isoler les tentatives d'UE
+     */
+    private fun loadExamHistory(courseId: String) {
+        viewModelScope.launch {
+            quizRepository.getQuizHistory(courseId, "ALL_CHAPTERS").onSuccess { history ->
+                _examHistory.value = history
+            }.onFailure {
+                _examHistory.value = emptyList()
+            }
+        }
+    }
+
+    /**
      * ✅ ÉCOUTEUR TEMPS RÉEL : Met à jour l'UI dès que l'utilisateur
-     * finit un PDF ou un Quiz.
+     * finit un support ou un Quiz.
      */
     private fun startProgressListener(courseId: String) {
         viewModelScope.launch {
@@ -81,16 +107,15 @@ class CourseDetailViewModel(
                             isFdrRead = isFdrRead,
                             isVideoWatched = progress?.isVideoWatched ?: false,
                             isQuizCompleted = isQuizDone,
-                            // ✅ IMPORTANT : On récupère le score pour l'affichage UI
                             bestScore = progress?.bestScore ?: 0,
-                            // ✅ Déblocage : Si au moins un support est lu
+                            // Déblocage Quiz : Si au moins un support est lu
                             isQuizUnlocked = isCoursRead || isFdrRead
                         )
                     }
 
                     _chapters.value = updatedChapters
 
-                    // Déblocage de l'examen si tous les quiz de chapitres sont faits
+                    // ✅ Déblocage de l'examen si tous les quiz de chapitres sont faits
                     _isExamUnlocked.value = updatedChapters.isNotEmpty() &&
                             updatedChapters.all { it.isQuizCompleted }
                 }

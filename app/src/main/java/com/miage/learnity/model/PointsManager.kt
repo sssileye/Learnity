@@ -12,38 +12,43 @@ object PointsManager {
     }
 
     data class QuizResult(
-        val pointsGained: Int, // Points de base (score)
-        val bonusGained: Int,  // Bonus "Perfect" uniquement
+        val progressionPoints: Int, // Gain réel par rapport au record
+        val bonusGained: Int,       // Bonus si c'est le premier Perfect
         val debtAdded: Double,
         val isPerfect: Boolean
     )
 
     /**
-     * Calcule le gain potentiel d'une session.
-     * Note : La logique de comparaison avec l'ancien record (High Score)
-     * se fera dans le Repository lors de la transaction.
+     * Calcule le gain REEL d'une session.
+     * Prend en compte l'ancien record pour ne pas payer deux fois les mêmes points.
      */
     fun calculateResults(
         type: QuizType,
         score: Int,
         totalQuestions: Int,
-        profile: UserProfile
+        oldBestScore: Int,      // ✅ Ajouté pour calculer la différence
+        profile: UserProfile,
+        wasAlreadyPerfect: Boolean = false // ✅ Ajouté pour le bonus one-shot
     ): QuizResult {
         val isPerfect = score == totalQuestions
         var debt = 0.0
-        var bonus = 0
+        var rawBonus = 0
 
-        // 1. Calcul du Bonus "Perfect" (One-shot)
-        if (isPerfect) {
-            bonus = when (type) {
+        // 1. Calcul de la Progression Réelle
+        // Si je fais 5/20 et que mon record était 5/20, progression = 0.
+        val rawProgression = if (score > oldBestScore) score - oldBestScore else 0
+
+        // 2. Calcul du Bonus "Perfect"
+        // Accordé uniquement si score max ET jamais fait de perfect avant
+        if (isPerfect && !wasAlreadyPerfect) {
+            rawBonus = when (type) {
                 QuizType.CHAPTER -> 3
                 QuizType.DAILY -> 5
                 QuizType.EXAM -> 10
             }
         }
 
-        // 2. Calcul de la Dette (Uniquement QDJ)
-        // Correction du bug : (Redevance / Nb total questions) * erreurs
+        // 3. Calcul de la Dette (Uniquement Quotidien)
         if (type == QuizType.DAILY) {
             val errors = totalQuestions - score
             if (errors > 0) {
@@ -52,22 +57,14 @@ object PointsManager {
             }
         }
 
-        // 3. Application du Multiplicateur (Uniquement QDJ)
-        // Si c'est un QDJ, on multiplie le score de base et le bonus
-        val finalBasePoints = if (type == QuizType.DAILY) {
-            (score * getStreakMultiplier(profile.currentStreak)).roundToInt()
-        } else {
-            score
-        }
+        // 4. Application du Multiplicateur de Streak (Uniquement Quotidien)
+        val multiplier = if (type == QuizType.DAILY) getStreakMultiplier(profile.currentStreak) else 1.0
 
-        val finalBonus = if (type == QuizType.DAILY) {
-            (bonus * getStreakMultiplier(profile.currentStreak)).roundToInt()
-        } else {
-            bonus
-        }
+        val finalProgression = (rawProgression * multiplier).roundToInt()
+        val finalBonus = (rawBonus * multiplier).roundToInt()
 
         return QuizResult(
-            pointsGained = finalBasePoints,
+            progressionPoints = finalProgression,
             bonusGained = finalBonus,
             debtAdded = debt,
             isPerfect = isPerfect

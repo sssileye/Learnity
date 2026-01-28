@@ -4,8 +4,10 @@ import android.icu.text.SimpleDateFormat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Query
 import com.miage.learnity.data.Question
 import com.miage.learnity.data.Quiz
+import com.miage.learnity.data.QuizHistory
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +15,6 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.Locale
-import com.google.firebase.firestore.Query
 
 class QuizRepository {
 
@@ -22,7 +23,7 @@ class QuizRepository {
     private val gson = Gson()
 
     // ============================================
-    // RÉCUPÉRATION DES QUIZ CLASSIQUES
+    // RÉCUPÉRATION DES QUIZ
     // ============================================
 
     suspend fun getQuizForChapter(courseId: String, chapterId: String): Result<Quiz> =
@@ -88,102 +89,141 @@ class QuizRepository {
         }
 
     // ============================================
-    // ⭐ QUIZ DU JOUR (AVEC BARRE DE PROGRESSION)
+    // QUIZ DU JOUR
     // ============================================
 
     suspend fun getDailyQuiz(
         isDiscoveryMode: Boolean,
-        onProgress: (Float) -> Unit // ⭐ Callback pour la barre de chargement
-    ): Result<Quiz> =
+        onProgress: (Float) -> Unit
+    ): Result<Quiz> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val mode = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
+            val dailyDocId = "${userId}_${today}_${mode}"
+
+            val existingDaily = firestore.collection("daily_quizzes_generated").document(dailyDocId).get().await()
+
+            if (existingDaily.exists()) {
+                onProgress(1.0f)
+                val questionsJson = existingDaily.getString("questionsJson")
+                if (!questionsJson.isNullOrEmpty()) {
+                    return@withContext Result.success(
+                        Quiz("DAILY_QUIZ", "GLOBAL", mode, "Quiz du Jour", parseQuestions(questionsJson))
+                    )
+                }
+            }
+
+            val allQuestionsPool = mutableListOf<Question>()
+            val globalCoursesSnapshot = firestore.collection("courses").get().await()
+            val totalCourses = globalCoursesSnapshot.size()
+
+            globalCoursesSnapshot.documents.forEachIndexed { index, courseDoc ->
+                onProgress((index.toFloat() / totalCourses.toFloat()))
+                val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
+
+                for (chapterDoc in chaptersSnapshot.documents) {
+                    var shouldInclude = isDiscoveryMode
+                    if (!isDiscoveryMode) {
+                        val progressDoc = firestore.collection("user_progress")
+                            .document(userId).collection("courses").document(courseDoc.id)
+                            .collection("chapters").document(chapterDoc.id).get().await()
+
+                        if (progressDoc.exists() && progressDoc.getBoolean("isContentRead") == true) {
+                            shouldInclude = true
+                        }
+                    }
+                    if (shouldInclude) {
+                        chapterDoc.getString("quiz")?.let { allQuestionsPool.addAll(parseQuestions(it)) }
+                    }
+                }
+            }
+
+            if (allQuestionsPool.isEmpty()) return@withContext Result.failure(Exception("Aucune question"))
+
+            val selectedQuestions = allQuestionsPool.shuffled().take(10)
+            firestore.collection("daily_quizzes_generated").document(dailyDocId).set(mapOf(
+                "questionsJson" to gson.toJson(selectedQuestions),
+                "date" to today,
+                "userId" to userId
+            )).await()
+
+            onProgress(1.0f)
+            Result.success(Quiz("DAILY_QUIZ", "GLOBAL", mode, "Quiz du Jour", selectedQuestions))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ============================================
+    // ⭐ GESTION DE L'HISTORIQUE (NOUVEAU)
+    // ============================================
+
+    suspend fun saveQuizHistory(
+        courseId: String,
+        chapterId: String,
+        historyEntry: QuizHistory
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+
+            // On s'assure que l'entrée contient bien les IDs pour le filtrage futur
+            val entryWithIds = historyEntry.copy(
+                // On peut aussi ajouter des champs à la volée dans le Map si la data class ne les a pas
+            )
+
+            val finalData = mapOf(
+                "courseId" to courseId,
+                "chapterId" to chapterId,
+                "date" to historyEntry.date,
+                "hour" to historyEntry.hour,
+                "score" to historyEntry.score,
+                "total" to historyEntry.total,
+                "pointsGained" to historyEntry.pointsGained,
+                "timestamp" to historyEntry.timestamp
+            )
+
+            firestore.collection("quiz_results")
+                .document(userId)
+                .collection("history")
+                .add(finalData)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getQuizHistory(courseId: String, chapterId: String): Result<List<QuizHistory>> =
         withContext(Dispatchers.IO) {
             try {
                 val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                val mode = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
-                val dailyDocId = "${userId}_${today}_${mode}"
 
-                // 1. Vérifier si un quiz a déjà été généré
-                val existingDaily = firestore.collection("daily_quizzes_generated")
-                    .document(dailyDocId)
+                val snapshot = firestore.collection("quiz_results")
+                    .document(userId)
+                    .collection("history")
+                    .whereEqualTo("courseId", courseId)
+                    .whereEqualTo("chapterId", chapterId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
                     .get()
                     .await()
 
-                if (existingDaily.exists()) {
-                    onProgress(1.0f) // Chargement instantané si déjà en cache
-                    val questionsJson = existingDaily.getString("questionsJson")
-                    if (!questionsJson.isNullOrEmpty()) {
-                        return@withContext Result.success(
-                            Quiz("DAILY_QUIZ", "GLOBAL", mode, "Quiz du Jour", parseQuestions(questionsJson))
-                        )
-                    }
-                }
-
-                // 2. Scan de la base de données
-                val allQuestionsPool = mutableListOf<Question>()
-                val globalCoursesSnapshot = firestore.collection("courses").get().await()
-                val totalCourses = globalCoursesSnapshot.size()
-
-                globalCoursesSnapshot.documents.forEachIndexed { index, courseDoc ->
-                    // ⭐ Envoyer la progression au ViewModel (ex: 1/5 cours = 20%)
-                    onProgress((index.toFloat() / totalCourses.toFloat()))
-
-                    val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
-
-                    for (chapterDoc in chaptersSnapshot.documents) {
-                        var shouldInclude = isDiscoveryMode
-
-                        if (!isDiscoveryMode) {
-                            val progressDoc = firestore.collection("user_progress")
-                                .document(userId)
-                                .collection("courses")
-                                .document(courseDoc.id)
-                                .collection("chapters")
-                                .document(chapterDoc.id)
-                                .get()
-                                .await()
-
-                            if (progressDoc.exists() && progressDoc.getBoolean("isContentRead") == true) {
-                                shouldInclude = true
-                            }
-                        }
-
-                        if (shouldInclude) {
-                            chapterDoc.getString("quiz")?.let { allQuestionsPool.addAll(parseQuestions(it)) }
-                        }
-                    }
-                }
-
-                if (allQuestionsPool.isEmpty()) {
-                    return@withContext Result.failure(Exception("Aucune question trouvée."))
-                }
-
-                val selectedQuestions = allQuestionsPool.shuffled().take(10)
-
-                // 3. Sauvegarder le quiz du jour
-                firestore.collection("daily_quizzes_generated")
-                    .document(dailyDocId)
-                    .set(mapOf(
-                        "questionsJson" to gson.toJson(selectedQuestions),
-                        "date" to today,
-                        "userId" to userId
-                    ))
-                    .await()
-
-                onProgress(1.0f)
-                Result.success(Quiz("DAILY_QUIZ", "GLOBAL", mode, "Quiz du Jour", selectedQuestions))
+                val historyList = snapshot.toObjects(QuizHistory::class.java)
+                Result.success(historyList)
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
 
     // ============================================
-    // SCORES ET RÉPONSES
+    // RÉCUPÉRATION POUR HOMESCREEN (FIX)
     // ============================================
 
     suspend fun getLastDailyQuizScore(): Result<Pair<Int, Int>?> = withContext(Dispatchers.IO) {
         try {
             val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val today = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date())
 
             val snapshot = firestore.collection("quiz_results")
                 .document(userId)
@@ -195,7 +235,7 @@ class QuizRepository {
 
             if (snapshot.isEmpty) return@withContext Result.success(null)
 
-            val firstDoc = snapshot.documents.minByOrNull { it.getLong("completedAt") ?: Long.MAX_VALUE }
+            val firstDoc = snapshot.documents.minByOrNull { it.getLong("timestamp") ?: Long.MAX_VALUE }
             val score = firstDoc?.getLong("score")?.toInt() ?: 0
             val total = firstDoc?.getLong("total")?.toInt() ?: 10
 
@@ -205,30 +245,9 @@ class QuizRepository {
         }
     }
 
-    suspend fun getDailyQuizAnswers(): Result<Map<Int, Int>?> = withContext(Dispatchers.IO) {
-        try {
-            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-
-            val snapshot = firestore.collection("quiz_results")
-                .document(userId)
-                .collection("history")
-                .whereEqualTo("date", today)
-                .whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
-                .get()
-                .await()
-
-            if (snapshot.isEmpty) return@withContext Result.success(null)
-
-            val doc = snapshot.documents.minByOrNull { it.getLong("completedAt") ?: Long.MAX_VALUE }
-            val answersJson = doc?.getString("answersJson")
-
-            val type = object : TypeToken<Map<Int, Int>>() {}.type
-            Result.success(gson.fromJson(answersJson, type))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    // ============================================
+    // AUTRES SERVICES
+    // ============================================
 
     suspend fun saveQuizResult(
         courseId: String,
@@ -239,57 +258,40 @@ class QuizRepository {
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-            if (chapterId == "DISCOVERY" || chapterId == "REVIEW") {
-                val existing = firestore.collection("quiz_results")
-                    .document(userId)
-                    .collection("history")
-                    .whereEqualTo("date", today)
-                    .whereEqualTo("chapterId", chapterId)
-                    .get()
-                    .await()
-
-                if (!existing.isEmpty) return@withContext Result.success(Unit)
-            }
-
-            val resultData = mapOf(
-                "courseId" to courseId,
-                "chapterId" to chapterId,
-                "score" to score,
-                "total" to total,
-                "percentage" to (score.toFloat() / total * 100).toInt(),
-                "completedAt" to System.currentTimeMillis(),
-                "date" to today,
-                "answersJson" to gson.toJson(userAnswers)
-            )
-
-            firestore.collection("quiz_results").document(userId).collection("history").add(resultData).await()
-
+            // On conserve uniquement la mise à jour de la progression ici
             val specialModes = listOf("ALL_CHAPTERS", "DISCOVERY", "REVIEW")
             if (!specialModes.contains(chapterId)) {
                 firestore.collection("user_progress")
-                    .document(userId)
-                    .collection("courses")
-                    .document(courseId)
-                    .collection("chapters")
-                    .document(chapterId)
+                    .document(userId).collection("courses").document(courseId)
+                    .collection("chapters").document(chapterId)
                     .set(mapOf("isQuizCompleted" to true), SetOptions.merge())
                     .await()
             }
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    suspend fun getDailyQuizAnswers(): Result<Map<Int, Int>?> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val snapshot = firestore.collection("quiz_results").document(userId).collection("history")
+                .whereEqualTo("date", today).whereIn("chapterId", listOf("DISCOVERY", "REVIEW")).get().await()
+            if (snapshot.isEmpty) return@withContext Result.success(null)
+            val doc = snapshot.documents.minByOrNull { it.getLong("timestamp") ?: Long.MAX_VALUE }
+            val answersJson = doc?.getString("answersJson")
+            val type = object : TypeToken<Map<Int, Int>>() {}.type
+            Result.success(gson.fromJson(answersJson, type))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
     private fun parseQuestions(json: String): List<Question> {
         return try {
             val listType = object : TypeToken<List<Question>>() {}.type
             gson.fromJson(json, listType)
-        } catch (e: Exception) {
-            emptyList()
-        }
+        } catch (e: Exception) { emptyList() }
     }
 }
