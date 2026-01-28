@@ -1,0 +1,236 @@
+package com.miage.learnity.ui.screens.quiz
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.miage.learnity.data.Question
+import com.miage.learnity.data.Quiz
+import com.miage.learnity.model.PointsManager // ✅ Import du manager (dans model)
+import com.miage.learnity.repository.QuizRepository
+import com.miage.learnity.repository.UserProgressRepository
+import com.miage.learnity.ui.screens.UserViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class QuizViewModel(
+    private val repository: QuizRepository = QuizRepository(),
+    private val progressRepository: UserProgressRepository = UserProgressRepository()
+) : ViewModel() {
+
+    // --- États du Quiz ---
+    private val _quiz = MutableStateFlow<Quiz?>(null)
+    val quiz: StateFlow<Quiz?> = _quiz.asStateFlow()
+
+    private val _questions = MutableStateFlow<List<Question>>(emptyList())
+    val questions: StateFlow<List<Question>> = _questions.asStateFlow()
+
+    // --- Navigation & Progression ---
+    private val _currentQuestionIndex = MutableStateFlow(0)
+    val currentQuestionIndex: StateFlow<Int> = _currentQuestionIndex.asStateFlow()
+
+    private val _maxIndexReached = MutableStateFlow(0)
+    val maxIndexReached: StateFlow<Int> = _maxIndexReached.asStateFlow()
+
+    private val _userAnswers = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    val userAnswers: StateFlow<Map<Int, Int>> = _userAnswers.asStateFlow()
+
+    // --- États d'Affichage & Chargement ---
+    private val _isCurrentAnswerRevealed = MutableStateFlow(false)
+    val isCurrentAnswerRevealed: StateFlow<Boolean> = _isCurrentAnswerRevealed.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _loadingProgress = MutableStateFlow(0f)
+    val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
+
+    private val _isQuizFinished = MutableStateFlow(false)
+    val isQuizFinished: StateFlow<Boolean> = _isQuizFinished.asStateFlow()
+
+    private val _hasSeenSummary = MutableStateFlow(false)
+    val hasSeenSummary: StateFlow<Boolean> = _hasSeenSummary.asStateFlow()
+
+    private val _score = MutableStateFlow(0)
+    val score: StateFlow<Int> = _score.asStateFlow()
+
+    // ============================================
+    // CHARGEMENT DES DONNÉES
+    // ============================================
+
+    fun loadQuiz(courseId: String, chapterId: String) {
+        resetQuizState()
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.getQuizForChapter(courseId, chapterId).onSuccess { loadedQuiz ->
+                _quiz.value = loadedQuiz
+                _questions.value = loadedQuiz.questions
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun loadOldAnswers() {
+        viewModelScope.launch {
+            repository.getDailyQuizAnswers().onSuccess { oldAnswers ->
+                if (oldAnswers != null) {
+                    _userAnswers.value = oldAnswers
+                    calculateAndSetScore(oldAnswers)
+                }
+            }
+        }
+    }
+
+    fun loadMegaQuiz(courseId: String) {
+        resetQuizState()
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.getMegaQuizForCourse(courseId).onSuccess { megaQuiz ->
+                _quiz.value = megaQuiz
+                _questions.value = megaQuiz.questions
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun loadDailyQuiz(isDiscoveryMode: Boolean) {
+        resetQuizState()
+        viewModelScope.launch {
+            _isLoading.value = true
+            _loadingProgress.value = 0f
+            repository.getDailyQuiz(isDiscoveryMode) { progress ->
+                _loadingProgress.value = progress
+            }.onSuccess { dailyQuiz ->
+                _quiz.value = dailyQuiz
+                _questions.value = dailyQuiz.questions
+                _loadingProgress.value = 1f
+            }.onFailure {
+                _isLoading.value = false
+            }
+            _isLoading.value = false
+        }
+    }
+
+    // ============================================
+    // LOGIQUE DU JEU
+    // ============================================
+
+    fun selectAnswer(selectedIndex: Int) {
+        if (!_isCurrentAnswerRevealed.value && _currentQuestionIndex.value >= _maxIndexReached.value) {
+            _userAnswers.value = _userAnswers.value + (_currentQuestionIndex.value to selectedIndex)
+        }
+    }
+
+    fun validateAnswer() {
+        _isCurrentAnswerRevealed.value = true
+        val currentIndex = _currentQuestionIndex.value
+        if (currentIndex >= _maxIndexReached.value) {
+            _maxIndexReached.value = currentIndex + 1
+        }
+    }
+
+    fun nextQuestion() {
+        if (_currentQuestionIndex.value < _questions.value.size - 1) {
+            _currentQuestionIndex.value++
+            _isCurrentAnswerRevealed.value = _currentQuestionIndex.value < _maxIndexReached.value
+        } else {
+            // La fin du quiz est déclenchée ici par l'écran via processFinalResults
+            _isQuizFinished.value = true
+        }
+    }
+
+    fun previousQuestion() {
+        if (_currentQuestionIndex.value > 0) {
+            _currentQuestionIndex.value--
+            _isCurrentAnswerRevealed.value = true
+        }
+    }
+
+    // ============================================
+    // ⭐ SYSTÈME DE POINTS ET FINALISATION
+    // ============================================
+
+    /**
+     * ✅ NOUVEAU : Traite les résultats finaux (Appelé par QuizScreen)
+     */
+    fun processFinalResults(
+        quizType: PointsManager.QuizType,
+        userViewModel: UserViewModel,
+        courseId: String,
+        chapterId: String
+    ) {
+        val currentQuiz = _quiz.value ?: return
+        calculateAndSetScore(_userAnswers.value)
+        val finalScore = _score.value
+        val totalQuestions = _questions.value.size
+
+        viewModelScope.launch {
+            // 1. Sauvegarde des réponses brutes (Historique)
+            repository.saveQuizResult(
+                courseId = currentQuiz.courseId,
+                chapterId = currentQuiz.chapterId,
+                score = finalScore,
+                total = totalQuestions,
+                userAnswers = _userAnswers.value
+            )
+
+            // 2. Calcul et MAJ des Points / Dette / Streak via UserViewModel
+            userViewModel.processQuizResult(
+                quizType = quizType,
+                score = finalScore,
+                totalQuestions = totalQuestions
+            )
+
+            // 3. Si c'est un quiz de chapitre, on valide le chapitre dans Firestore
+            if (quizType == PointsManager.QuizType.CHAPTER) {
+                progressRepository.markContentAsCompleted(
+                    courseId = courseId,
+                    chapterId = chapterId,
+                    contentType = UserProgressRepository.ContentType.QUIZ,
+                    quizType = quizType
+                )
+            }
+
+            _isQuizFinished.value = true
+        }
+    }
+
+    private fun calculateAndSetScore(answers: Map<Int, Int>) {
+        var finalScore = 0
+        _questions.value.forEachIndexed { index, question ->
+            if (answers[index] == question.correctAnswerIndex) {
+                finalScore++
+            }
+        }
+        _score.value = finalScore
+    }
+
+    // ============================================
+    // UTILS
+    // ============================================
+
+    fun markSummaryAsSeen() { _hasSeenSummary.value = true }
+
+    fun goToQuestionForReview(index: Int) {
+        _currentQuestionIndex.value = index
+        _isCurrentAnswerRevealed.value = true
+        _isQuizFinished.value = false
+    }
+
+    fun returnToSummary() { _isQuizFinished.value = true }
+
+    private fun resetQuizState() {
+        _currentQuestionIndex.value = 0
+        _maxIndexReached.value = 0
+        _userAnswers.value = emptyMap()
+        _isCurrentAnswerRevealed.value = false
+        _isQuizFinished.value = false
+        _hasSeenSummary.value = false
+        _score.value = 0
+        _quiz.value = null
+        _questions.value = emptyList()
+        _loadingProgress.value = 0f
+    }
+
+    fun resetQuiz() { resetQuizState() }
+}

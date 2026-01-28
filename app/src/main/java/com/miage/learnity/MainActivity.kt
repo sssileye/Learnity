@@ -5,30 +5,53 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.compose.rememberNavController
-import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.runtime.*
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.miage.learnity.ui.navigation.AppNav
 import com.miage.learnity.ui.theme.LearnityTheme
+import com.miage.learnity.ui.theme.ThemeViewModel
+import com.miage.learnity.ui.theme.ThemeViewModelFactory
+import com.miage.learnity.ui.utils.LocalFontSize
 
 class MainActivity : ComponentActivity() {
+
+    // ✅ ViewModel créé avec factory
+    private val themeViewModel: ThemeViewModel by viewModels {
+        ThemeViewModelFactory(applicationContext)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-        val auth = FirebaseAuth.getInstance()
-        auth.signOut()
+
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         )
+
+        hideSystemBars()
+
         setContent {
-            MaterialTheme {
-                AppNav()
+            // ✅ Observe le thème via ViewModel
+            val settings by themeViewModel.settings.collectAsState()
+
+            LearnityTheme(darkTheme = settings.isDarkMode) {
+                CompositionLocalProvider(LocalFontSize provides settings.fontSize) {
+                    AppNav()
+                }
             }
         }
+    }
+
+    private fun hideSystemBars() {
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
     }
 }
