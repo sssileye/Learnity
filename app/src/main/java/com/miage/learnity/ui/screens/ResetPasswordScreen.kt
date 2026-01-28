@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +35,7 @@ fun ResetPasswordScreen(
     error: String? = null,
     success: Boolean = false
 ) {
-    // ✅ DIMENSIONS RESPONSIVES
+    // âœ… DIMENSIONS RESPONSIVES
     val dimensions = rememberResponsiveDimensions()
     val context = LocalContext.current
 
@@ -64,7 +65,7 @@ fun ResetPasswordScreen(
         if (success) {
             Toast.makeText(
                 context,
-                "Email de réinitialisation envoyé ! Vérifiez votre boîte mail.",
+                "Email de réinitialisation envoyÃ© ! Vérifiez votre boîte mail.",
                 Toast.LENGTH_LONG
             ).show()
             onResetSuccess()
@@ -87,53 +88,53 @@ fun ResetPasswordScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundColor
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
-        containerColor = BackgroundColor
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = dimensions.screenPaddingHorizontal)  // ✅ Responsive
-                .responsiveMaxWidth(dimensions)  // ✅ Limite largeur
+                .padding(horizontal = dimensions.screenPaddingHorizontal)  // … Responsive
+                .responsiveMaxWidth(dimensions)  // … Limite largeur
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))  // … Responsive
 
             // Logo - RESPONSIVE
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo",
-                modifier = Modifier.size(dimensions.logoSize)  // ✅ 100.sdp()
+                modifier = Modifier.size(dimensions.logoSize)  // … 100.sdp()
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
 
             // Titre - RESPONSIVE
             Text(
-                text = "Mot de passe oublié ?",
-                fontSize = dimensions.titleMedium,  // ✅ 20.ssp() (plus petit)
-                color = TextDark,
+                text = "Mot de passe oubliÃ© ?",
+                fontSize = dimensions.titleMedium,  // … 20.ssp() (plus petit)
+                color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
 
             // Description - RESPONSIVE
             Text(
                 text = "Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
-                fontSize = dimensions.bodyMedium,  // ✅ 14.ssp()
-                color = TextGray,
+                fontSize = dimensions.bodyMedium,  // … 14.ssp()
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = dimensions.itemSpacing)  // ✅ Responsive
+                modifier = Modifier.padding(horizontal = dimensions.itemSpacing)  // … Responsive
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // … Responsive
 
             // Email Field - RESPONSIVE
             OutlinedTextField(
@@ -145,19 +146,19 @@ fun ResetPasswordScreen(
                 label = { Text("Email") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // … 12.dp
                 isError = emailError.isNotEmpty(),
                 supportingText = {
                     if (emailError.isNotEmpty()) {
                         Text(
                             text = emailError,
-                            fontSize = dimensions.bodySmall  // ✅ 12.ssp()
+                            fontSize = dimensions.bodySmall  // … 12.ssp()
                         )
                     }
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                    fontSize = dimensions.bodyLarge  // … 16.ssp()
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -165,7 +166,7 @@ fun ResetPasswordScreen(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // … Responsive
 
             // Bouton Réinitialiser - RESPONSIVE
             Button(
@@ -177,9 +178,9 @@ fun ResetPasswordScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(dimensions.buttonHeight),  // ✅ 56.sdp()
+                    .height(dimensions.buttonHeight),  // … 56.sdp()
                 enabled = isButtonEnabled,
-                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),  // ✅ 16.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),  // … 16.dp
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF635BFF),
                     disabledContainerColor = Color.LightGray
@@ -188,19 +189,19 @@ fun ResetPasswordScreen(
                 if (isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp()
+                        modifier = Modifier.size(dimensions.iconSizeMedium)  // … 24.sdp()
                     )
                 } else {
                     Text(
                         "Envoyer le lien",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = dimensions.bodyLarge  // ✅ 16.ssp()
+                        fontSize = dimensions.bodyLarge  // … 16.ssp()
                     )
                 }
             }
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // ✅ Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // … Responsive
 
             // Lien retour connexion - RESPONSIVE
             TextButton(onClick = onBackClick) {
@@ -208,14 +209,14 @@ fun ResetPasswordScreen(
                     text = "Retour à la connexion",
                     color = Color(0xFF635BFF),
                     fontWeight = FontWeight.Medium,
-                    fontSize = dimensions.bodyMedium  // ✅ 14.ssp()
+                    fontSize = dimensions.bodyMedium  // … 14.ssp()
                 )
             }
         }
     }
 }
 
-// ✅ PREVIEWS MULTI-TAILLES
+//  PREVIEWS MULTI-TAILLES
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
 @Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)

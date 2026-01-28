@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,19 +24,19 @@ fun AuthScreen(
     onLoginClick: () -> Unit,
     onSignupClick: () -> Unit
 ) {
-    // 🎨 Dimensions responsives
+    // ðŸŽ¨ Dimensions responsives
     val dimensions = rememberResponsiveDimensions()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundColor)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = dimensions.screenPaddingHorizontal)
-                .responsiveMaxWidth(dimensions), // ✅ Limite la largeur sur grands écrans
+                .responsiveMaxWidth(dimensions), // âœ… Limite la largeur sur grands Ã©crans
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -43,18 +44,18 @@ fun AuthScreen(
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo Learnity",
-                modifier = Modifier.size(dimensions.logoSize), // ✅ 100.sdp()
+                modifier = Modifier.size(dimensions.logoSize), // âœ… 100.sdp()
                 contentScale = ContentScale.Fit
             )
 
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2)) // ✅ Spacing adaptatif
+            Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2)) // âœ… Spacing adaptatif
 
             // Titre - typographie responsive
             Text(
                 text = "LEARNITY",
-                fontSize = dimensions.displayLarge, // ✅ 40.ssp()
+                fontSize = dimensions.displayLarge, // âœ… 40.ssp()
                 fontWeight = FontWeight.ExtraBold,
-                color = TextDark,
+                color = MaterialTheme.colorScheme.onBackground,
                 letterSpacing = 2.sp
             )
 
@@ -65,15 +66,15 @@ fun AuthScreen(
                 onClick = onLoginClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(dimensions.buttonHeight), // ✅ 56.sdp()
-                shape = RoundedCornerShape(dimensions.cornerRadiusLarge), // ✅ 16.dp
+                    .height(dimensions.buttonHeight), // âœ… 56.sdp()
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge), // âœ… 16.dp
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF635BFF)
                 )
             ) {
                 Text(
                     text = "Se connecter",
-                    fontSize = dimensions.bodyLarge, // ✅ 16.ssp()
+                    fontSize = dimensions.bodyLarge, // âœ… 16.ssp()
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )

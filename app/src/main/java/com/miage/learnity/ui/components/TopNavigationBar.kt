@@ -26,57 +26,54 @@ fun TopNavigationBar(
     onProfileClick: () -> Unit,
     onLogoClick: () -> Unit = {}
 ) {
-    // ✅ DIMENSIONS RESPONSIVES
     val dimensions = rememberResponsiveDimensions()
 
     Surface(
         shadowElevation = 4.dp,
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,  // ✅ CHANGÉ
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = dimensions.screenPaddingHorizontal,  // ✅ Responsive
-                    vertical = dimensions.itemSpacing  // ✅ Responsive (12dp adaptatif)
+                    horizontal = dimensions.screenPaddingHorizontal,
+                    vertical = dimensions.itemSpacing
                 )
                 .statusBarsPadding(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ✅ Logo Learnity CLIQUABLE - RESPONSIVE
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clickable(onClick = onLogoClick)
-                    .padding(dimensions.itemSpacing / 2)  // ✅ Zone de clic responsive
+                    .padding(dimensions.itemSpacing / 2)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
                     contentDescription = "Logo Learnity",
-                    modifier = Modifier.size(dimensions.iconSizeLarge),  // ✅ 48.sdp() (était 32.dp)
+                    modifier = Modifier.size(dimensions.iconSizeLarge),
                     contentScale = ContentScale.Fit
                 )
-                Spacer(modifier = Modifier.width(dimensions.itemSpacing / 2))  // ✅ Responsive
+                Spacer(modifier = Modifier.width(dimensions.itemSpacing / 2))
                 Text(
                     text = "LEARNITY",
-                    fontSize = dimensions.titleMedium,  // ✅ 20.ssp() (était 18.sp)
+                    fontSize = dimensions.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF635BFF)
+                    color = MaterialTheme.colorScheme.primary  // ✅ CHANGÉ
                 )
             }
 
-            // Bouton Profil - RESPONSIVE
             IconButton(
                 onClick = onProfileClick,
-                modifier = Modifier.size(dimensions.iconSizeLarge)  // ✅ 48.sdp() (était 32.dp)
+                modifier = Modifier.size(dimensions.iconSizeLarge)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(dimensions.iconSizeLarge)  // ✅ Responsive
+                        .size(dimensions.iconSizeLarge)
                         .background(
-                            color = Color(0xFFE8E0FF),
+                            color = MaterialTheme.colorScheme.primaryContainer,  // ✅ CHANGÉ
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -84,8 +81,8 @@ fun TopNavigationBar(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Profil",
-                        tint = Color(0xFF635BFF),
-                        modifier = Modifier.size(dimensions.iconSizeMedium)  // ✅ 24.sdp() (était 18.dp)
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,  // ✅ CHANGÉ
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
                     )
                 }
             }
@@ -93,15 +90,16 @@ fun TopNavigationBar(
     }
 }
 
-// ✅ PREVIEWS MULTI-TAILLES
 @Preview(name = "Petit (320dp)", widthDp = 320)
 @Preview(name = "Moyen (360dp)", widthDp = 360)
 @Preview(name = "Grand (410dp)", widthDp = 410)
 @Preview(name = "Tablette (600dp)", widthDp = 600)
 @Composable
 fun TopNavigationBarPreview() {
-    TopNavigationBar(
-        onProfileClick = { },
-        onLogoClick = { }
-    )
+    MaterialTheme {
+        TopNavigationBar(
+            onProfileClick = { },
+            onLogoClick = { }
+        )
+    }
 }

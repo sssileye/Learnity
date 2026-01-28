@@ -181,15 +181,16 @@ class UserRepository {
     // Fonction pour déduire de la dette virtuelle de l'utilisateur
     suspend fun deductFromDebt(amount: Double): Result<Unit> {
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("Non connecté"))
-        val userRef = db.collection("users").document(userId)
+        val userRef = firestore.collection("users").document(userId) // Utilise 'firestore' au lieu de 'db' pour la cohérence
 
         return try {
-            db.runTransaction { transaction ->
+            firestore.runTransaction { transaction ->
                 val snapshot = transaction.get(userRef)
-                val currentDebt = snapshot.getDouble("virtualDebt") ?: 0.0
-                // On déduit sans descendre sous 0
+                // 🎯 CHANGE "virtualDebt" par "detteCumulee" pour correspondre au reste du fichier
+                val currentDebt = snapshot.getDouble("detteCumulee") ?: 0.0
+
                 val newDebt = (currentDebt - amount).coerceAtLeast(0.0)
-                transaction.update(userRef, "virtualDebt", newDebt)
+                transaction.update(userRef, "detteCumulee", newDebt)
             }.await()
             Result.success(Unit)
         } catch (e: Exception) {

@@ -79,6 +79,10 @@ dependencies {
     implementation(libs.ui)
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.datastore.core)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.core)
 
     // Tests
     testImplementation(libs.junit)

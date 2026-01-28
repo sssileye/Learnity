@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +51,7 @@ fun Inscription(
     var showConfirmPassword by remember { mutableStateOf(false) }
     var acceptCGU by remember { mutableStateOf(false) }
 
-    // États d'erreur
+    // états d'erreur
     var firstNameError by remember { mutableStateOf("") }
     var lastNameError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
@@ -61,7 +62,7 @@ fun Inscription(
     fun validateName(name: String, fieldName: String): Pair<Boolean, String> {
         return when {
             name.isBlank() -> false to "$fieldName requis"
-            name.length < 2 -> false to "Au moins 2 caractères"
+            name.length < 2 -> false to "Au moins 2 caractÃ¨res"
             !name.all { it.isLetter() || it.isWhitespace() || it == '-' } -> false to "Lettres uniquement"
             else -> true to ""
         }
@@ -137,11 +138,11 @@ fun Inscription(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundColor
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
-        containerColor = BackgroundColor
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         Column(
             modifier = Modifier
@@ -165,13 +166,13 @@ fun Inscription(
             Text(
                 text = "Rejoignez-nous !",
                 fontSize = dimensions.titleLarge,
-                color = TextDark,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.ExtraBold
             )
 
             Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
-            // PRÉNOM
+            // PRENOM
             OutlinedTextField(
                 value = firstName,
                 onValueChange = {
@@ -418,7 +419,7 @@ fun Inscription(
                 )
                 Text(
                     text = "J'accepte les conditions générales d'utilisation",
-                    color = TextGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = dimensions.bodyMedium
                 )
             }

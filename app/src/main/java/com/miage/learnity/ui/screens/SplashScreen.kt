@@ -4,25 +4,20 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miage.learnity.R
-import com.miage.learnity.ui.theme.BackgroundColor
-import com.miage.learnity.ui.theme.TextDark
-import com.miage.learnity.ui.theme.TextGray
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -74,7 +69,7 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundColor),
+            .background(MaterialTheme.colorScheme.background), // ✅ Adaptatif
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -103,7 +98,7 @@ fun SplashScreen(
                     text = "LEARNITY",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = TextDark,
+                    color = MaterialTheme.colorScheme.onBackground, // ✅ Adaptatif
                     letterSpacing = 2.sp
                 )
 
@@ -115,7 +110,7 @@ fun SplashScreen(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     fontStyle = FontStyle.Italic,
-                    color = TextGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, // ✅ Adaptatif
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 40.dp)
                 )
