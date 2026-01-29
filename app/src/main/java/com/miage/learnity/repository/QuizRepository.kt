@@ -13,8 +13,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 class QuizRepository {
 
@@ -22,7 +21,7 @@ class QuizRepository {
     private val auth = FirebaseAuth.getInstance()
     private val gson = Gson()
 
-    // Format de date unique pour toute la classe
+    // ✅ Format ISO unique pour assurer le tri alphabétique correct dans Firestore
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     // ============================================
@@ -36,29 +35,23 @@ class QuizRepository {
                     .document(courseId)
                     .collection("chapters")
                     .document(chapterId)
-                    .get()
-                    .await()
+                    .get().await()
 
                 if (!chapterDoc.exists()) return@withContext Result.failure(Exception("Chapitre non trouvé"))
 
                 val quizJson = chapterDoc.getString("quiz")
-                if (quizJson.isNullOrEmpty()) return@withContext Result.failure(Exception("Pas de quiz disponible"))
+                if (quizJson.isNullOrEmpty()) return@withContext Result.failure(Exception("Pas de quiz"))
 
-                val allQuestions = parseQuestions(quizJson)
-                val selectedQuestions = allQuestions.shuffled().take(5)
+                val selectedQuestions = parseQuestions(quizJson).shuffled().take(5)
 
-                Result.success(
-                    Quiz(
-                        quizId = "${chapterId}_quiz",
-                        courseId = courseId,
-                        chapterId = chapterId,
-                        title = chapterDoc.getString("title") ?: "Quiz de chapitre",
-                        questions = selectedQuestions
-                    )
-                )
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+                Result.success(Quiz(
+                    quizId = "${chapterId}_quiz",
+                    courseId = courseId,
+                    chapterId = chapterId,
+                    title = chapterDoc.getString("title") ?: "Quiz de chapitre",
+                    questions = selectedQuestions
+                ))
+            } catch (e: Exception) { Result.failure(e) }
         }
 
     suspend fun getMegaQuizForCourse(courseId: String): Result<Quiz> =
@@ -66,9 +59,7 @@ class QuizRepository {
             try {
                 val chaptersSnapshot = firestore.collection("courses")
                     .document(courseId)
-                    .collection("chapters")
-                    .get()
-                    .await()
+                    .collection("chapters").get().await()
 
                 val allUEQuestions = mutableListOf<Question>()
                 for (doc in chaptersSnapshot.documents) {
@@ -77,22 +68,18 @@ class QuizRepository {
 
                 if (allUEQuestions.isEmpty()) return@withContext Result.failure(Exception("Aucune question trouvée"))
 
-                Result.success(
-                    Quiz(
-                        quizId = "MEGA_$courseId",
-                        courseId = courseId,
-                        chapterId = "ALL_CHAPTERS",
-                        title = "Grand Quiz de Synthèse",
-                        questions = allUEQuestions.shuffled().take(20)
-                    )
-                )
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+                Result.success(Quiz(
+                    quizId = "MEGA_$courseId",
+                    courseId = courseId,
+                    chapterId = "ALL_CHAPTERS",
+                    title = "Grand Quiz de Synthèse",
+                    questions = allUEQuestions.shuffled().take(20)
+                ))
+            } catch (e: Exception) { Result.failure(e) }
         }
 
     // ============================================
-    // QUIZ DU JOUR (DÉCOUVERTE & RÉVISION)
+    // ⭐ QUIZ DU JOUR (AVEC BARRE DE PROGRESSION)
     // ============================================
 
     suspend fun getDailyQuiz(
@@ -117,7 +104,6 @@ class QuizRepository {
                 }
             }
 
-            // Génération d'un nouveau pool de questions
             val allQuestionsPool = mutableListOf<Question>()
             val globalCoursesSnapshot = firestore.collection("courses").get().await()
             val totalCourses = globalCoursesSnapshot.size()
@@ -143,11 +129,9 @@ class QuizRepository {
                 }
             }
 
-            if (allQuestionsPool.isEmpty()) return@withContext Result.failure(Exception("Pas assez de contenu pour générer le quiz"))
+            if (allQuestionsPool.isEmpty()) return@withContext Result.failure(Exception("Contenu insuffisant"))
 
             val selectedQuestions = allQuestionsPool.shuffled().take(10)
-
-            // Sauvegarde pour ne pas regénérer le quiz si on change d'onglet
             firestore.collection("daily_quizzes_generated").document(dailyDocId).set(mapOf(
                 "questionsJson" to gson.toJson(selectedQuestions),
                 "date" to today,
@@ -156,23 +140,29 @@ class QuizRepository {
 
             onProgress(1.0f)
             Result.success(Quiz("DAILY_QUIZ", "GLOBAL", mode, "Quiz du Jour", selectedQuestions))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     // ============================================
-    // ⭐ GESTION DE L'HISTORIQUE
+    // ⭐ HISTORIQUE ET SAUVEGARDE (FUSIONNÉ)
     // ============================================
 
     suspend fun saveQuizHistory(
         courseId: String,
         chapterId: String,
         historyEntry: QuizHistory,
-        userAnswers: Map<Int, Int>? = null // ✅ Ajouté pour pouvoir relire ses erreurs
+        userAnswers: Map<Int, Int>? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+            val today = dateFormat.format(Date())
+
+            // Sécurité : On ne sauvegarde qu'une fois le Quiz du Jour par jour
+            if (chapterId == "DISCOVERY" || chapterId == "REVIEW") {
+                val existing = firestore.collection("quiz_results").document(userId).collection("history")
+                    .whereEqualTo("date", today).whereEqualTo("chapterId", chapterId).get().await()
+                if (!existing.isEmpty) return@withContext Result.success(Unit)
+            }
 
             val finalData = mapOf(
                 "courseId" to courseId,
@@ -182,45 +172,40 @@ class QuizRepository {
                 "score" to historyEntry.score,
                 "total" to historyEntry.total,
                 "pointsGained" to historyEntry.pointsGained,
-                "timestamp" to historyEntry.timestamp,
-                "userAnswersJson" to gson.toJson(userAnswers ?: emptyMap<Int, Int>()) // ✅ Sauvegarde cruciale
+                "timestamp" to historyEntry.timestamp, // ✅ Nom de champ harmonisé
+                "userAnswersJson" to gson.toJson(userAnswers ?: emptyMap<Int, Int>())
             )
 
-            firestore.collection("quiz_results")
-                .document(userId)
-                .collection("history")
-                .add(finalData)
-                .await()
+            firestore.collection("quiz_results").document(userId).collection("history").add(finalData).await()
+
+            // Marquer le chapitre comme complété
+            val specialModes = listOf("ALL_CHAPTERS", "DISCOVERY", "REVIEW")
+            if (!specialModes.contains(chapterId)) {
+                firestore.collection("user_progress")
+                    .document(userId).collection("courses").document(courseId)
+                    .collection("chapters").document(chapterId)
+                    .set(mapOf("isQuizCompleted" to true), SetOptions.merge())
+                    .await()
+            }
 
             Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun getQuizHistory(courseId: String, chapterId: String): Result<List<QuizHistory>> =
         withContext(Dispatchers.IO) {
             try {
                 val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+                val snapshot = firestore.collection("quiz_results").document(userId).collection("history")
+                    .whereEqualTo("courseId", courseId).whereEqualTo("chapterId", chapterId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING).get().await()
 
-                val snapshot = firestore.collection("quiz_results")
-                    .document(userId)
-                    .collection("history")
-                    .whereEqualTo("courseId", courseId)
-                    .whereEqualTo("chapterId", chapterId)
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
-
-                val historyList = snapshot.toObjects(QuizHistory::class.java)
-                Result.success(historyList)
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+                Result.success(snapshot.toObjects(QuizHistory::class.java))
+            } catch (e: Exception) { Result.failure(e) }
         }
 
     // ============================================
-    // RÉCUPÉRATION POUR HOMESCREEN
+    // STATISTIQUES ET RÉPONSES
     // ============================================
 
     suspend fun getLastDailyQuizScore(): Result<Pair<Int, Int>?> = withContext(Dispatchers.IO) {
@@ -228,27 +213,15 @@ class QuizRepository {
             val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
             val today = dateFormat.format(Date())
 
-            // On trie par timestamp ASC pour avoir le PREMIER essai (celui qui compte pour les points)
-            val snapshot = firestore.collection("quiz_results")
-                .document(userId)
-                .collection("history")
-                .whereEqualTo("date", today)
-                .whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
-                .orderBy("timestamp", Query.Direction.ASCENDING)
-                .limit(1)
-                .get()
-                .await()
+            val snapshot = firestore.collection("quiz_results").document(userId).collection("history")
+                .whereEqualTo("date", today).whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
+                .orderBy("timestamp", Query.Direction.ASCENDING).limit(1).get().await()
 
             if (snapshot.isEmpty) return@withContext Result.success(null)
 
-            val firstDoc = snapshot.documents[0]
-            val score = firstDoc.getLong("score")?.toInt() ?: 0
-            val total = firstDoc.getLong("total")?.toInt() ?: 10
-
-            Result.success(score to total)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+            val doc = snapshot.documents[0]
+            Result.success((doc.getLong("score")?.toInt() ?: 0) to (doc.getLong("total")?.toInt() ?: 10))
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun getDailyQuizAnswers(): Result<Map<Int, Int>?> = withContext(Dispatchers.IO) {
@@ -256,30 +229,41 @@ class QuizRepository {
             val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
             val today = dateFormat.format(Date())
 
-            val snapshot = firestore.collection("quiz_results")
-                .document(userId)
-                .collection("history")
-                .whereEqualTo("date", today)
-                .whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
-                .orderBy("timestamp", Query.Direction.ASCENDING)
-                .limit(1)
-                .get()
-                .await()
+            val snapshot = firestore.collection("quiz_results").document(userId).collection("history")
+                .whereEqualTo("date", today).whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
+                .orderBy("timestamp", Query.Direction.ASCENDING).limit(1).get().await()
 
             if (snapshot.isEmpty) return@withContext Result.success(null)
 
-            val doc = snapshot.documents[0]
-            val answersJson = doc.getString("userAnswersJson") // Nom harmonisé avec saveQuizHistory
+            val json = snapshot.documents[0].getString("userAnswersJson")
             val type = object : TypeToken<Map<Int, Int>>() {}.type
-            Result.success(gson.fromJson(answersJson, type))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+            Result.success(gson.fromJson(json, type))
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    // ============================================
-    // UTILS
-    // ============================================
+    suspend fun getWeeklyProgress(goalPerWeek: Int = 4): Result<Pair<Int, Int>> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+
+            val calendar = Calendar.getInstance().apply {
+                firstDayOfWeek = Calendar.MONDAY
+                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+            }
+
+            val snapshot = firestore.collection("quiz_results").document(userId).collection("history")
+                .whereGreaterThanOrEqualTo("date", dateFormat.format(calendar.time)).get().await()
+
+            val dailyQuizCount = snapshot.documents.count { doc ->
+                val cid = doc.getString("chapterId")
+                cid == "DISCOVERY" || cid == "REVIEW"
+            }
+
+            Result.success(dailyQuizCount to goalPerWeek)
+        } catch (e: Exception) { Result.failure(e) }
+    }
 
     private fun parseQuestions(json: String): List<Question> {
         return try {
