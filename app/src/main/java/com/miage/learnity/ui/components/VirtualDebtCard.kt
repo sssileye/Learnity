@@ -8,17 +8,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.miage.learnity.ui.theme.*
 import com.miage.learnity.ui.utils.ResponsiveDimensions
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
- * Card Vibrant affichant la dette virtuelle
- * Gradient orange-rouge si dette, vert si pas de dette
+ * ═══════════════════════════════════════════════════════════════
+ * 💰 VIRTUAL DEBT CARD - VERSION DARK MODE COMPATIBLE
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * Card affichant la dette virtuelle
+ * ✅ Gradient orange-rouge adaptatif si dette
+ * ✅ Gradient turquoise-vert adaptatif si pas de dette
+ * ✅ Dark mode support via gradients adaptatifs
  */
 @Composable
 fun VirtualDebtCard(
@@ -30,22 +35,16 @@ fun VirtualDebtCard(
 ) {
     val hasDebt = debtAmount > 0.01
 
-    // 🎨 Gradient selon état de la dette
+    // ✅ GRADIENTS ADAPTATIFS selon état de la dette
     val gradient = if (hasDebt) {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFFFF9A56), // Orange
-                Color(0xFFFF6B6B)  // Rouge
-            )
-        )
+        debtGradient()      // Orange-rouge (adaptatif)
     } else {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF4ECDC4), // Turquoise
-                Color(0xFF44A08D)  // Vert
-            )
-        )
+        noDebtGradient()    // Turquoise-vert (adaptatif)
     }
+
+    // ✅ COULEURS DE TEXTE ADAPTATIVES
+    val textColor = getOnGradientTextColor()
+    val overlayColor = getGradientOverlayColor(alpha = 0.25f)
 
     Card(
         shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
@@ -70,12 +69,12 @@ fun VirtualDebtCard(
                             text = "Dette virtuelle",
                             fontSize = dimensions.bodyLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = textColor  // ✅ ADAPTATIF
                         )
                         Text(
                             text = "Ce mois-ci",
                             fontSize = dimensions.bodySmall,
-                            color = Color.White.copy(alpha = 0.9f)
+                            color = textColor.copy(alpha = 0.9f)  // ✅ ADAPTATIF
                         )
                     }
 
@@ -83,7 +82,7 @@ fun VirtualDebtCard(
                     Surface(
                         modifier = Modifier.size(dimensions.iconSizeLarge),
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.25f)
+                        color = overlayColor  // ✅ ADAPTATIF
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -107,12 +106,12 @@ fun VirtualDebtCard(
                             text = "%.2f".format(debtAmount),
                             fontSize = dimensions.displayLarge,
                             fontWeight = FontWeight.Black,
-                            color = Color.White
+                            color = textColor  // ✅ ADAPTATIF
                         )
                         Text(
                             text = " €",
                             fontSize = dimensions.titleLarge,
-                            color = Color.White,
+                            color = textColor,  // ✅ ADAPTATIF
                             modifier = Modifier.offset(y = (-6).dp)
                         )
                     }
@@ -122,7 +121,7 @@ fun VirtualDebtCard(
                             onClick = onPayClick,
                             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White
+                                containerColor = MaterialTheme.colorScheme.surface  // ✅ ADAPTATIF
                             ),
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 4.dp
@@ -132,7 +131,7 @@ fun VirtualDebtCard(
                                 text = "Solder",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = dimensions.bodyMedium,
-                                color = Color(0xFFFF6B6B)
+                                color = MaterialTheme.colorScheme.error  // ✅ ADAPTATIF (rouge)
                             )
                         }
                     }
@@ -150,13 +149,13 @@ fun VirtualDebtCard(
                             Text(
                                 text = "À régler avant",
                                 fontSize = dimensions.bodySmall,
-                                color = Color.White.copy(alpha = 0.9f)
+                                color = textColor.copy(alpha = 0.9f)  // ✅ ADAPTATIF
                             )
                             Text(
                                 text = if (monthsRemaining > 1) "$monthsRemaining mois" else "$monthsRemaining mois",
                                 fontSize = dimensions.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = textColor  // ✅ ADAPTATIF
                             )
                         }
                         Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
@@ -165,8 +164,8 @@ fun VirtualDebtCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(5.dp),
-                            color = Color.White,
-                            trackColor = Color.White.copy(alpha = 0.3f),
+                            color = textColor,  // ✅ ADAPTATIF
+                            trackColor = textColor.copy(alpha = 0.3f),  // ✅ ADAPTATIF
                         )
                     }
                 } else {
@@ -179,7 +178,7 @@ fun VirtualDebtCard(
                         Text(
                             text = "Aucune dette ce mois-ci !",
                             fontSize = dimensions.bodyMedium,
-                            color = Color.White,
+                            color = textColor,  // ✅ ADAPTATIF
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -189,7 +188,11 @@ fun VirtualDebtCard(
     }
 }
 
-@Preview(name = "Moyen (360dp)", widthDp = 360)
+// ═══════════════════════════════════════════════════════════════
+// 📱 PREVIEWS - Light & Dark Mode
+// ═══════════════════════════════════════════════════════════════
+
+@Preview(name = "Moyen (360dp) - Light", widthDp = 360)
 @Composable
 fun VirtualDebtCardVibrantPreview() {
     MaterialTheme {

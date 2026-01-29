@@ -11,8 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -20,8 +18,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Association
 import com.miage.learnity.ui.components.*
+import com.miage.learnity.ui.theme.*
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * 🎗️ ASSOCIATION SCREEN - VERSION DARK MODE COMPATIBLE
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * Écran des associations partenaires avec :
+ * ✅ Couleurs uniformes avec le reste de l'app (light/dark)
+ * ✅ Utilise le thème Material Design 3
+ * ✅ Fond cohérent avec HomeScreen
+ */
 @Composable
 fun AssociationScreen(
     userViewModel: UserViewModel = viewModel()
@@ -48,22 +57,18 @@ fun AssociationScreen(
         )
     }
 
-    val backgroundGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF1A1454), Color(0xFF0F0B3A))
-    )
-    val cardGradient = Brush.horizontalGradient(
-        colors = listOf(Color(0xFFF2994A), Color(0xFFF2C94C))
-    )
+    // ✅ Utilise le gradient de dette adaptatif au lieu du gradient violet hardcodé
+    val backgroundGradient = debtGradient()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundGradient)
+            .background(MaterialTheme.colorScheme.background)  // ✅ ADAPTATIF comme HomeScreen
     ) {
         if (isLoading && profile == null) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.White
+                color = MaterialTheme.colorScheme.primary  // ✅ ADAPTATIF
             )
         } else {
             LazyColumn(
@@ -73,29 +78,30 @@ fun AssociationScreen(
                 verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
                 contentPadding = PaddingValues(vertical = dimensions.screenPaddingVertical)
             ) {
+                // ✅ Carte de dette avec gradient adaptatif
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
+                        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation * 1.5f)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(cardGradient)
+                                .background(backgroundGradient)  // ✅ Utilise debtGradient()
                                 .padding(dimensions.cardPadding)
                         ) {
                             Column {
                                 Text(
                                     text = "Dette Virtuelle",
-                                    color = Color.White,
+                                    color = getOnGradientTextColor(),  // ✅ ADAPTATIF
                                     fontSize = dimensions.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = String.format("%.2f €", detteVirtuelle),
-                                    color = Color.White,
+                                    color = getOnGradientTextColor(),  // ✅ ADAPTATIF
                                     fontSize = dimensions.displayLarge,
                                     fontWeight = FontWeight.ExtraBold
                                 )
@@ -104,17 +110,18 @@ fun AssociationScreen(
                     }
                 }
 
+                // ✅ Titre avec couleur adaptative
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Nos associations partenaires",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,  // ✅ ADAPTATIF
                         fontSize = dimensions.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
 
-                // ✅ CORRECTION ICI : Ajout du paramètre 'dimensions' manquant
+                // Liste des associations
                 items(associations) { asso ->
                     AssociationCardCustom(
                         asso = asso,
@@ -124,7 +131,7 @@ fun AssociationScreen(
                             montantDon = ""
                             isInputError = false
                         },
-                        dimensions = dimensions // Indispensable pour ton composant
+                        dimensions = dimensions
                     )
                 }
 
@@ -134,23 +141,26 @@ fun AssociationScreen(
             }
         }
 
+        // ✅ Dialog avec couleurs adaptatives
         if (showDialog && selectedAsso != null) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,  // ✅ ADAPTATIF
                 shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                 title = {
                     Text(
                         text = "Donner à ${selectedAsso?.name}",
                         fontSize = dimensions.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface  // ✅ ADAPTATIF
                     )
                 },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "Montant à déduire de votre dette :",
-                            fontSize = dimensions.bodyMedium
+                            fontSize = dimensions.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface  // ✅ ADAPTATIF
                         )
 
                         ResponsiveTextField(
@@ -189,7 +199,7 @@ fun AssociationScreen(
                         Text(
                             text = "Annuler",
                             fontSize = dimensions.bodyMedium,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ ADAPTATIF
                         )
                     }
                 }
@@ -198,9 +208,15 @@ fun AssociationScreen(
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 📱 PREVIEWS
+// ═══════════════════════════════════════════════════════════════
+
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(showBackground = true)
 @Composable
 fun AssociationScreenPreview() {
-    AssociationScreen()
+    MaterialTheme {
+        AssociationScreen()
+    }
 }

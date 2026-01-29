@@ -8,16 +8,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.miage.learnity.ui.theme.successColors
 import com.miage.learnity.ui.utils.ResponsiveDimensions
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
+ * ═══════════════════════════════════════════════════════════════
+ * 📊 WEEKLY PROGRESS CARD - VERSION DARK MODE COMPATIBLE
+ * ═══════════════════════════════════════════════════════════════
+ *
  * Composant affichant la progression hebdomadaire des quiz
- * Barre de progression animée avec objectif de séances
+ * ✅ Barre de progression animée avec objectif de séances
+ * ✅ Utilise MaterialTheme.successColors pour le dark mode
  */
 @Composable
 fun WeeklyProgressCard(
@@ -58,7 +63,7 @@ fun WeeklyProgressCard(
             Text(
                 text = "Cette semaine",
                 fontSize = dimensions.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ Déjà adaptatif
                 fontWeight = FontWeight.Medium
             )
 
@@ -73,13 +78,13 @@ fun WeeklyProgressCard(
                 Text(
                     text = "$completedSessions/$totalGoal séances",
                     fontSize = dimensions.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.primary,  // ✅ Déjà adaptatif
                     fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        // Barre de progression
+        // ✅ Barre de progression - Utilise successColors au lieu de Color hardcodé
         LinearProgressIndicator(
             progress = { animatedProgress },
             modifier = Modifier
@@ -87,21 +92,25 @@ fun WeeklyProgressCard(
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp)),
             color = if (isGoalReached)
-                Color(0xFF4CAF50) // Vert si objectif atteint
+                MaterialTheme.successColors.success  // ✅ ADAPTATIF (remplace Color(0xFF4CAF50))
             else
-                MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                MaterialTheme.colorScheme.primary,  // ✅ Déjà adaptatif
+            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),  // ✅ Déjà adaptatif
         )
 
         // Message motivant
         Text(
             text = message,
             fontSize = dimensions.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ Déjà adaptatif
             fontWeight = FontWeight.Medium
         )
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 📱 PREVIEWS - Light & Dark Mode
+// ═══════════════════════════════════════════════════════════════
 
 @Preview(name = "Petit (320dp)", widthDp = 320)
 @Preview(name = "Moyen (360dp)", widthDp = 360)
