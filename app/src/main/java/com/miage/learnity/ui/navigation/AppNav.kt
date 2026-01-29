@@ -1,54 +1,120 @@
 package com.miage.learnity.ui.navigation
 
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.miage.learnity.ui.screens.AssociationScreen
-import com.miage.learnity.ui.screens.AuthScreen
-import com.miage.learnity.ui.screens.CoursScreen
-import com.miage.learnity.ui.screens.HomeScreen
-import com.miage.learnity.ui.screens.ProfileScreen
-import com.miage.learnity.ui.screens.RankingScreen
-import com.miage.learnity.ui.screens.SettingsScreen
-import com.miage.learnity.ui.screens.auth.Inscription
-
+import androidx.navigation.compose.rememberNavController
+import com.miage.learnity.model.AuthViewModel
+import com.miage.learnity.ui.screens.*
 
 @Composable
-fun AppNav(navController: NavHostController, paddingValues: PaddingValues) {
-    NavHost(
-        navController = navController,
-        startDestination = "auth",
-        modifier = Modifier.padding(paddingValues) // Important pour ne pas être sous les barres
-    ) {
-        // --- Écrans d'Authentification ---
-        composable("auth") {
-            AuthScreen(
-                onLoginClick = { /* navController.navigate("login") */ },
-                onSignupClick = { navController.navigate("inscription") }
-            )
-        }
+fun AppNav(vm: AuthViewModel = viewModel()) {
+    val nav = rememberNavController()
+    val state by vm.state.collectAsState()
 
-        composable("inscription") {
-            Inscription(
-                onBackClick = { navController.popBackStack() },
-                onInscriptionSuccess = {
-                    // Une fois inscrit, on va vers le Home
-                    navController.navigate("home") {
-                        popUpTo("auth") { inclusive = true } // Empêche de revenir en arrière vers l'auth
+    NavHost(
+        navController = nav,
+        startDestination = Screen.Splash.route
+    ) {
+        composable(Screen.Splash.route) {
+            SplashScreen(
+                onSplashFinished = {
+                    if (state.user != null) {
+                        nav.navigate(Screen.Homepage.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    } else {
+                        nav.navigate(Screen.Authentication.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
                     }
                 }
             )
         }
 
-        composable("home") { HomeScreen() }
-        composable("courses") { CoursScreen() }
-        composable("association") { AssociationScreen() }
-        composable("ranking") { RankingScreen() }
-        composable("settings") { SettingsScreen() }
-        composable("profile") { ProfileScreen() }
+        composable(Screen.Authentication.route) {
+            AuthScreen(
+                onLoginClick = { nav.navigate(Screen.SignIn.route) },
+                onSignupClick = { nav.navigate(Screen.Inscription.route) }
+            )
+        }
+
+        composable(Screen.Inscription.route) {
+            Inscription(
+                onBackClick = { nav.popBackStack() },
+                onInscriptionSuccess = { email, password, firstName, lastName ->  // ✅ AJOUT
+                    vm.signUp(email, password, firstName, lastName)
+                },
+                isLoading = state.isLoading,
+                error = state.error
+            )
+
+            // Navigation automatique vers HomePage après inscription réussie
+            LaunchedEffect(state.user) {
+                if (state.user != null) {
+                    nav.navigate(Screen.Homepage.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+
+        composable(Screen.SignIn.route) {
+            SignInScreen(
+                onBackClick = { nav.popBackStack() },
+                onSignIn = { email, password -> vm.signIn(email, password) },
+                onForgotPassword = {  // ✅ CONNECTÉ
+                    nav.navigate(Screen.ResetPassword.route)
+                },
+                onNavigateToSignUp = { nav.navigate(Screen.Inscription.route) },
+                isLoading = state.isLoading,
+                error = state.error
+            )
+            LaunchedEffect(state.user) {
+                if (state.user != null) goToHomepage(nav)
+            }
+        }
+
+        // ✅ NOUVELLE ROUTE - Reset Password
+        composable(Screen.ResetPassword.route) {
+            ResetPasswordScreen(
+                onBackClick = { nav.popBackStack() },
+                onResetPassword = { email ->
+                    vm.resetPassword(email)
+                },
+                onResetSuccess = {
+                    vm.clearResetPasswordSuccess()
+                    nav.popBackStack()
+                },
+                isLoading = state.isLoading,
+                error = state.error,
+                success = state.resetPasswordSuccess
+            )
+        }
+
+        composable(Screen.Homepage.route) {
+            MainNav(
+                onLogout = {
+                    vm.signOut()
+                    nav.navigate(Screen.Authentication.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+    }
+}
+
+private fun goToHomepage(nav: NavHostController) {
+    nav.navigate(Screen.Homepage.route) {
+        popUpTo(0) { inclusive = true }
+        launchSingleTop = true
     }
 }

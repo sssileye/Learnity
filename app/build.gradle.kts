@@ -60,6 +60,29 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.foundation)
+
+    // PdfBox-Android (stable, sur Maven Central)
+    implementation(libs.pdfbox.android)
+
+    // OkHttp pour télécharger
+    implementation(libs.okhttp.v4120)
+
+    //YouTube Player
+    implementation(libs.core)
+    implementation(libs.androidx.compose.ui.geometry)
+
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.ui)
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.datastore.core)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.core)
 
     // Tests
     testImplementation(libs.junit)
@@ -71,4 +94,7 @@ dependencies {
     // Debug
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // JSON
+    implementation(libs.gson)
 }

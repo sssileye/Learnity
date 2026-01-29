@@ -1,185 +1,295 @@
 package com.miage.learnity.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.miage.learnity.R
+import com.miage.learnity.ui.theme.*
+import com.miage.learnity.ui.utils.*
 
-
-private val PrimaryBlue = Color(0xFF635BFF)
-enum class AuthMode{
-    SIGN_IN,
-    SIGN_UP
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignInScreen(
-    mode: AuthMode = AuthMode.SIGN_IN,
-    onPrimary: (String, String) -> Unit = { _, _ -> },
+    onBackClick: () -> Unit = {},
+    onSignIn: (String, String) -> Unit = { _, _ -> },
     onForgotPassword: () -> Unit = {},
-    onGoogleClick: () -> Unit = {},
-    onSwitch: () -> Unit = {},
-){
-    val isSignUp = mode == AuthMode.SIGN_UP
+    onNavigateToSignUp: () -> Unit = {},
+    isLoading: Boolean = false,
+    error: String? = null
+) {
+    // … DIMENSIONS RESPONSIVES
+    val dimensions = rememberResponsiveDimensions()
+    val context = LocalContext.current
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-    val titleText= if(isSignUp) "Sign Up" else "Se Connecter"
-    val primaryText= if(isSignUp) "Create Account" else "Se Connecter"
-    val bottomPrompt = if (isSignUp) "Already have an account?" else "Don't have an account?"
-    val bottomLink = if (isSignUp) "Sign In" else "Sign Up"
+    var emailError by remember { mutableStateOf("") }
 
+    fun validateEmail(email: String): Boolean {
+        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
+        return if (!email.matches(emailRegex)) {
+            emailError = "Format d'email invalide"
+            false
+        } else {
+            emailError = ""
+            true
+        }
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ){
-        Spacer(Modifier.height(8.dp))
-        Image(
-            painter = painterResource(id = R.drawable.icon_learnity),
-            contentDescription = null,
-            modifier = Modifier
-                .height(370.dp)
-                .fillMaxWidth()
+    LaunchedEffect(error) {
+        error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+        }
+    }
 
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = titleText,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 12.dp),
-            textAlign = TextAlign.Start,
-        )
-        Spacer(Modifier.height(12.dp)
-        )
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            singleLine = true,
-            label = { Text(text = "Email") },
-            leadingIcon = {Icon(painterResource(id = R.drawable.email),  null)},
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.DarkGray,
-                unfocusedIndicatorColor = Color.Gray,
-                cursorColor = MaterialTheme.colorScheme.primary
-            )
-        )
-        Spacer(Modifier.height(12.dp))
+    val isButtonEnabled = email.isNotBlank() &&
+            password.isNotBlank() &&
+            !isLoading
 
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            singleLine = true,
-            label = {Text(text = "Password") },
-            leadingIcon = {Icon(painterResource(id = R.drawable.lock), null) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = if(showPassword) VisualTransformation.None else
-                PasswordVisualTransformation(),
-            trailingIcon = {
-                TextButton(onClick = { showPassword = !showPassword }){
-                    Text(if(showPassword) "Hide" else "Show")
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.DarkGray,
-                unfocusedIndicatorColor = Color.Gray,
-                cursorColor = MaterialTheme.colorScheme.primary
-            )
-        )
-        if(isSignUp){
-            TextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                singleLine = true,
-                label = {Text(text = "Confirm Password") },
-                leadingIcon = {Icon(painterResource(id = R.drawable.lock), null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.DarkGray,
-                    unfocusedIndicatorColor = Color.Gray,
-                    cursorColor = MaterialTheme.colorScheme.primary
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Retour",
+                            tint = Color(0xFF635BFF)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        }
-        if(!isSignUp) {
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = dimensions.screenPaddingHorizontal)  // … Responsive
+                .responsiveMaxWidth(dimensions)  // … Limite largeur sur tablettes
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(dimensions.screenPaddingVertical))  // … Responsive
+
+            // Logo réduit - RESPONSIVE
+            Image(
+                painter = painterResource(id = R.drawable.icon_learnity),
+                contentDescription = "Logo",
+                modifier = Modifier.size(dimensions.logoSize)  // … 100.sdp()
+            )
+
+            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
+
+            // Titre - RESPONSIVE
+            Text(
+                text = "Connexion",
+                fontSize = dimensions.titleLarge,  // … 28.ssp()
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // … Responsive
+
+            // Email Field - RESPONSIVE
+            OutlinedTextField(
+                value = email,
+                onValueChange = {
+                    email = it
+                    if (emailError.isNotEmpty()) validateEmail(it)
+                },
+                label = { Text("Email") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // … 12.dp
+                isError = emailError.isNotEmpty(),
+                supportingText = {
+                    if (emailError.isNotEmpty()) {
+                        Text(
+                            text = emailError,
+                            fontSize = dimensions.bodySmall  // … 12.ssp()
+                        )
+                    }
+                },
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = dimensions.bodyLarge  // … 16.ssp()
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF635BFF),
+                    focusedLabelColor = Color(0xFF635BFF)
+                )
+            )
+
+            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
+
+            // Password Field - RESPONSIVE
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Mot de passe") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = if (showPassword) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            imageVector = if (showPassword) {
+                                Icons.Default.Visibility
+                            } else {
+                                Icons.Default.VisibilityOff
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(dimensions.iconSizeMedium)  // … 24.sdp()
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // … 12.dp
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = dimensions.bodyLarge  // … 16.ssp()
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF635BFF),
+                    focusedLabelColor = Color(0xFF635BFF)
+                )
+            )
+
+            // Mot de passe oublié - RESPONSIVE
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 6.dp, bottom = 8.dp)
+                    .padding(top = dimensions.itemSpacing / 2)  // … Responsive
             ) {
                 TextButton(
                     onClick = onForgotPassword,
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                    colors = ButtonDefaults.textButtonColors(contentColor = PrimaryBlue)
+                    modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
-                    Text(text = "Forgot Password?")
+                    Text(
+                        text = "Mot de passe oublié ?",
+                        color = Color(0xFF635BFF),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = dimensions.bodyMedium  // … 14.ssp()
+                    )
                 }
             }
+
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // … Responsive
+
+            // Bouton Connexion - RESPONSIVE
+            Button(
+                onClick = {
+                    val isEmailValid = validateEmail(email)
+                    if (isEmailValid) {
+                        onSignIn(email.trim(), password.trim())
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(dimensions.buttonHeight),  // … 56.sdp()
+                enabled = isButtonEnabled,
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),  // … 16.dp
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF635BFF),
+                    disabledContainerColor = Color.LightGray
+                )
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(dimensions.iconSizeMedium)  // … 24.sdp()
+                    )
+                } else {
+                    Text(
+                        "Se connecter",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = dimensions.bodyLarge  // … 16.ssp()
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // … Responsive
+
+            // Lien vers inscription - RESPONSIVE
+            val annotated = buildAnnotatedString {
+                append("Pas encore de compte ? ")
+                pushStringAnnotation(tag = "signup", annotation = "signup")
+                withStyle(
+                    SpanStyle(
+                        color = Color(0xFF635BFF),
+                        fontWeight = FontWeight.Bold
+                    )
+                ) {
+                    append("S'inscrire")
+                }
+                pop()
+            }
+            ClickableText(
+                text = annotated,
+                onClick = { offset ->
+                    annotated.getStringAnnotations(
+                        tag = "signup",
+                        start = offset,
+                        end = offset
+                    ).firstOrNull()?.let {
+                        onNavigateToSignUp()
+                    }
+                },
+                style = LocalTextStyle.current.copy(
+                    fontSize = dimensions.bodyMedium  // … 14.ssp()
+                ),
+                modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.5f)  // … Responsive
+            )
         }
     }
 }
 
-@Preview
+// … PREVIEWS MULTI-TAILLES
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun SignInScreenPreview(){
-    SignInScreen(
-        mode = AuthMode.SIGN_IN
-    )
+fun SignInScreenPreview() {
+    LearnityTheme {
+        SignInScreen()
+    }
 }
