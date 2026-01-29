@@ -18,7 +18,7 @@ class UserRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-
+    fun getCurrentUserId(): String? = auth.currentUser?.uid
     // ============================================
     // LECTURE & OBSERVATION
     // ============================================
@@ -128,7 +128,20 @@ class UserRepository {
             Result.failure(e)
         }
     }
+    suspend fun updateQuizMode(mode: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
 
+            // On met à jour le champ "quizMode" (ou le nom que tu préfères) dans le document user
+            firestore.collection("users").document(userId)
+                .update("quizMode", mode)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     // ============================================
     // ✅ ACTIONS UTILISATEUR (Pénalité, Dons, Paramètres)
     // ============================================

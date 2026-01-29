@@ -16,31 +16,30 @@ import com.miage.learnity.repository.QuizRepository
 import com.miage.learnity.ui.components.*
 import com.miage.learnity.ui.utils.*
 
-/**
- * Écran d'accueil de LEARNITY - Version Vibrant avec WeeklyProgress
- *
- * Étape 2 Phase 1 : Intégration de la barre de progression hebdomadaire
- */
 @Composable
 fun HomeScreen(
     navController: NavController,
-    isDiscoveryMode: Boolean = false,
+    // ⭐ Suppression du paramètre isDiscoveryMode : on utilise le ViewModel
     userViewModel: UserViewModel = viewModel()
 ) {
     val dimensions = rememberResponsiveDimensions()
     val repository = remember { QuizRepository() }
+
+    // 1. On observe l'état du profil (qui contient quizMode)
     val userUiState by userViewModel.uiState.collectAsState()
+
+    // 2. ⭐ Source de vérité dynamique
+    val currentQuizMode = userUiState.profile?.quizMode ?: "DISCOVERY"
+    val isDiscoveryMode = currentQuizMode == "DISCOVERY"
 
     var dailyScore by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var weeklyProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // Récupérer le score du quiz du jour
+    // Récupérer les scores et progression
     LaunchedEffect(Unit) {
         repository.getLastDailyQuizScore().onSuccess { score ->
             dailyScore = score
         }
-
-        // ⭐ NOUVEAU : Récupérer la progression hebdomadaire
         repository.getWeeklyProgress(goalPerWeek = 4).onSuccess { progress ->
             weeklyProgress = progress
         }
@@ -57,48 +56,42 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(dimensions.screenPaddingVertical))
 
-        // 📝 Quiz du Jour (avec progression hebdomadaire intégrée)
+        // 📝 Quiz du Jour (Synchronisé en temps réel)
         DailyQuizCard(
             dimensions = dimensions,
-            isDiscoveryMode = isDiscoveryMode,
+            isDiscoveryMode = isDiscoveryMode, // Utilise la valeur dynamique
             lastScore = dailyScore,
-            weeklyProgress = weeklyProgress, // ⭐ NOUVEAU paramètre
+            weeklyProgress = weeklyProgress,
             onAction = { isReview ->
-                val modeId = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
-                navController.navigate("quiz/GLOBAL/$modeId?isReviewMode=$isReview")
+                // Utilise le mode extrait du profil pour la navigation
+                navController.navigate("quiz/GLOBAL/$currentQuizMode?isReviewMode=$isReview")
             }
         )
 
-        // 💰 Dette Virtuelle (gradient orange-rouge ou vert)
+        // 💰 Dette Virtuelle
         userUiState.profile?.let { profile ->
             VirtualDebtCard(
                 debtAmount = profile.detteCumulee,
                 monthsRemaining = 4,
-                onPayClick = {
-                    // TODO: Navigation vers écran de paiement/associations
-                },
+                onPayClick = { /* Navigation vers paiement */ },
                 dimensions = dimensions
             )
         }
 
-        // ✨ Unity Points (gradient bleu vibrant)
+        // ✨ Unity Points
         userUiState.profile?.let { profile ->
             UnityPointsCard(
                 currentPoints = profile.unityPoints,
                 nextDonationGoal = 2000,
-                onViewImpactClick = {
-                    // TODO: Navigation vers écran d'impact/associations
-                },
+                onViewImpactClick = { /* Navigation vers impact */ },
                 dimensions = dimensions
             )
         }
 
-        // TODO Étape 3: Ajouter ici QuickActionsCard
-
-        // Espace pour le bottom nav
         Spacer(modifier = Modifier.height(dimensions.bottomNavHeight))
     }
 }
+
 
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
 @Composable

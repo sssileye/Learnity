@@ -28,7 +28,7 @@ class QuizViewModel(
     // --- États du Quiz ---
     private val _quiz = MutableStateFlow<Quiz?>(null)
     val quiz: StateFlow<Quiz?> = _quiz.asStateFlow()
-
+    private var isResultSaved = false
     private val _questions = MutableStateFlow<List<Question>>(emptyList())
     val questions: StateFlow<List<Question>> = _questions.asStateFlow()
 
@@ -75,6 +75,7 @@ class QuizViewModel(
     // ============================================
 
     fun loadQuiz(courseId: String, chapterId: String) {
+        isResultSaved=false
         viewModelScope.launch {
             _isLoading.value = true
             fetchUserProgress(courseId, chapterId)
@@ -88,6 +89,7 @@ class QuizViewModel(
 
     // Mega Quiz et Daily Quiz utilisent la même logique de reset interne
     fun loadMegaQuiz(courseId: String) {
+        isResultSaved=false
         viewModelScope.launch {
             _isLoading.value = true
             progressRepository.getChapterProgress(courseId, "ALL_CHAPTERS").onSuccess { progress ->
@@ -103,6 +105,7 @@ class QuizViewModel(
     }
 
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
+        isResultSaved=false
         viewModelScope.launch {
             _isLoading.value = true
             repository.getDailyQuiz(isDiscoveryMode) { progress ->
@@ -135,6 +138,10 @@ class QuizViewModel(
         courseId: String,
         chapterId: String
     ) {
+        if (isResultSaved) return
+
+        // On active le verrou pour bloquer les appels suivants (ex: retour au récap)
+        isResultSaved = true
         val profile = userViewModel.uiState.value.profile ?: return // Sécurité
         calculateAndSetScore(_userAnswers.value)
 

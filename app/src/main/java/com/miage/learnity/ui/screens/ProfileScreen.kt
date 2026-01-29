@@ -14,7 +14,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -25,37 +27,30 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.R
+import com.miage.learnity.data.UserProfile
 import com.miage.learnity.ui.utils.*
-import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
-    isDiscoveryMode: Boolean,
-    onModeChange: (Boolean) -> Unit,
     onLogout: () -> Unit,
     onEditClick: () -> Unit,
-    viewModel: ProfileViewModel = viewModel()
+    onNavigateToSettings: () -> Unit,      // Ajouté
+    onNavigateToAssociation: () -> Unit,   // Ajouté
+    viewModel: UserViewModel = viewModel()
 ) {
-    val dimensions = rememberResponsiveDimensions()
-    val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(uiState.updateSuccess) {
-        if (uiState.updateSuccess) {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = "Profil mis à jour avec succès !",
-                    duration = SnackbarDuration.Short
-                )
-                viewModel.resetUpdateSuccess()
-            }
-        }
+    LaunchedEffect(Unit) {
+        viewModel.refreshProgressionStats()
     }
 
+    val dimensions = rememberResponsiveDimensions()
+    val uiState by viewModel.uiState.collectAsState()
+
+    val currentQuizMode = uiState.profile?.quizMode ?: "DISCOVERY"
+    val isDiscoveryMode = currentQuizMode == "DISCOVERY"
+    val isReviewUnlocked = uiState.readChaptersCount >= 5
+
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background  // ✅ CHANGÉ
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -80,15 +75,23 @@ fun ProfileScreen(
                         ProfileContent(
                             profile = uiState.profile!!,
                             isDiscoveryMode = isDiscoveryMode,
-                            onModeChange = { onModeChange(it) },
-                            onLogout = { onLogout() },
-                            onEditClick = { onEditClick() },
+                            readCount = uiState.readChaptersCount,
+                            totalCount = uiState.totalChaptersCount,
+                            isReviewUnlocked = isReviewUnlocked,
+                            onModeChange = { isDiscovery ->
+                                val newMode = if (isDiscovery) "DISCOVERY" else "REVIEW"
+                                viewModel.updateQuizMode(newMode)
+                            },
+                            onLogout = onLogout,
+                            onEditClick = onEditClick,
+                            onNavigateToSettings = onNavigateToSettings,        // FIX : Passage du paramètre
+                            onNavigateToAssociation = onNavigateToAssociation,  // FIX : Passage du paramètre
                             dimensions = dimensions
                         )
                     }
                     uiState.error != null -> ErrorProfileState(
                         uiState.error!!,
-                        { viewModel.refresh() },
+                        { viewModel.refreshProgressionStats() },
                         dimensions
                     )
                 }
@@ -99,24 +102,25 @@ fun ProfileScreen(
 
 @Composable
 private fun ProfileContent(
-    profile: com.miage.learnity.data.UserProfile,
+    profile: UserProfile,
     isDiscoveryMode: Boolean,
+    readCount: Int,
+    totalCount: Int,
+    isReviewUnlocked: Boolean,
     onModeChange: (Boolean) -> Unit,
     onLogout: () -> Unit,
     onEditClick: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToAssociation: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
     val context = LocalContext.current
-
     val avatarResId = remember(profile.photoUrl) {
         val photoName = if (profile.photoUrl.isNullOrBlank()) "avatar_b1" else profile.photoUrl
-
         try {
             val id = context.resources.getIdentifier(photoName, "drawable", context.packageName)
             if (id != 0) id else R.drawable.avatar_b1
-        } catch (e: Exception) {
-            R.drawable.avatar_b1
-        }
+        } catch (e: Exception) { R.drawable.avatar_b1 }
     }
 
     Column(
@@ -127,12 +131,12 @@ private fun ProfileContent(
             Surface(
                 shape = CircleShape,
                 shadowElevation = dimensions.cardElevation * 4,
-                color = MaterialTheme.colorScheme.surface,  // ✅ CHANGÉ
+                color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.size(dimensions.profilePictureSize * 1.15f)
             ) {
                 Image(
                     painter = painterResource(id = avatarResId),
-                    contentDescription = "Avatar utilisateur",
+                    contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .clip(CircleShape)
@@ -141,7 +145,7 @@ private fun ProfileContent(
             }
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,  // ✅ CHANGÉ
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(dimensions.iconSizeMedium * 1.42f)
                     .clickable { onEditClick() }
@@ -149,27 +153,16 @@ private fun ProfileContent(
                 shadowElevation = dimensions.cardElevation * 2
             ) {
                 Icon(
-                    Icons.Default.Edit,
-                    null,
-                    tint = MaterialTheme.colorScheme.onPrimary,  // ✅ CHANGÉ
+                    Icons.Default.Edit, null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.padding(dimensions.itemSpacing / 1.5f)
                 )
             }
         }
 
         Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
-
-        Text(
-            text = "${profile.firstName} ${profile.lastName}",
-            fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
-            fontSize = dimensions.titleMedium * 1.1f
-        )
-        Text(
-            text = profile.email,
-            color = Color.White.copy(alpha = 0.9f),
-            fontSize = dimensions.bodyMedium
-        )
+        Text("${profile.firstName} ${profile.lastName}", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = dimensions.titleMedium * 1.1f)
+        Text(profile.email, color = Color.White.copy(alpha = 0.9f), fontSize = dimensions.bodyMedium)
     }
 
     Spacer(Modifier.height(dimensions.itemSpacing * 2))
@@ -179,330 +172,247 @@ private fun ProfileContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .background(
-                MaterialTheme.colorScheme.surfaceVariant,  // ✅ CHANGÉ
-                RoundedCornerShape(
-                    topStart = dimensions.cornerRadiusLarge * 2.5f,
-                    topEnd = dimensions.cornerRadiusLarge * 2.5f
-                )
+                MaterialTheme.colorScheme.surfaceVariant,
+                RoundedCornerShape(topStart = dimensions.cornerRadiusLarge * 2.5f, topEnd = dimensions.cornerRadiusLarge * 2.5f)
             )
-            .padding(
-                horizontal = dimensions.screenPaddingHorizontal,
-                vertical = dimensions.itemSpacing * 2
-            ),
+            .padding(horizontal = dimensions.screenPaddingHorizontal, vertical = dimensions.itemSpacing * 2),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)
     ) {
+        // --- TABLEAU DE BORD ---
         Surface(
-            color = MaterialTheme.colorScheme.surface,  // ✅ CHANGÉ
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
             shadowElevation = dimensions.cardElevation
         ) {
             Column(modifier = Modifier.padding(dimensions.cardPadding)) {
-                Text(
-                    "TABLEAU DE BORD",
-                    fontSize = dimensions.bodySmall * 0.92f,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ CHANGÉ
-                )
+                Text("TABLEAU DE BORD", fontSize = dimensions.bodySmall * 0.92f, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
-                ) {
-                    StatsCard(
-                        title = "Unity Points",
-                        value = "${profile.unityPoints}",
-                        icon = R.drawable.ic_settings_1,
-                        gradient = Brush.linearGradient(
-                            listOf(Color(0xFF66BB6A), Color(0xFF00897B))
-                        ),
-                        modifier = Modifier.weight(1f),
-                        dimensions = dimensions
-                    )
-                    StatsCard(
-                        title = "Winstreak",
-                        value = "${profile.currentStreak}",
-                        subtitle = profile.bestStreak.toString(),
-                        icon = R.drawable.ic_settings_1,
-                        gradient = Brush.linearGradient(
-                            listOf(Color(0xFFFFB74D), Color(0xFFE65100))
-                        ),
-                        modifier = Modifier.weight(1f),
-                        dimensions = dimensions
-                    )
-                }
+                ProgressionSection(readCount, totalCount, dimensions)
 
+                Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)) {
+                    StatsCard("Points", "${profile.unityPoints}", null, R.drawable.ic_settings_1, Brush.linearGradient(listOf(Color(0xFF66BB6A), Color(0xFF00897B))), Modifier.weight(1f), dimensions)
+                    StatsCard("Winstreak", "${profile.currentStreak}", profile.bestStreak.toString(), R.drawable.ic_settings_1, Brush.linearGradient(listOf(Color(0xFFFFB74D), Color(0xFFE65100))), Modifier.weight(1f), dimensions)
+                }
                 Spacer(Modifier.height(dimensions.itemSpacing))
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Color(0xFFFF9966), Color(0xFFFF5E62))
-                            )
-                        )
+                        .background(Brush.linearGradient(listOf(Color(0xFFFF9966), Color(0xFFFF5E62))))
                         .padding(dimensions.itemSpacing)
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            "Dette Virtuelle",
-                            color = Color.White,
-                            fontSize = dimensions.bodySmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            String.format("%.2f €", profile.detteCumulee),
-                            color = Color.White,
-                            fontSize = dimensions.titleMedium * 1.2f,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Text(
-                            "(Redevance: ${profile.redevanceSoutienUnitaire}€)",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = dimensions.bodySmall * 0.83f
-                        )
+                        Text("Dette Virtuelle", color = Color.White, fontSize = dimensions.bodySmall, fontWeight = FontWeight.Bold)
+                        Text(String.format("%.2f €", profile.detteCumulee), color = Color.White, fontSize = dimensions.titleMedium * 1.2f, fontWeight = FontWeight.ExtraBold)
+                        Text("(Redevance: ${profile.redevanceSoutienUnitaire}€)", color = Color.White.copy(alpha = 0.8f), fontSize = dimensions.bodySmall * 0.83f)
                     }
                 }
             }
         }
 
+        // --- PARAMÈTRES ---
         Surface(
-            color = MaterialTheme.colorScheme.surface,  // ✅ CHANGÉ
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
             shadowElevation = dimensions.cardElevation
         ) {
             Column(modifier = Modifier.padding(vertical = dimensions.itemSpacing / 1.5f)) {
-                Text(
-                    "PARAMÈTRES",
-                    fontSize = dimensions.bodySmall * 0.92f,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ CHANGÉ
-                    modifier = Modifier.padding(
-                        horizontal = dimensions.cardPadding,
-                        vertical = dimensions.itemSpacing / 1.5f
-                    )
+                Text("PARAMÈTRES", fontSize = dimensions.bodySmall * 0.92f, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f))
+
+                QuizModeToggleRow(
+                    isDiscoveryMode = isDiscoveryMode,
+                    isLocked = !isReviewUnlocked,
+                    readCount = readCount,
+                    onToggle = { onModeChange(!isDiscoveryMode) },
+                    dimensions = dimensions
                 )
-                QuizModeToggleRow(isDiscoveryMode, { onModeChange(!isDiscoveryMode) }, dimensions)
-                MenuItemRow("Mon Association", R.drawable.ic_asso, {}, dimensions)
-                MenuItemRow("Réglages", R.drawable.ic_settings_1, {}, dimensions)
-                HorizontalDivider(
-                    modifier = Modifier.padding(
-                        horizontal = dimensions.cardPadding,
-                        vertical = dimensions.itemSpacing / 1.5f
-                    ),
-                    color = MaterialTheme.colorScheme.outlineVariant  // ✅ CHANGÉ
-                )
-                MenuItemRow("Déconnexion", R.drawable.btn_6, { onLogout() }, dimensions)
+
+                MenuItemRow("Mon Association", R.drawable.ic_asso, onClick = onNavigateToAssociation, dimensions = dimensions)
+                MenuItemRow("Réglages", R.drawable.ic_settings_1, onClick = onNavigateToSettings, dimensions = dimensions)
+
+                HorizontalDivider(modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f), color = MaterialTheme.colorScheme.outlineVariant)
+
+                MenuItemRow("Déconnexion", R.drawable.btn_6, onClick = onLogout, dimensions = dimensions)
             }
         }
-
         Spacer(modifier = Modifier.height(dimensions.bottomNavHeight * 1.56f))
     }
 }
 
 @Composable
-private fun StatsCard(
-    title: String,
-    value: String,
-    subtitle: String? = null,
-    icon: Int,
-    gradient: Brush,
-    modifier: Modifier = Modifier,
-    dimensions: ResponsiveDimensions
-) {
-    Box(
-        modifier = modifier
-            .aspectRatio(1.3f)
-            .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
-            .background(gradient)
-            .padding(dimensions.itemSpacing / 1.5f)
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Icon(
-                painterResource(id = icon),
-                null,
-                tint = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.size(dimensions.iconSizeSmall)
-            )
-            Spacer(Modifier.height(dimensions.itemSpacing / 3))
-            Text(
-                title,
-                color = Color.White.copy(alpha = 0.9f),
-                fontSize = dimensions.bodySmall * 0.92f
-            )
-            Text(
-                value,
-                color = Color.White,
-                fontSize = dimensions.bodyLarge * 1.13f,
-                fontWeight = FontWeight.ExtraBold
-            )
-            if (subtitle != null) {
-                Text(
-                    "Record : $subtitle",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = dimensions.bodySmall * 0.75f
-                )
-            }
+private fun ProgressionSection(readCount: Int, totalCount: Int, dimensions: ResponsiveDimensions) {
+    val progress = if (totalCount > 0) readCount.toFloat() / totalCount else 0f
+
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Ma progression", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyMedium)
+            Spacer(Modifier.weight(1f))
+            Text("$readCount / $totalCount chapitres", fontSize = dimensions.bodySmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(CircleShape),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.outlineVariant
+        )
     }
 }
 
 @Composable
 private fun QuizModeToggleRow(
     isDiscoveryMode: Boolean,
+    isLocked: Boolean,
+    readCount: Int,
     onToggle: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onToggle() }
-            .padding(
-                horizontal = dimensions.cardPadding,
-                vertical = dimensions.itemSpacing / 1.5f
-            ),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = if (isDiscoveryMode)
-                MaterialTheme.colorScheme.primaryContainer  // ✅ CHANGÉ
-            else
-                MaterialTheme.colorScheme.surfaceVariant,  // ✅ CHANGÉ
-            modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isLocked) { onToggle() }
+                .padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painterResource(id = R.drawable.ic_settings_1),
-                    null,
-                    tint = if (isDiscoveryMode)
-                        MaterialTheme.colorScheme.primary  // ✅ CHANGÉ
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ CHANGÉ
-                    modifier = Modifier.size(dimensions.iconSizeSmall)
+            Surface(
+                shape = CircleShape,
+                color = if (!isLocked && !isDiscoveryMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier
+                    .size(dimensions.iconSizeLarge * 0.83f)
+                    .alpha(if (isLocked) 0.5f else 1f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_settings_1),
+                        contentDescription = null,
+                        tint = if (!isLocked && !isDiscoveryMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(dimensions.iconSizeSmall)
+                    )
+                }
+            }
+
+            // ⭐ ESPACEMENT HORIZONTAL RESPONSIVE
+            Spacer(Modifier.width(dimensions.itemSpacing * 1.5f))
+
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .alpha(if (isLocked) 0.5f else 1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Mode Quiz", fontSize = dimensions.bodyLarge * 0.94f, fontWeight = FontWeight.SemiBold)
+                Text(
+                    " : ${if (isDiscoveryMode) "Découverte" else "Révision"}",
+                    fontSize = dimensions.bodyLarge * 0.94f,
+                    color = if (isDiscoveryMode) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                    fontWeight = if (isDiscoveryMode) FontWeight.Normal else FontWeight.Bold
                 )
             }
-        }
-        Spacer(Modifier.width(dimensions.itemSpacing))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "Mode Quiz",
-                fontSize = dimensions.bodyLarge * 0.94f,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface  // ✅ CHANGÉ
-            )
-            Text(
-                if (isDiscoveryMode) "Découverte" else "Révision",
-                fontSize = dimensions.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ CHANGÉ
+
+            Switch(
+                checked = !isDiscoveryMode,
+                onCheckedChange = { onToggle() },
+                enabled = !isLocked,
+                modifier = Modifier.scale(0.85f)
             )
         }
-        Switch(checked = isDiscoveryMode, onCheckedChange = { onToggle() })
+        if (isLocked) {
+            Text(
+                "Débloquez les révisions après 5 chapitres lus ($readCount/5)",
+                color = MaterialTheme.colorScheme.error,
+                fontSize = dimensions.bodySmall * 0.85f,
+                modifier = Modifier
+                    .padding(start = dimensions.cardPadding + (dimensions.iconSizeLarge * 0.83f) + (dimensions.itemSpacing * 1.5f))
+                    .offset(y = (-4).dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun MenuItemRow(
-    title: String,
-    iconRes: Int,
-    onClick: () -> Unit,
-    dimensions: ResponsiveDimensions
-) {
+private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit, dimensions: ResponsiveDimensions) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(
-                horizontal = dimensions.cardPadding,
-                vertical = dimensions.itemSpacing * 0.83f
-            ),
+            .padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing * 0.83f),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant,  // ✅ CHANGÉ
+            color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)
         ) {
-            Image(
-                painterResource(id = iconRes),
-                null,
-                modifier = Modifier.padding(dimensions.itemSpacing * 0.83f)
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Image(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(dimensions.iconSizeSmall)
+                )
+            }
         }
-        Spacer(Modifier.width(dimensions.itemSpacing))
-        Text(
-            title,
-            fontSize = dimensions.bodyLarge * 0.94f,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,  // ✅ CHANGÉ
-            modifier = Modifier.weight(1f)
-        )
+
+        // ⭐ ESPACEMENT HORIZONTAL RESPONSIVE
+        Spacer(Modifier.width(dimensions.itemSpacing * 1.5f))
+
+        Text(title, fontSize = dimensions.bodyLarge * 0.94f, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+
         Icon(
-            painterResource(R.drawable.arrow),
+            painter = painterResource(R.drawable.arrow),
             null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ CHANGÉ
-            modifier = Modifier.size(dimensions.iconSizeMedium * 0.67f)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(dimensions.iconSizeMedium * 0.6f)
         )
+    }
+}
+
+@Composable
+private fun StatsCard(title: String, value: String, subtitle: String? = null, icon: Int, gradient: Brush, modifier: Modifier = Modifier, dimensions: ResponsiveDimensions) {
+    Box(modifier = modifier.aspectRatio(1.3f).clip(RoundedCornerShape(dimensions.cornerRadiusMedium)).background(gradient).padding(dimensions.itemSpacing / 1.5f)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
+            Icon(painterResource(icon), null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(dimensions.iconSizeSmall))
+            Spacer(Modifier.height(dimensions.itemSpacing / 3))
+            Text(title, color = Color.White.copy(alpha = 0.9f), fontSize = dimensions.bodySmall * 0.92f)
+            Text(value, color = Color.White, fontSize = dimensions.bodyLarge * 1.13f, fontWeight = FontWeight.ExtraBold)
+            if (subtitle != null) Text("Record : $subtitle", color = Color.White.copy(alpha = 0.7f), fontSize = dimensions.bodySmall * 0.75f)
+        }
     }
 }
 
 @Composable
 private fun LoadingProfileState(dimensions: ResponsiveDimensions) {
-    Box(Modifier.fillMaxSize(), Alignment.Center) {
-        CircularProgressIndicator(
-            color = MaterialTheme.colorScheme.primary,  // ✅ CHANGÉ
-            modifier = Modifier.size(dimensions.iconSizeLarge)
-        )
-    }
+    Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(dimensions.iconSizeLarge)) }
 }
 
 @Composable
-private fun ErrorProfileState(
-    message: String,
-    onRetry: () -> Unit,
-    dimensions: ResponsiveDimensions
-) {
-    Column(
-        Modifier.fillMaxSize(),
-        Arrangement.Center,
-        Alignment.CenterHorizontally
-    ) {
-        Text(
-            message,
-            fontSize = dimensions.bodyLarge,
-            color = MaterialTheme.colorScheme.error
-        )
+private fun ErrorProfileState(message: String, onRetry: () -> Unit, dimensions: ResponsiveDimensions) {
+    Column(Modifier.fillMaxSize(), Arrangement.Center, Alignment.CenterHorizontally) {
+        Text(message, fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(dimensions.itemSpacing))
-        Button(
-            onClick = onRetry,
-            modifier = Modifier.height(dimensions.buttonHeightSmall)
-        ) {
-            Text("Réessayer", fontSize = dimensions.bodyMedium)
-        }
+        Button(onClick = onRetry) { Text("Réessayer") }
     }
 }
 
-@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+@Preview(showBackground = true, widthDp = 360, heightDp = 800)
 @Composable
 fun ProfileScreenPreview() {
     MaterialTheme {
         ProfileContent(
-            profile = com.miage.learnity.data.UserProfile(
+            profile = UserProfile(
                 firstName = "Axel",
                 lastName = "H",
-                email = "axel@learnity.fr",
+                email = "axel@miage.fr",
                 unityPoints = 1250,
                 currentStreak = 7,
                 bestStreak = 15,
@@ -511,9 +421,14 @@ fun ProfileScreenPreview() {
                 photoUrl = "avatar_b1"
             ),
             isDiscoveryMode = true,
+            readCount = 3,
+            totalCount = 50,
+            isReviewUnlocked = false,
             onModeChange = {},
             onLogout = {},
             onEditClick = {},
+            onNavigateToSettings = {},      // FIX PREVIEW
+            onNavigateToAssociation = {},   // FIX PREVIEW
             dimensions = rememberResponsiveDimensions()
         )
     }

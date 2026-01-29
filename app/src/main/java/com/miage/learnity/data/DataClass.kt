@@ -7,6 +7,10 @@ import com.google.gson.annotations.SerializedName
 // ============================================
 
 
+// ============================================
+// PROFIL UTILISATEUR COMPLET
+// ============================================
+
 data class UserProfile(
     val uid: String = "",
     val email: String = "",
@@ -21,7 +25,7 @@ data class UserProfile(
     val bestStreak: Int = 0,
     val lastDailyQuizDate: String? = null,
     val selectedAssociationId: String? = null,
-    //val virtualDebt: Double = 0.0
+    val quizMode: String = "DISCOVERY"
 )
 
 // ============================================

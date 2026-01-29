@@ -25,7 +25,7 @@ class QuizRepository {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     // ============================================
-    // RÉCUPÉRATION DES QUIZ
+    // RÉCUPÉRATION DES QUIZ CLASSIQUES
     // ============================================
 
     suspend fun getQuizForChapter(courseId: String, chapterId: String): Result<Quiz> =
@@ -40,7 +40,7 @@ class QuizRepository {
                 if (!chapterDoc.exists()) return@withContext Result.failure(Exception("Chapitre non trouvé"))
 
                 val quizJson = chapterDoc.getString("quiz")
-                if (quizJson.isNullOrEmpty()) return@withContext Result.failure(Exception("Pas de quiz"))
+                if (quizJson.isNullOrEmpty()) return@withContext Result.failure(Exception("Pas de quiz disponible"))
 
                 val selectedQuestions = parseQuestions(quizJson).shuffled().take(5)
 
@@ -79,7 +79,7 @@ class QuizRepository {
         }
 
     // ============================================
-    // ⭐ QUIZ DU JOUR (AVEC BARRE DE PROGRESSION)
+    // ⭐ QUIZ DU JOUR (LOGIQUE RÉVISIONS CORRIGÉE)
     // ============================================
 
     suspend fun getDailyQuiz(
@@ -92,6 +92,7 @@ class QuizRepository {
             val mode = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
             val dailyDocId = "${userId}_${today}_${mode}"
 
+            // 1. Vérifier si un quiz a déjà été généré aujourd'hui
             val existingDaily = firestore.collection("daily_quizzes_generated").document(dailyDocId).get().await()
 
             if (existingDaily.exists()) {
@@ -104,6 +105,7 @@ class QuizRepository {
                 }
             }
 
+            // 2. Scan de la base de données
             val allQuestionsPool = mutableListOf<Question>()
             val globalCoursesSnapshot = firestore.collection("courses").get().await()
             val totalCourses = globalCoursesSnapshot.size()
@@ -113,24 +115,38 @@ class QuizRepository {
                 val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
 
                 for (chapterDoc in chaptersSnapshot.documents) {
-                    var shouldInclude = isDiscoveryMode
+                    var shouldInclude = isDiscoveryMode // En mode découverte, on inclut tout
+
                     if (!isDiscoveryMode) {
+                        // 🎯 CORRECTION : On vérifie tes vrais champs Firebase
                         val progressDoc = firestore.collection("user_progress")
                             .document(userId).collection("courses").document(courseDoc.id)
                             .collection("chapters").document(chapterDoc.id).get().await()
 
-                        if (progressDoc.exists() && progressDoc.getBoolean("isContentRead") == true) {
-                            shouldInclude = true
+                        if (progressDoc.exists()) {
+                            val isCoursRead = progressDoc.getBoolean("isCoursRead") ?: false
+                            val isFdrRead = progressDoc.getBoolean("isFdrRead") ?: false
+
+                            // Si l'un des deux est vrai, l'utilisateur a étudié ce chapitre
+                            if (isCoursRead || isFdrRead) {
+                                shouldInclude = true
+                            }
                         }
                     }
+
                     if (shouldInclude) {
                         chapterDoc.getString("quiz")?.let { allQuestionsPool.addAll(parseQuestions(it)) }
                     }
                 }
             }
 
-            if (allQuestionsPool.isEmpty()) return@withContext Result.failure(Exception("Contenu insuffisant"))
+            if (allQuestionsPool.isEmpty()) {
+                val msg = if (isDiscoveryMode) "Contenu insuffisant"
+                else "Il faut lire au moins un cours ou une fiche pour débloquer les Révisions ! Passe en mode Découverte. 😉"
+                return@withContext Result.failure(Exception(msg))
+            }
 
+            // 3. Sélection et Sauvegarde
             val selectedQuestions = allQuestionsPool.shuffled().take(10)
             firestore.collection("daily_quizzes_generated").document(dailyDocId).set(mapOf(
                 "questionsJson" to gson.toJson(selectedQuestions),
@@ -140,11 +156,13 @@ class QuizRepository {
 
             onProgress(1.0f)
             Result.success(Quiz("DAILY_QUIZ", "GLOBAL", mode, "Quiz du Jour", selectedQuestions))
-        } catch (e: Exception) { Result.failure(e) }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     // ============================================
-    // ⭐ HISTORIQUE ET SAUVEGARDE (FUSIONNÉ)
+    // ⭐ HISTORIQUE ET SAUVEGARDE
     // ============================================
 
     suspend fun saveQuizHistory(
@@ -172,13 +190,13 @@ class QuizRepository {
                 "score" to historyEntry.score,
                 "total" to historyEntry.total,
                 "pointsGained" to historyEntry.pointsGained,
-                "timestamp" to historyEntry.timestamp, // ✅ Nom de champ harmonisé
+                "timestamp" to historyEntry.timestamp,
                 "userAnswersJson" to gson.toJson(userAnswers ?: emptyMap<Int, Int>())
             )
 
             firestore.collection("quiz_results").document(userId).collection("history").add(finalData).await()
 
-            // Marquer le chapitre comme complété
+            // Marquer le chapitre comme complété (pour les quiz de chapitre uniquement)
             val specialModes = listOf("ALL_CHAPTERS", "DISCOVERY", "REVIEW")
             if (!specialModes.contains(chapterId)) {
                 firestore.collection("user_progress")
@@ -214,7 +232,8 @@ class QuizRepository {
             val today = dateFormat.format(Date())
 
             val snapshot = firestore.collection("quiz_results").document(userId).collection("history")
-                .whereEqualTo("date", today).whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
+                .whereEqualTo("date", today)
+                .whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
                 .orderBy("timestamp", Query.Direction.ASCENDING).limit(1).get().await()
 
             if (snapshot.isEmpty) return@withContext Result.success(null)
@@ -230,7 +249,8 @@ class QuizRepository {
             val today = dateFormat.format(Date())
 
             val snapshot = firestore.collection("quiz_results").document(userId).collection("history")
-                .whereEqualTo("date", today).whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
+                .whereEqualTo("date", today)
+                .whereIn("chapterId", listOf("DISCOVERY", "REVIEW"))
                 .orderBy("timestamp", Query.Direction.ASCENDING).limit(1).get().await()
 
             if (snapshot.isEmpty) return@withContext Result.success(null)
