@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.Locale
 import com.google.firebase.firestore.Query
+import java.util.Calendar
 
 class QuizRepository {
 
@@ -283,7 +284,44 @@ class QuizRepository {
             Result.failure(e)
         }
     }
+    suspend fun getWeeklyProgress(goalPerWeek: Int = 4): Result<Pair<Int, Int>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val userId = auth.currentUser?.uid
+                    ?: return@withContext Result.failure(Exception("Non connecté"))
 
+                // Calculer le début de la semaine (lundi)
+                val calendar = Calendar.getInstance()
+                calendar.firstDayOfWeek = Calendar.MONDAY
+                calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+
+                val weekStartDate = calendar.time
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val weekStartStr = sdf.format(weekStartDate)
+
+                // Compter les quiz depuis le début de la semaine
+                val snapshot = firestore.collection("quiz_results")
+                    .document(userId)
+                    .collection("history")
+                    .whereGreaterThanOrEqualTo("date", weekStartStr)
+                    .get()
+                    .await()
+
+                // Compter uniquement les quiz quotidiens (Daily Quiz)
+                val dailyQuizCount = snapshot.documents.count { doc ->
+                    val chapterId = doc.getString("chapterId")
+                    chapterId == "DISCOVERY" || chapterId == "REVIEW"
+                }
+
+                Result.success(dailyQuizCount to goalPerWeek)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
     private fun parseQuestions(json: String): List<Question> {
         return try {
             val listType = object : TypeToken<List<Question>>() {}.type

@@ -29,10 +29,15 @@ fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
     var isDiscoveryMode by remember { mutableStateOf(false) }
 
+    // ⭐ NOUVEAU : Récupérer le UserViewModel pour avoir accès au currentStreak
+    val userViewModel: UserViewModel = viewModel()
+    val userUiState by userViewModel.uiState.collectAsState()
+    val currentStreak = userUiState.profile?.currentStreak ?: 0
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // ⭐ On cache les barres pour le Quiz, le PDF, l'Éditeur de profil et la VIDÉO
+    // On cache les barres pour le Quiz, le PDF, l'Éditeur de profil et la VIDÉO
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf") &&
@@ -43,6 +48,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
         topBar = {
             if (showBars) {
                 TopNavigationBar(
+                    currentStreak = currentStreak, // ⭐ NOUVEAU paramètre
                     onProfileClick = { navController.navigate("profile") },
                     onLogoClick = {
                         navController.navigate("home") {
@@ -113,7 +119,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
                 val chapterId = backStackEntry.arguments?.getString("chapterId") ?: ""
 
-                // On récupère le ViewModel du chapitre pour obtenir l'URL de la vidéo
                 val chapterViewModel: ChapterContentViewModel = viewModel()
                 val chapterState by chapterViewModel.chapter.collectAsState()
 
@@ -124,7 +129,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     onCoursClick = { navController.navigate("pdf/$courseId/$chapterId/cours") },
                     onFdrClick = { navController.navigate("pdf/$courseId/$chapterId/fdr") },
                     onVideoClick = {
-                        // ✅ On récupère l'URL, on l'encode et on navigue
                         chapterState?.videoUrl?.let { url ->
                             if (url.isNotBlank()) {
                                 val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
@@ -137,7 +141,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // ⭐ Nouvelle Route : Lecteur Vidéo
+            // Nouvelle Route : Lecteur Vidéo
             composable(
                 route = "video/{videoUrl}",
                 arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })
