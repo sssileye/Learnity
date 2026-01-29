@@ -37,7 +37,7 @@ fun AssociationCardCustom(
     dimensions: ResponsiveDimensions
 ) {
     val context = LocalContext.current
-    val imageResId = context.resources.getIdentifier(asso.logoName, "drawable", context.packageName)
+    val imageResId = context.resources.getIdentifier(asso.logoname, "drawable", context.packageName)
 
     // ✅ État pour gérer l'expansion de la description
     var isExpanded by remember { mutableStateOf(false) }
@@ -155,7 +155,7 @@ fun AssociationCardPreview() {
                     asso = Association(
                         name = "Les Restos du Cœur",
                         websiteUrl = "https://www.restosducoeur.org",
-                        logoName = "logo_restosducoeur",
+                        logoname = "logo_restosducoeur",
                         description = "Association reconnue d'utilité publique qui lutte contre la précarité et l'exclusion sociale en France. Elle propose des aides alimentaires et sociales."
                     ),
                     onDonClick = {},
@@ -166,7 +166,7 @@ fun AssociationCardPreview() {
                     asso = Association(
                         name = "Linkee",
                         websiteUrl = "https://linkee.co",
-                        logoName = "logo_linkee",
+                        logoname = "logo_linkee",
                         description = "Solution logistique et solidaire de lutte contre le gaspillage alimentaire."
                     ),
                     onDonClick = {},

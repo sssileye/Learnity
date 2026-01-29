@@ -133,7 +133,7 @@ data class Question(
 data class Association(
     val name: String = "",
     val websiteUrl: String = "",
-    val logoName: String = "",
+    val logoname: String = "",
     val description: String = "",
     val country: String = ""
 )

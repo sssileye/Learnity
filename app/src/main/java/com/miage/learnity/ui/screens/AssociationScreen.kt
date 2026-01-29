@@ -243,9 +243,9 @@ private fun ModernAssociationCard(
     val context = LocalContext.current
 
     // ⭐ Résolution dynamique de l'image (logo_name -> drawable id)
-    val imageResId = remember(asso.logoName) {
+    val imageResId = remember(asso.logoname) {
         try {
-            val id = context.resources.getIdentifier(asso.logoName, "drawable", context.packageName)
+            val id = context.resources.getIdentifier(asso.logoname, "drawable", context.packageName)
             if (id != 0) id else android.R.drawable.ic_menu_gallery
         } catch (e: Exception) {
             android.R.drawable.ic_menu_gallery
