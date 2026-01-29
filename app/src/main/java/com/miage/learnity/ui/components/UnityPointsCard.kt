@@ -9,21 +9,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.miage.learnity.ui.theme.*
 import com.miage.learnity.ui.utils.ResponsiveDimensions
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
  * ═══════════════════════════════════════════════════════════════
- * ✨ UNITY POINTS CARD - VERSION DARK MODE COMPATIBLE
+ * ✨ UNITY POINTS CARD - VERSION GRADIENTS VIBRANTS (HOMEPAGE)
  * ═══════════════════════════════════════════════════════════════
  *
- * Card affichant les Unity Points
- * ✅ Gradient bleu adaptatif symbolisant la progression
- * ✅ Dark mode support via gradients adaptatifs
+ * Card Unity Points avec GRADIENTS VIBRANTS FORCÉS
+ * ✅ Gradient bleu vibrant même en dark mode
+ * ✅ Garde l'énergie visuelle de la HomePage
  */
 @Composable
 fun UnityPointsCard(
@@ -35,14 +36,18 @@ fun UnityPointsCard(
 ) {
     val progress = (currentPoints.toFloat() / nextDonationGoal.toFloat()).coerceIn(0f, 1f)
     val pointsRemaining = (nextDonationGoal - currentPoints).coerceAtLeast(0)
-    val isGoalReached = currentPoints >= nextDonationGoal
 
-    // ✅ GRADIENT ADAPTATIF bleu
-    val gradient = unityPointsGradient()
+    // ✅ GRADIENT VIBRANT FORCÉ (même en dark mode)
+    val gradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFF4A90E2),  // Bleu clair vibrant
+            Color(0xFF357ABD)   // Bleu foncé vibrant
+        )
+    )
 
-    // ✅ COULEURS DE TEXTE ADAPTATIVES
-    val textColor = getOnGradientTextColor()
-    val overlayColor = getGradientOverlayColor(alpha = 0.25f)
+    // ✅ Texte blanc pour contraste
+    val textColor = Color.White
+    val overlayColor = Color.White.copy(alpha = 0.25f)
 
     Card(
         shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
@@ -67,12 +72,12 @@ fun UnityPointsCard(
                             text = "Unity Points",
                             fontSize = dimensions.bodyLarge,
                             fontWeight = FontWeight.Bold,
-                            color = textColor  // ✅ ADAPTATIF
+                            color = textColor
                         )
                         Text(
                             text = "Tes points accumulés",
                             fontSize = dimensions.bodySmall,
-                            color = textColor.copy(alpha = 0.9f)  // ✅ ADAPTATIF
+                            color = textColor.copy(alpha = 0.9f)
                         )
                     }
 
@@ -81,14 +86,14 @@ fun UnityPointsCard(
                         CircularProgressIndicator(
                             progress = { progress },
                             modifier = Modifier.size(dimensions.iconSizeLarge + 4.dp),
-                            color = textColor,  // ✅ ADAPTATIF
-                            trackColor = textColor.copy(alpha = 0.3f),  // ✅ ADAPTATIF
+                            color = textColor,
+                            trackColor = textColor.copy(alpha = 0.3f),
                             strokeWidth = 5.dp
                         )
                         Surface(
                             modifier = Modifier.size(dimensions.iconSizeLarge - 8.dp),
                             shape = CircleShape,
-                            color = overlayColor  // ✅ ADAPTATIF
+                            color = overlayColor
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -113,12 +118,12 @@ fun UnityPointsCard(
                             text = "$currentPoints",
                             fontSize = dimensions.displayLarge,
                             fontWeight = FontWeight.Black,
-                            color = textColor  // ✅ ADAPTATIF
+                            color = textColor
                         )
                         Text(
                             text = " pts",
                             fontSize = dimensions.titleLarge,
-                            color = textColor,  // ✅ ADAPTATIF
+                            color = textColor,
                             modifier = Modifier.offset(y = (-6).dp)
                         )
                     }
@@ -126,7 +131,7 @@ fun UnityPointsCard(
                     TextButton(
                         onClick = onViewImpactClick,
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = textColor  // ✅ ADAPTATIF
+                            contentColor = textColor
                         )
                     ) {
                         Text(
@@ -148,7 +153,7 @@ fun UnityPointsCard(
                         Text(
                             text = "Prochain don",
                             fontSize = dimensions.bodySmall,
-                            color = textColor.copy(alpha = 0.9f)  // ✅ ADAPTATIF
+                            color = textColor.copy(alpha = 0.9f)
                         )
                         Text(
                             text = if (pointsRemaining > 0)
@@ -157,7 +162,7 @@ fun UnityPointsCard(
                                 "Objectif atteint !",
                             fontSize = dimensions.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = textColor  // ✅ ADAPTATIF
+                            color = textColor
                         )
                     }
                     Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
@@ -167,8 +172,8 @@ fun UnityPointsCard(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = textColor,  // ✅ ADAPTATIF
-                        trackColor = textColor.copy(alpha = 0.3f),  // ✅ ADAPTATIF
+                        color = textColor,
+                        trackColor = textColor.copy(alpha = 0.3f),
                     )
 
                     if (progress >= 1f) {
@@ -184,7 +189,7 @@ fun UnityPointsCard(
                             Text(
                                 text = "Tu peux effectuer un don !",
                                 fontSize = dimensions.bodyMedium,
-                                color = textColor,  // ✅ ADAPTATIF
+                                color = textColor,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -196,10 +201,10 @@ fun UnityPointsCard(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 📱 PREVIEWS - Light & Dark Mode
+// 📱 PREVIEWS
 // ═══════════════════════════════════════════════════════════════
 
-@Preview(name = "Moyen (360dp) - Light", widthDp = 360)
+@Preview(name = "Moyen (360dp)", widthDp = 360)
 @Composable
 fun UnityPointsCardVibrantPreview() {
     MaterialTheme {
