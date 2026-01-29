@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
+import com.miage.learnity.data.Association
 import com.miage.learnity.data.UserProfile
 import com.miage.learnity.model.PointsManager
 import com.miage.learnity.repository.UserRepository
@@ -35,10 +36,19 @@ class UserViewModel(
     private val _uiState = MutableStateFlow(UserUiState())
     val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
 
+    // ⭐ Gestion des Associations Dynamiques
+    private val _associations = MutableStateFlow<List<Association>>(emptyList())
+    val associations: StateFlow<List<Association>> = _associations.asStateFlow()
+
     init {
         observeProfile()
         checkAndApplyAttendancePenalty()
         refreshProgressionStats()
+
+        // ⭐ On charge les associations au démarrage (et on fait le seed si besoin)
+        fetchAssociations()
+        // ⚠️ DÉCOMMENTE CETTE LIGNE UNE SEULE FOIS POUR REMPLIR FIREBASE, PUIS RE-COMMENTE
+        seedAssociationsToFirebase()
     }
 
     private fun observeProfile() {
@@ -70,6 +80,25 @@ class UserViewModel(
     }
 
     /**
+     * Récupère la liste des associations depuis Firebase
+     */
+    private fun fetchAssociations() {
+        viewModelScope.launch {
+            try {
+                // ⚠️ "Associations" avec majuscule comme dans ta base
+                val snapshot = firestore.collection("Associations").get().await()
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Association::class.java)
+                }
+                _associations.value = list
+                Log.d("LearnityDebug", "${list.size} associations chargées.")
+            } catch (e: Exception) {
+                Log.e("LearnityDebug", "Erreur chargement associations : ${e.message}")
+            }
+        }
+    }
+
+    /**
      * Compte uniquement les chapitres présents dans LA progression de l'utilisateur connecté.
      * Utilisation de CollectionGroup pour contourner les erreurs de listing hiérarchique.
      */
@@ -82,21 +111,16 @@ class UserViewModel(
 
         viewModelScope.launch {
             try {
-                // ⭐ STRATÉGIE COLLECTION GROUP :
-                // On cherche tous les documents "chapters" dans toute la base
                 val snapshot = firestore.collectionGroup("chapters").get().await()
 
                 var count = 0
                 for (doc in snapshot.documents) {
-                    // On filtre par le chemin pour ne garder que celui de l'utilisateur actuel
-                    // Chemin attendu : user_progress/UID/courses/ID_COURS/chapters/ID_CHAPITRE
                     if (doc.reference.path.contains("user_progress/$userId")) {
                         val isCoursRead = doc.getBoolean("isCoursRead") ?: false
                         val isFdrRead = doc.getBoolean("isFdrRead") ?: false
 
                         if (isCoursRead || isFdrRead) {
                             count++
-                            Log.d("LearnityDebug", "✅ Chapitre lu détecté : ${doc.id}")
                         }
                     }
                 }
@@ -106,14 +130,10 @@ class UserViewModel(
 
             } catch (e: Exception) {
                 Log.e("LearnityDebug", "❌ Erreur Scan : ${e.message}")
-                // Si l'erreur mentionne un index manquant, un lien URL apparaîtra dans le Logcat
             }
         }
     }
 
-    /**
-     * Compte tous les chapitres existants dans le catalogue global (le dénominateur)
-     */
     private fun calculateTotalChaptersCount() {
         viewModelScope.launch {
             try {
@@ -126,7 +146,6 @@ class UserViewModel(
                 }
 
                 _uiState.update { it.copy(totalChaptersCount = globalCount) }
-                Log.d("LearnityDebug", "CATALOGUE TOTAL : $globalCount")
             } catch (e: Exception) {
                 Log.e("LearnityDebug", "Erreur calcul total : ${e.message}")
             }
@@ -180,6 +199,52 @@ class UserViewModel(
                 refreshProgressionStats()
             }.onFailure { e ->
                 _uiState.update { it.copy(error = "Erreur sauvegarde : ${e.message}") }
+            }
+        }
+    }
+
+    // ⚠️ Fonction temporaire : À lancer UNE SEULE FOIS pour remplir la base
+    fun seedAssociationsToFirebase() {
+        val associations = listOf(
+            // FRANCE (5)
+            Association("Fédération ATENA", "https://www.helloasso.com/associations/federation-atena/formulaires/1", "logo_atena", "Épicerie solidaire pour étudiants à Bordeaux.", "France"),
+            Association("Les Restos du Cœur", "https://www.restosducoeur.org/faire-un-don-financier/", "logo_restosducoeur", "Aide alimentaire et accompagnement social.", "France"),
+            Association("Secours Populaire", "https://www.secourspopulaire.fr/don", "logo_secours_populaire_francais", "Lutte contre la pauvreté et l'exclusion.", "France"),
+            Association("Linkee", "https://www.helloasso.com/associations/linkee-bordeaux/formulaires/3", "logo_linkee", "Anti-gaspillage alimentaire étudiants.", "France"),
+            Association("M-Tech", "https://www.helloasso.com/associations/association-m-tech/formulaires/1", "logo_mtech", "Association technologique étudiante.", "France"),
+
+            // SÉNÉGAL (3)
+            Association("ENDA Pronat", "https://endapronat.org/", "logo_enda_senegal", "Agriculture durable Sénégal.", "Sénégal"),
+            Association("SOS Villages Sénégal", "https://www.sosve.org/senegal", "logo_sosenfantvillage_senegal", "Protection enfants vulnérables.", "Sénégal"),
+            Association("APAF Sénégal", "https://www.apaf-afrique.org/", "logo_apafsenegal", "Formation agricole jeunes.", "Sénégal"),
+
+            // MALI (3)
+            Association("UNICEF Mali", "https://www.unicef.org/mali/", "logo_unicefmali", "Protection enfants maliens.", "Mali"),
+            Association("Croix-Rouge Mali", "https://www.ifrc.org/our-network/national-societies/mali", "logo_croixrougemali", "Secours d'urgence Mali.", "Mali"),
+            Association("MSF Mali", "https://www.msf.org/mali", "logo_medecinsansfrontiere", "Soins zones conflit.", "Mali"),
+
+            // RDC (3)
+            Association("Caritas Congo", "https://www.caritas.org/where-caritas-work/africa/democratic-republic-of-congo/", "logo_caritascongo", "Aide humanitaire RDC.", "RDC"),
+            Association("World Vision RDC", "https://www.worldvision.org/our-work/countries/democratic-republic-of-congo", "logo_worldvisoncongo", "Parrainage enfants RDC.", "RDC"),
+            Association("PAM RDC", "https://www.wfp.org/countries/democratic-republic-congo", "logo_pamcongo", "Aide alimentaire RDC.", "RDC"),
+
+            // MARTINIQUE (3)
+            Association("Secours Populaire 972", "https://www.secourspopulaire.fr/", "logo_secourspopulairemartinique", "Aide alimentaire Martinique.", "Martinique"),
+            Association("Banque Alimentaire 972", "https://www.banquealimentaire.org/", "logo_banquealimentairemartinique", "Redistribution 972.", "Martinique"),
+            Association("Secours Catholique 972", "https://www.secours-catholique.org/", "logo_secourscatholiquemartinique", "Solidarité 972.", "Martinique"),
+
+            // MAROC (2)
+            Association("AMADE Maroc", "https://www.amade.ma/", "logo_amadmaroc", "Protection enfants Maroc.", "Maroc"),
+            Association("Fondation Mohammed V", "https://fm5.ma/", "logo_fondationmaroc", "Solidarité Maroc.", "Maroc")
+        )
+
+        viewModelScope.launch {
+            associations.forEach { asso ->
+                firestore.collection("Associations")
+                    .document(asso.name)
+                    .set(asso)
+                    .addOnSuccessListener { Log.d("LearnitySeed", "Succès : ${asso.name}") }
+                    .addOnFailureListener { Log.e("LearnitySeed", "Erreur : ${asso.name}") }
             }
         }
     }
