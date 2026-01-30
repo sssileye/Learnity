@@ -1,5 +1,6 @@
 package com.miage.learnity.ui.screens.quiz
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +37,8 @@ import com.miage.learnity.ui.screens.UserViewModel
 import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.theme.successColors
 import com.miage.learnity.ui.utils.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +51,13 @@ fun QuizScreen(
     onBackClick: () -> Unit = {}
 ) {
     val dimensions = rememberResponsiveDimensions()
+
+    // --- ÉTAT DU POP-UP DE SÉCURITÉ ---
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    // Observation des titres et états
+    val courseTitle: String by viewModel.courseTitle.collectAsState()
+    val chapterTitle: String by viewModel.chapterTitle.collectAsState()
     val questions by viewModel.questions.collectAsState()
     val currentQuestionIndex by viewModel.currentQuestionIndex.collectAsState()
     val userAnswers by viewModel.userAnswers.collectAsState()
@@ -57,10 +67,14 @@ fun QuizScreen(
     val hasSeenSummary by viewModel.hasSeenSummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
-
     val wasAlreadyDone by viewModel.wasAlreadyCompleted.collectAsState()
     val oldBestScore by viewModel.oldBestScore.collectAsState()
     val userUiState by userViewModel.uiState.collectAsState()
+
+    // ⭐ INTERCEPTION BOUTON RETOUR TÉLÉPHONE
+    BackHandler(enabled = !isQuizFinished) {
+        showExitDialog = true
+    }
 
     val quizType = remember(chapterId) {
         when (chapterId) {
@@ -90,13 +104,16 @@ fun QuizScreen(
                     },
                     currentQuestion = currentQuestionIndex + 1,
                     totalQuestions = questions.size,
-                    onBackClick = onBackClick,
+                    // ⭐ DÉCLENCHE LE POP-UP VIA LA FLÈCHE TOPBAR
+                    onBackClick = { showExitDialog = true },
                     dimensions = dimensions
                 )
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding())) {
+
+            // --- LOGIQUE D'AFFICHAGE ---
             when {
                 isLoading -> LoadingState(progress = loadingProgress, dimensions = dimensions)
                 questions.isEmpty() && !isLoading -> ErrorState(
@@ -136,6 +153,8 @@ fun QuizScreen(
                     val currentQuestion = questions.getOrNull(currentQuestionIndex)
                     if (currentQuestion != null) {
                         QuizContent(
+                            courseTitle = courseTitle,
+                            chapterTitle = chapterTitle,
                             currentQuestion = currentQuestion,
                             currentIndex = currentQuestionIndex,
                             totalQuestions = questions.size,
@@ -152,12 +171,44 @@ fun QuizScreen(
                     }
                 }
             }
+
+            // ⭐ LE POP-UP "GNAGNAGNA" (AlertDialog de sécurité)
+            if (showExitDialog) {
+                AlertDialog(
+                    onDismissRequest = { showExitDialog = false },
+                    title = {
+                        Text("Quitter le quiz ?", fontWeight = FontWeight.Bold)
+                    },
+                    text = {
+                        Text("Attention ! Si tu quittes maintenant, ta progression sera perdue et tes Unity Points ne seront pas enregistrés.")
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showExitDialog = false
+                                onBackClick() // On quitte vraiment ici
+                            }
+                        ) {
+                            Text("Quitter", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        Button(onClick = { showExitDialog = false }) {
+                            Text("Continuer le quiz")
+                        }
+                    },
+                    shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+                )
+            }
         }
     }
 }
 
+
 @Composable
 private fun QuizContent(
+    courseTitle: String,
+    chapterTitle: String,
     currentQuestion: Question,
     currentIndex: Int,
     totalQuestions: Int,
@@ -178,6 +229,32 @@ private fun QuizContent(
             .padding(dimensions.screenPaddingHorizontal)
             .verticalScroll(rememberScrollState())
     ) {
+        // --- 1. EN-TÊTE HIÉRARCHIQUE ---
+        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+            // UE en grand (ou "Quiz du Jour" / UE spécifique si Daily)
+            Text(
+                text = currentQuestion.courseTitle ?: courseTitle,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            // Chapitre en petit juste en dessous
+            val subTitle = currentQuestion.chapterTitle ?: chapterTitle
+            if (subTitle.isNotEmpty()) {
+                Text(
+                    text = subTitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // --- 2. BARRE DE PROGRESSION ---
         LinearProgressIndicator(
             progress = { (currentIndex + 1).toFloat() / totalQuestions },
             modifier = Modifier
@@ -187,8 +264,9 @@ private fun QuizContent(
             color = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.2f))
 
+        // --- 3. CARTE DE LA QUESTION ---
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
@@ -212,6 +290,7 @@ private fun QuizContent(
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
 
+        // --- 4. OPTIONS DE RÉPONSE ---
         val chunks = currentQuestion.options.chunked(2)
         chunks.forEachIndexed { rowIndex, pair ->
             Row(
@@ -239,6 +318,7 @@ private fun QuizContent(
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
         }
 
+        // --- 5. EXPLICATION (SI RÉVÉLÉ) ---
         if (isAnswerRevealed) {
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
             Card(
@@ -268,6 +348,7 @@ private fun QuizContent(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        // --- 6. BOUTONS DE NAVIGATION ---
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (showReturnToSummary) {
                 OutlinedButton(

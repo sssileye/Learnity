@@ -863,59 +863,70 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                "À propos de LEARNITY",
-                fontSize = dimensions.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
+            // Ajout de fillMaxWidth pour permettre le centrage réel
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
                     contentDescription = "Logo",
                     modifier = Modifier.size(dimensions.iconSizeLarge * 1.5f)
                 )
-
+                Spacer(Modifier.height(dimensions.itemSpacing))
                 Text(
-                    "LEARNITY",
+                    "À propos de Learnity",
                     fontSize = dimensions.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center // Sécurité supplémentaire
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(), // Centrage aussi pour le corps du texte
+                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Version 1.0.0",
+                    fontSize = dimensions.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
                 )
 
                 Text(
                     "Réviser pour soi, donner pour les autres",
                     fontSize = dimensions.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
                     style = androidx.compose.ui.text.TextStyle(
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    )
+                    ),
+                    textAlign = TextAlign.Center
                 )
-
-                HorizontalDivider()
 
                 Text(
                     """
-                    LEARNITY est une application mobile d'apprentissage qui combine éducation et action sociale.
+                    Learnity est une application mobile d'apprentissage qui combine éducation et solidarité.
                     
-                    À travers un système de "dette virtuelle", nous encourageons les étudiants à être assidus dans leurs révisions tout en contribuant à des causes caritatives.
+                    Chaque quiz complété vous rapporte des Unity Points et diminue votre dette virtuelle.
                     
-                    © 2024 - Projet M2 MIAGE Bordeaux
+                    Votre engagement profite aux associations partenaires.
+                    
+                    © 2026 - Projet M2 MIAGE Bordeaux
                     """.trimIndent(),
                     fontSize = dimensions.bodySmall,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Fermer", fontSize = dimensions.bodyMedium)
+            // Pour centrer aussi le bouton "Fermer", on peut le mettre dans une Box
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TextButton(onClick = onDismiss) {
+                    Text("Fermer", fontSize = dimensions.bodyMedium)
+                }
             }
         }
     )
