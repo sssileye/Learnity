@@ -231,7 +231,7 @@ private fun QuizContent(
             .verticalScroll(rememberScrollState())
     ) {
         // --- 1. EN-TÊTE HIÉRARCHIQUE ---
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
             // UE en grand (ou "Quiz du Jour" / UE spécifique si Daily)
             Text(
                 text = currentQuestion.courseTitle ?: courseTitle,
@@ -253,7 +253,7 @@ private fun QuizContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // --- 2. BARRE DE PROGRESSION ---
         LinearProgressIndicator(
