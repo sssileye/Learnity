@@ -1,9 +1,11 @@
 [versions]
 agp = "8.13.2"
 androidPdfViewer = "2.8.2"
+coilCompose = "2.7.0"
 core = "13.0.0"
 coreSplashscreen = "1.2.0"
 datastorePreferences = "1.2.0"
+guava = "33.5.0-android"
 kotlin = "2.0.21"
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -27,6 +29,8 @@ material3 = "1.4.0"
 datastoreCore = "1.2.0"
 datastorePreferencesCore = "1.2.0"
 datastorePreferencesCoreJvm = "1.2.0"
+workRuntimeKtx = "2.11.0"
+workRuntimeKtxVersion = "2.9.1"
 
 [libraries]
 # AndroidX & UI
@@ -51,6 +55,8 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 # Firebase (Géré par le Firebase BOM - Supprime les doublons de classes)
+androidx-work-runtime-ktx-v291 = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtxVersion" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 core = { module = "com.pierfrancescosoffritti.androidyoutubeplayer:core", version.ref = "core" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version = "33.7.0" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
@@ -58,6 +64,7 @@ firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore
 firebase-database = { group = "com.google.firebase", name = "firebase-database-ktx" }
 
 # Test
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -77,6 +84,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastoreCore" }
 androidx-datastore-preferences-core = { group = "androidx.datastore", name = "datastore-preferences-core", version.ref = "datastorePreferencesCore" }
 androidx-datastore-preferences-core-jvm = { group = "androidx.datastore", name = "datastore-preferences-core-jvm", version.ref = "datastorePreferencesCoreJvm" }
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
