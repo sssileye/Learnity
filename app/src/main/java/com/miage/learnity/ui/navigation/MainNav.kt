@@ -82,7 +82,15 @@ fun MainNav(onLogout: () -> Unit = {}) {
 
             composable("association") { AssociationScreen() }
             composable("ranking") { RankingScreen() }
-            composable("settings") { SettingsScreen() }
+            composable("settings") {
+                SettingsScreen(
+                    authViewModel = viewModel(),
+                    onAccountDeleted = {
+                        // Redirection vers l'écran de connexion
+                        onLogout()  // Appelle la fonction de déconnexion
+                    }
+                )
+            }
 
             // --- PROFIL ---
             composable("profile") {
