@@ -30,6 +30,11 @@ import com.miage.learnity.R
 import com.miage.learnity.ui.theme.*
 import com.miage.learnity.ui.utils.*
 
+import androidx.compose.ui.text.style.TextDecoration // Pour souligner le texte
+import androidx.compose.foundation.rememberScrollState // Pour le défilement des CGU
+import androidx.compose.foundation.verticalScroll // Pour rendre la popup scrollable
+import androidx.compose.material3.AlertDialog // Pour la fenêtre contextuelle [cite: 20]
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Inscription(
@@ -49,7 +54,10 @@ fun Inscription(
     var confirmPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var showConfirmPassword by remember { mutableStateOf(false) }
-    var acceptCGU by remember { mutableStateOf(false) }
+    //var acceptCGU by remember { mutableStateOf(false) }
+
+    var acceptCGU by remember { mutableStateOf(false) } // État de la case à cocher [cite: 11]
+    var showCGUDialog by remember { mutableStateOf(false) } // État d'affichage de la popup [cite: 42]
 
     // états d'erreur
     var firstNameError by remember { mutableStateOf("") }
@@ -406,6 +414,7 @@ fun Inscription(
             Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
 
             // CHECKBOX CGU
+            // --- BLOC CGU ---
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -413,15 +422,21 @@ fun Inscription(
                 Checkbox(
                     checked = acceptCGU,
                     onCheckedChange = { acceptCGU = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = Color(0xFF635BFF)
+                    colors = CheckboxDefaults.colors(checkedColor = Color(0xFF635BFF))
+                )
+
+                // On utilise un TextButton pour rendre le texte cliquable
+                TextButton(
+                    onClick = { showCGUDialog = true },
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        text = "J'accepte les conditions générales d'utilisation",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = dimensions.bodyMedium,
+                        textDecoration = TextDecoration.Underline // ✅ Souligne le texte
                     )
-                )
-                Text(
-                    text = "J'accepte les conditions générales d'utilisation",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = dimensions.bodyMedium
-                )
+                }
             }
 
             Spacer(Modifier.height(dimensions.itemSpacing * 2))
@@ -481,12 +496,44 @@ fun Inscription(
             Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
         }
     }
+    if (showCGUDialog) {
+        AlertDialog(
+            onDismissRequest = { showCGUDialog = false },
+            title = { Text("Conditions Générales d'Utilisation", fontWeight = FontWeight.Bold) },
+            text = {
+                // La colonne permet de scroller si le texte est trop long
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        text = """
+                        Dernière mise à jour : 30/01/2026 [cite: 3]
+                        
+                        1. OBJET : Learnity est une plateforme éducative utilisant la ludification pour encourager l'apprentissage[cite: 5, 6].
+                        
+                        2. INSCRIPTION : L'accès nécessite un compte valide. L'application est destinée aux étudiants[cite: 11, 12].
+                        
+                        3. IMPACT SOLIDAIRE : L'utilisateur définit une "redevance de soutien unitaire" générant une "dette virtuelle" cumulée[cite: 16, 17, 20].
+                        
+                        4. DONNÉES (RGPD) : Nous collectons Email, Nom, Prénom et statistiques pour le suivi de l'impact solidaire[cite: 26, 27, 28].
+                        
+                        5. PROPRIÉTÉ : Tous les contenus sont la propriété exclusive de Learnity[cite: 22, 23].
+                    """.trimIndent(),
+                        fontSize = dimensions.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCGUDialog = false }) {
+                    Text("Fermer", color = Color(0xFF635BFF), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 }
 
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+//@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+//@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+//@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
 @Composable
 fun InscriptionPreview() {
     LearnityTheme {
