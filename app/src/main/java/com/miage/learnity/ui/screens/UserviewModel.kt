@@ -15,6 +15,7 @@ import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import com.google.firebase.messaging.FirebaseMessaging
 
 /**
  * État UI enrichi pour le profil et la progression
@@ -220,7 +221,34 @@ class UserViewModel(
             }
         }
     }
+    /**
+     * 🔥 GESTION DU TOKEN DE NOTIFICATION (FCM)
+     * Récupère l'identifiant unique du téléphone et le stocke dans Firestore
+     */
+    fun updateFcmToken() {
+        val userId = repository.getCurrentUserId() ?: return
 
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("LearnityFCM", "❌ Échec récupération Token", task.exception)
+                return@addOnCompleteListener
+            }
+
+            val token = task.result
+
+            viewModelScope.launch {
+                try {
+                    // On met à jour le champ fcmToken dans le document de l'utilisateur
+                    firestore.collection("users").document(userId)
+                        .update("fcmToken", token)
+                        .await()
+                    Log.d("LearnityFCM", "✅ Token mis à jour pour $userId : $token")
+                } catch (e: Exception) {
+                    Log.e("LearnityFCM", "❌ Erreur sauvegarde Firestore : ${e.message}")
+                }
+            }
+        }
+    }
     fun updateRedevance(newValue: Double) {
         viewModelScope.launch { repository.updateRedevanceUnitaire(newValue) }
     }
