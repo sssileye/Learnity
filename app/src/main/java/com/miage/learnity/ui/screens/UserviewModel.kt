@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
+import com.miage.learnity.data.Association
 import com.miage.learnity.data.UserProfile
 import com.miage.learnity.model.PointsManager
 import com.miage.learnity.repository.UserRepository
@@ -35,10 +36,18 @@ class UserViewModel(
     private val _uiState = MutableStateFlow(UserUiState())
     val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
 
+    // ⭐ Liste Dynamique des Associations récupérées de Firebase
+    private val _associations = MutableStateFlow<List<Association>>(emptyList())
+    val associations: StateFlow<List<Association>> = _associations.asStateFlow()
+
     init {
         observeProfile()
         checkAndApplyAttendancePenalty()
         refreshProgressionStats()
+        firestore.clearPersistence()
+        // ⭐ Chargement immédiat des associations
+        fetchAssociations()
+
     }
 
     private fun observeProfile() {
@@ -70,65 +79,69 @@ class UserViewModel(
     }
 
     /**
-     * Compte uniquement les chapitres présents dans LA progression de l'utilisateur connecté.
-     * Utilisation de CollectionGroup pour contourner les erreurs de listing hiérarchique.
+     * 🔍 RÉCUPÉRATION DES ASSOCIATIONS DEPUIS FIREBASE
      */
-    private fun calculateReadChaptersCount() {
-        val userId = repository.getCurrentUserId() ?: return
-        val projectId = firestore.app.options.projectId
-
-        Log.d("LearnityDebug", "--- DÉBUT SCAN DYNAMIQUE ---")
-        Log.d("LearnityDebug", "Projet: $projectId | User: $userId")
-
+    private fun fetchAssociations() {
         viewModelScope.launch {
             try {
-                // ⭐ STRATÉGIE COLLECTION GROUP :
-                // On cherche tous les documents "chapters" dans toute la base
-                val snapshot = firestore.collectionGroup("chapters").get().await()
+                val snapshot = firestore.collection("Associations").get().await()
 
-                var count = 0
-                for (doc in snapshot.documents) {
-                    // On filtre par le chemin pour ne garder que celui de l'utilisateur actuel
-                    // Chemin attendu : user_progress/UID/courses/ID_COURS/chapters/ID_CHAPITRE
-                    if (doc.reference.path.contains("user_progress/$userId")) {
-                        val isCoursRead = doc.getBoolean("isCoursRead") ?: false
-                        val isFdrRead = doc.getBoolean("isFdrRead") ?: false
-
-                        if (isCoursRead || isFdrRead) {
-                            count++
-                            Log.d("LearnityDebug", "✅ Chapitre lu détecté : ${doc.id}")
-                        }
-                    }
+                // ⭐ LE LOG RÉVÉLATEUR
+                if (snapshot.documents.isNotEmpty()) {
+                    val firstDocPath = snapshot.documents[0].reference.path
+                    Log.e("LearnityAssos", "📍 CHEMIN RÉEL DANS FIREBASE : $firstDocPath")
                 }
 
-                _uiState.update { it.copy(readChaptersCount = count) }
-                Log.d("LearnityDebug", "TOTAL FINAL DÉTECTÉ : $count")
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Association::class.java)
+                }
+                _associations.value = list
+                Log.e("LearnityAssos", "✅ TOTAL CHARGÉ : ${list.size}")
 
             } catch (e: Exception) {
-                Log.e("LearnityDebug", "❌ Erreur Scan : ${e.message}")
-                // Si l'erreur mentionne un index manquant, un lien URL apparaîtra dans le Logcat
+                Log.e("LearnityAssos", "❌ ERREUR : ${e.message}")
             }
         }
     }
 
     /**
-     * Compte tous les chapitres existants dans le catalogue global (le dénominateur)
+     * Calcule le nombre de chapitres lus par l'utilisateur (via CollectionGroup)
+     */
+    private fun calculateReadChaptersCount() {
+        val userId = repository.getCurrentUserId() ?: return
+        viewModelScope.launch {
+            try {
+                val snapshot = firestore.collectionGroup("chapters").get().await()
+                var count = 0
+                for (doc in snapshot.documents) {
+                    if (doc.reference.path.contains("user_progress/$userId")) {
+                        val isCoursRead = doc.getBoolean("isCoursRead") ?: false
+                        val isFdrRead = doc.getBoolean("isFdrRead") ?: false
+                        if (isCoursRead || isFdrRead) count++
+                    }
+                }
+                _uiState.update { it.copy(readChaptersCount = count) }
+            } catch (e: Exception) {
+                Log.e("LearnityDebug", "❌ Erreur Scan Progression : ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Calcule le nombre total de chapitres dans le catalogue
      */
     private fun calculateTotalChaptersCount() {
         viewModelScope.launch {
             try {
                 val coursesSnapshot = firestore.collection("courses").get().await()
                 var globalCount = 0
-
                 for (courseDoc in coursesSnapshot.documents) {
                     val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
                     globalCount += chaptersSnapshot.size()
                 }
-
                 _uiState.update { it.copy(totalChaptersCount = globalCount) }
-                Log.d("LearnityDebug", "CATALOGUE TOTAL : $globalCount")
             } catch (e: Exception) {
-                Log.e("LearnityDebug", "Erreur calcul total : ${e.message}")
+                Log.e("LearnityDebug", "❌ Erreur calcul catalogue total : ${e.message}")
             }
         }
     }
