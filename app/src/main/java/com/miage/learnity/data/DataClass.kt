@@ -128,7 +128,8 @@ data class Question(
     @SerializedName("options") val options: List<String> = emptyList(),
     @SerializedName("correct") val correctAnswerIndex: Int = 0,
     @SerializedName("explanation") val explanation: String? = null,
-    val chapterTitle: String? = null
+    val chapterTitle: String? = null,
+    val courseTitle: String? = null
 )
 
 data class Association(

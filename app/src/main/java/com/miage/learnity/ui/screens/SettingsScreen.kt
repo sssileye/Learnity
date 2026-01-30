@@ -603,7 +603,11 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Ajout de fillMaxWidth pour permettre le centrage réel
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
                     contentDescription = "Logo",
@@ -613,12 +617,14 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
                 Text(
                     "À propos de Learnity",
                     fontSize = dimensions.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center // Sécurité supplémentaire
                 )
             }
         },
         text = {
             Column(
+                modifier = Modifier.fillMaxWidth(), // Centrage aussi pour le corps du texte
                 verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -647,16 +653,20 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
                     
                     Votre engagement profite aux associations partenaires.
                     
-                    © 2024 - Projet M2 MIAGE Bordeaux
+                    © 2026 - Projet M2 MIAGE Bordeaux
                     """.trimIndent(),
                     fontSize = dimensions.bodySmall,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Fermer", fontSize = dimensions.bodyMedium)
+            // Pour centrer aussi le bouton "Fermer", on peut le mettre dans une Box
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TextButton(onClick = onDismiss) {
+                    Text("Fermer", fontSize = dimensions.bodyMedium)
+                }
             }
         }
     )
