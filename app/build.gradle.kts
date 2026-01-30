@@ -75,14 +75,21 @@ dependencies {
     implementation(libs.core)
     implementation(libs.androidx.compose.ui.geometry)
 
+    // Version plus récente de WorkManager (2.9.1)
+    implementation(libs.androidx.work.runtime.ktx.v291)
+
+    // Guava
+    implementation(libs.guava)
+
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.ui)
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation(libs.coil.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.datastore.core)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Tests
     testImplementation(libs.junit)
