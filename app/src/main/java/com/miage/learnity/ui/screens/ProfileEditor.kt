@@ -100,43 +100,44 @@ private fun ProfileEditor(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)  // ✅ DARK MODE: background adaptatif
             .verticalScroll(scrollState)
             .padding(horizontal = dimensions.screenPaddingHorizontal)
     ) {
-        Spacer(Modifier.height(dimensions.profilePictureSize * 0.63f))  // ✅ 60.sdp()
+        Spacer(Modifier.height(dimensions.profilePictureSize * 0.63f))
 
-        // ✅ TITRE - RESPONSIVE
+        // ✅ TITRE - RESPONSIVE + DARK MODE
         Text(
             text = "Modifier mon profil",
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.Black,
-                fontSize = dimensions.titleLarge * 0.86f  // ✅ 24.ssp()
+                color = MaterialTheme.colorScheme.onBackground,  // ✅ DARK MODE: texte adaptatif
+                fontSize = dimensions.titleLarge * 0.86f
             )
         )
         Text(
             text = "Choisissez votre avatar et modifiez vos infos",
             style = MaterialTheme.typography.bodyMedium.copy(
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ DARK MODE: texte secondaire adaptatif
                 fontSize = dimensions.bodyMedium
             )
         )
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // ✅ 30.sdp()
+        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
 
-        // ✅ TITRE SECTION AVATARS - RESPONSIVE
+        // ✅ TITRE SECTION AVATARS - RESPONSIVE + DARK MODE
         Text(
             text = "Sélectionnez un avatar",
             style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = dimensions.bodyLarge
+                fontSize = dimensions.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground  // ✅ DARK MODE
             ),
             modifier = Modifier.padding(bottom = dimensions.itemSpacing)
         )
 
-        // ✅ GRILLE D'AVATARS - RESPONSIVE
+        // ✅ GRILLE D'AVATARS - RESPONSIVE + DARK MODE
         Box(
-            modifier = Modifier.height(dimensions.profilePictureSize * 2.92f)  // ✅ 280.sdp()
+            modifier = Modifier.height(dimensions.profilePictureSize * 2.92f)
         ) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
@@ -149,7 +150,7 @@ private fun ProfileEditor(
 
                     Box(
                         modifier = Modifier
-                            .size(dimensions.iconSizeLarge * 1.46f)  // ✅ 70.sdp()
+                            .size(dimensions.iconSizeLarge * 1.46f)
                             .clip(CircleShape)
                             .background(
                                 if (isSelected)
@@ -162,7 +163,7 @@ private fun ProfileEditor(
                                 color = if (isSelected)
                                     Color(0xFF673AB7)
                                 else
-                                    Color(0xFFE0E0E0),
+                                    MaterialTheme.colorScheme.outline,  // ✅ DARK MODE: border adaptatif
                                 shape = CircleShape
                             )
                             .clickable { selectedAvatarResId = avatarId }
@@ -178,9 +179,9 @@ private fun ProfileEditor(
             }
         }
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // ✅ 30.sdp()
+        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
 
-        // ✅ CHAMPS DE SAISIE - RESPONSIVE
+        // ✅ CHAMPS DE SAISIE - RESPONSIVE + DARK MODE
         CustomEditField(
             value = firstName,
             onValueChange = { firstName = it },
@@ -209,12 +210,12 @@ private fun ProfileEditor(
             dimensions = dimensions
         )
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 3.33f))  // ✅ 40.sdp()
+        Spacer(Modifier.height(dimensions.itemSpacing * 3.33f))
 
-        // ✅ BOUTONS - RESPONSIVE
+        // ✅ BOUTONS - RESPONSIVE + DARK MODE
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.33f)  // ✅ 16.sdp()
+            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.33f)
         ) {
             OutlinedButton(
                 onClick = onCancel,
@@ -222,11 +223,11 @@ private fun ProfileEditor(
                     .weight(1f)
                     .height(dimensions.buttonHeight),
                 shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)  // ✅ DARK MODE: border adaptatif
             ) {
                 Text(
                     "Annuler",
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,  // ✅ DARK MODE: texte adaptatif
                     fontSize = dimensions.bodyLarge
                 )
             }
@@ -261,7 +262,7 @@ private fun ProfileEditor(
             }
         }
 
-        Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))  // ✅ 50.sdp()
+        Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))
     }
 }
 
@@ -276,7 +277,7 @@ fun CustomEditField(
     dimensions: ResponsiveDimensions
 ) {
     Column(
-        modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.67f)  // ✅ 20.sdp()
+        modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.67f)
     ) {
         OutlinedTextField(
             value = value,
@@ -286,7 +287,7 @@ fun CustomEditField(
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = Color(0xFF673AB7),
+                    tint = Color(0xFF673AB7),  // Couleur de marque, on garde le violet
                     modifier = Modifier.size(dimensions.iconSizeMedium)
                 )
             },
@@ -310,7 +311,7 @@ fun CustomEditField(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF673AB7),
                 focusedLabelColor = Color(0xFF673AB7),
-                unfocusedBorderColor = Color(0xFFE0E0E0)
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline  // ✅ DARK MODE: border adaptatif
             )
         )
     }

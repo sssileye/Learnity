@@ -27,12 +27,19 @@ import java.nio.charset.StandardCharsets
 @Composable
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
-    var isDiscoveryMode by remember { mutableStateOf(false) }
+
+    // ⭐ Utilisation du UserViewModel comme source de vérité globale
+    val userViewModel: UserViewModel = viewModel()
+    val userUiState by userViewModel.uiState.collectAsState()
+
+    // Récupération des données du profil
+    val currentStreak = userUiState.profile?.currentStreak ?: 0
+    val quizMode = userUiState.profile?.quizMode ?: "DISCOVERY"
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // ⭐ On cache les barres pour le Quiz, le PDF, l'Éditeur de profil et la VIDÉO
+    // On cache les barres pour les écrans immersifs
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf") &&
@@ -43,6 +50,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
         topBar = {
             if (showBars) {
                 TopNavigationBar(
+                    currentStreak = currentStreak,
                     onProfileClick = { navController.navigate("profile") },
                     onLogoClick = {
                         navController.navigate("home") {
@@ -64,20 +72,35 @@ fun MainNav(onLogout: () -> Unit = {}) {
             startDestination = "home",
             modifier = Modifier.padding(if (showBars) paddingValues else PaddingValues(0.dp))
         ) {
+            // --- ACCUEIL ---
             composable("home") {
-                HomeScreen(navController = navController, isDiscoveryMode = isDiscoveryMode)
+                HomeScreen(
+                    navController = navController,
+                    userViewModel = userViewModel // On passe le VM déjà initialisé
+                )
             }
 
             composable("association") { AssociationScreen() }
             composable("ranking") { RankingScreen() }
-            composable("settings") { SettingsScreen() }
+            composable("settings") {
+                SettingsScreen(
+                    authViewModel = viewModel(),
+                    onAccountDeleted = {
+                        // Redirection vers l'écran de connexion
+                        onLogout()  // Appelle la fonction de déconnexion
+                    }
+                )
+            }
 
+            // --- PROFIL ---
             composable("profile") {
                 ProfileScreen(
-                    isDiscoveryMode = isDiscoveryMode,
-                    onModeChange = { isDiscoveryMode = it },
-                    onLogout = onLogout,
-                    onEditClick = { navController.navigate("profile_editor") }
+                    onLogout = onLogout,  // ✅ FIX 1: Utilisation de la vraie fonction de déconnexion
+                    onEditClick = {  // ✅ FIX 2: Navigation vers l'éditeur de profil
+                        navController.navigate("profile_editor")
+                    },
+                    onNavigateToSettings = { navController.navigate("settings") },
+                    onNavigateToAssociation = { navController.navigate("association") }
                 )
             }
 
@@ -85,6 +108,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 ProfileEditorScreen(onNavigateBack = { navController.popBackStack() })
             }
 
+            // --- BIBLIOTHÈQUE ---
             composable("library") {
                 LibraryScreen(onCourseClick = { id -> navController.navigate("course/$id") })
             }
@@ -102,7 +126,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- Contenu du Chapitre ---
+            // --- CONTENU DU CHAPITRE ---
             composable(
                 route = "chapter/{courseId}/{chapterId}",
                 arguments = listOf(
@@ -113,7 +137,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
                 val chapterId = backStackEntry.arguments?.getString("chapterId") ?: ""
 
-                // On récupère le ViewModel du chapitre pour obtenir l'URL de la vidéo
                 val chapterViewModel: ChapterContentViewModel = viewModel()
                 val chapterState by chapterViewModel.chapter.collectAsState()
 
@@ -124,7 +147,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     onCoursClick = { navController.navigate("pdf/$courseId/$chapterId/cours") },
                     onFdrClick = { navController.navigate("pdf/$courseId/$chapterId/fdr") },
                     onVideoClick = {
-                        // ✅ On récupère l'URL, on l'encode et on navigue
                         chapterState?.videoUrl?.let { url ->
                             if (url.isNotBlank()) {
                                 val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
@@ -137,7 +159,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // ⭐ Nouvelle Route : Lecteur Vidéo
+            // --- LECTEUR VIDÉO ---
             composable(
                 route = "video/{videoUrl}",
                 arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })
@@ -146,10 +168,11 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 YouTubePlayer(
                     videoUrl = videoUrl,
                     modifier = Modifier.fillMaxSize(),
-                    onVideoEnd = { /* Optionnel : marquer comme vu */ }
+                    onVideoEnd = { /* Optionnel */ }
                 )
             }
 
+            // --- LECTEUR PDF ---
             composable(
                 route = "pdf/{courseId}/{chapterId}/{type}",
                 arguments = listOf(
@@ -171,6 +194,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
+            // --- QUIZ (REVISIONS OU CLASSIQUE) ---
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(

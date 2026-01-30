@@ -7,6 +7,10 @@ import com.google.gson.annotations.SerializedName
 // ============================================
 
 
+// ============================================
+// PROFIL UTILISATEUR COMPLET
+// ============================================
+
 data class UserProfile(
     val uid: String = "",
     val email: String = "",
@@ -20,7 +24,8 @@ data class UserProfile(
     val currentStreak: Int = 0,
     val bestStreak: Int = 0,
     val lastDailyQuizDate: String? = null,
-    val selectedAssociationId: String? = null
+    val selectedAssociationId: String? = null,
+    val quizMode: String = "DISCOVERY"
 )
 
 // ============================================
@@ -109,19 +114,30 @@ data class Quiz(
     val title: String = "",
     val questions: List<Question> = emptyList()
 )
-
+data class QuizHistory(
+    val id: String = "",          // ID unique du document Firestore
+    val date: String = "",        // Ex: "28/01/26"
+    val hour: String = "",        // Ex: "10:34"
+    val score: Int = 0,
+    val total: Int = 0,
+    val pointsGained: Int = 0,    // Le gain net (nouveaux points)
+    val timestamp: Long = 0L      // Pour le tri (du plus récent au plus ancien)
+)
 data class Question(
     @SerializedName("text") val questionText: String = "",
     @SerializedName("options") val options: List<String> = emptyList(),
     @SerializedName("correct") val correctAnswerIndex: Int = 0,
-    @SerializedName("explanation") val explanation: String? = null
+    @SerializedName("explanation") val explanation: String? = null,
+    val chapterTitle: String? = null,
+    val courseTitle: String? = null
 )
 
 data class Association(
     val name: String = "",
     val websiteUrl: String = "",
-    val logoName: String = "",
+    val logoname: String = "",
     val description: String = ""
+
 )
 
 data class CourseProgress(

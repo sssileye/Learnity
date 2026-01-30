@@ -6,68 +6,68 @@ import kotlin.math.roundToInt
 object PointsManager {
 
     enum class QuizType {
-        CHAPTER,    // 5 questions -> Bonus Perfect +3
-        DAILY,      // 10 questions -> Bonus Perfect +5 + Multiplicateur + Dette
-        EXAM        // 20 questions -> Bonus Perfect +10
+        CHAPTER,
+        DAILY,
+        EXAM
     }
 
     data class QuizResult(
-        val pointsGained: Int, // Points de base (score)
-        val bonusGained: Int,  // Bonus "Perfect" uniquement
+        val progressionPoints: Int,
+        val bonusGained: Int,
         val debtAdded: Double,
         val isPerfect: Boolean
     )
 
     /**
-     * Calcule le gain potentiel d'une session.
-     * Note : La logique de comparaison avec l'ancien record (High Score)
-     * se fera dans le Repository lors de la transaction.
+     * Calcule le gain RÉEL d'une session.
+     * @param oldBestScore Doit être le record ABSOLU chargé depuis Firebase.
      */
     fun calculateResults(
         type: QuizType,
         score: Int,
         totalQuestions: Int,
-        profile: UserProfile
+        oldBestScore: Int,
+        profile: UserProfile,
+        wasAlreadyPerfect: Boolean = false
     ): QuizResult {
         val isPerfect = score == totalQuestions
         var debt = 0.0
-        var bonus = 0
+        var rawBonus = 0
 
-        // 1. Calcul du Bonus "Perfect" (One-shot)
-        if (isPerfect) {
-            bonus = when (type) {
+        // 1. CALCUL DE LA PROGRESSION (Sécurité renforcée)
+        // On s'assure que même avec un bug d'entrée, on ne donne pas de points
+        // si le score actuel est inférieur ou égal au record.
+        val diff = score - oldBestScore
+        val rawProgression = if (diff > 0) diff else 0
+
+        // 2. CALCUL DU BONUS PERFECT (Usage unique)
+        if (isPerfect && !wasAlreadyPerfect) {
+            rawBonus = when (type) {
                 QuizType.CHAPTER -> 3
                 QuizType.DAILY -> 5
                 QuizType.EXAM -> 10
             }
         }
 
-        // 2. Calcul de la Dette (Uniquement QDJ)
-        // Correction du bug : (Redevance / Nb total questions) * erreurs
+        // 3. CALCUL DE LA DETTE (Basé sur l'essai actuel)
         if (type == QuizType.DAILY) {
             val errors = totalQuestions - score
             if (errors > 0) {
+                // On utilise la redevance unitaire du profil
                 val costPerError = profile.redevanceSoutienUnitaire / totalQuestions.toDouble()
                 debt = costPerError * errors
             }
         }
 
-        // 3. Application du Multiplicateur (Uniquement QDJ)
-        // Si c'est un QDJ, on multiplie le score de base et le bonus
-        val finalBasePoints = if (type == QuizType.DAILY) {
-            (score * getStreakMultiplier(profile.currentStreak)).roundToInt()
-        } else {
-            score
-        }
+        // 4. MULTIPLICATEUR (Appliqué uniquement au Daily)
+        val multiplier = if (type == QuizType.DAILY) getStreakMultiplier(profile.currentStreak) else 1.0
 
-        val finalBonus = if (type == QuizType.DAILY) {
-            (bonus * getStreakMultiplier(profile.currentStreak)).roundToInt()
-        } else {
-            bonus
-        }
+        // Arrondi mathématique pour éviter les Unity Points à virgule
+        val finalProgression = (rawProgression * multiplier).roundToInt()
+        val finalBonus = (rawBonus * multiplier).roundToInt()
 
         return QuizResult(
-            pointsGained = finalBasePoints,
+            progressionPoints = finalProgression,
             bonusGained = finalBonus,
             debtAdded = debt,
             isPerfect = isPerfect

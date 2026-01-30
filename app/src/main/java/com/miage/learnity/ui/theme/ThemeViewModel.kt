@@ -9,10 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import androidx.lifecycle.viewModelScope
+import com.miage.learnity.repository.SettingsRepositorySingleton
 import kotlinx.coroutines.flow.SharingStarted
 
 /**
- * ViewModel pour gérer le thème de l'application
+ * ViewModel pour gÃ©rer le thÃ¨me de l'application
  */
 class ThemeViewModel(
     private val settingsRepository: SettingsRepository
@@ -27,7 +28,7 @@ class ThemeViewModel(
 }
 
 /**
- * Factory pour créer le ThemeViewModel avec injection de dépendances
+ * Factory pour crÃ©er le ThemeViewModel avec injection de dÃ©pendances
  */
 class ThemeViewModelFactory(
     private val context: Context
@@ -36,7 +37,7 @@ class ThemeViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ThemeViewModel::class.java)) {
             return ThemeViewModel(
-                settingsRepository = SettingsRepository(context)
+                settingsRepository = SettingsRepositorySingleton.getInstance(context)
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
