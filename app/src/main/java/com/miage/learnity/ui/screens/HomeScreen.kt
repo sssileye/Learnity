@@ -15,6 +15,11 @@ import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.repository.QuizRepository
 import com.miage.learnity.ui.components.*
 import com.miage.learnity.ui.utils.*
+import android.os.Build
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.miage.learnity.ui.screens.UserViewModel
 
 @Composable
 fun HomeScreen(
@@ -27,6 +32,32 @@ fun HomeScreen(
 
     // 1. On observe l'état du profil (qui contient quizMode)
     val userUiState by userViewModel.uiState.collectAsState()
+
+    // --- 🚀 GESTION DES NOTIFICATIONS ---
+
+    // 1. Déclencheur pour la pop-up de permission
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // L'utilisateur a accepté, on génère/sauve le token
+            userViewModel.updateFcmToken()
+        }
+    }
+
+    // 2. Logique de lancement automatique
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ : On lance la demande
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            // Android < 13 : Déjà autorisé, on met juste à jour le token
+            userViewModel.updateFcmToken()
+        }
+    }
+
+    // --- FIN GESTION NOTIFS ---
+
 
     // 2. ⭐ Source de vérité dynamique
     val currentQuizMode = userUiState.profile?.quizMode ?: "DISCOVERY"
