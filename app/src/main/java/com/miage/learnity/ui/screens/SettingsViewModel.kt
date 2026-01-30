@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.FontSize
 import com.miage.learnity.repository.SettingsRepository
+import com.miage.learnity.repository.SettingsRepositorySingleton
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -126,7 +127,7 @@ class SettingsViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
             return SettingsViewModel(
-                repository = SettingsRepository(context)
+                repository = SettingsRepositorySingleton.getInstance(context)
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

@@ -2,6 +2,7 @@ package com.miage.learnity.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.R
 import com.miage.learnity.data.FontSize
+import com.miage.learnity.model.AuthViewModel
 import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
 
@@ -31,7 +33,10 @@ import com.miage.learnity.ui.utils.*
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    authViewModel: AuthViewModel = viewModel(),  // ✅ NOUVEAU
+    onAccountDeleted: () -> Unit = {}  // ✅ NOUVEAU
+) {
     val context = LocalContext.current
     val viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModelFactory(context)
@@ -39,11 +44,24 @@ fun SettingsScreen() {
     val dimensions = rememberResponsiveDimensions()
     val uiState by viewModel.uiState.collectAsState()
 
-    // ✅ États pour les dialogs
+    // ✅ NOUVEAU : États pour la suppression de compte
+    val authState by authViewModel.state.collectAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteConfirmationText by remember { mutableStateOf("") }
+
+    // États pour les dialogs existants
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLegalDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+
+    // ✅ NOUVEAU : Écoute du succès de suppression
+    LaunchedEffect(authState.accountDeleteSuccess) {
+        if (authState.accountDeleteSuccess) {
+            authViewModel.clearAccountDeleteSuccess()
+            onAccountDeleted()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -87,7 +105,6 @@ fun SettingsScreen() {
                     )
                 )
 
-                // 🌙 DARK MODE SWITCH
                 DarkModeToggle(
                     isDarkMode = uiState.isDarkMode,
                     onToggle = { viewModel.toggleDarkMode() },
@@ -99,7 +116,6 @@ fun SettingsScreen() {
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
 
-                // 🔤 TAILLE DE POLICE
                 FontSizeSelector(
                     selectedSize = uiState.fontSize,
                     onSizeSelected = { viewModel.setFontSize(it) },
@@ -229,6 +245,63 @@ fun SettingsScreen() {
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // 🚨 NOUVELLE SECTION : ZONE DANGEREUSE
+        // ═══════════════════════════════════════════════════════════════
+
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+
+        Surface(
+            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f),
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
+            border = BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(dimensions.cardPadding)
+            ) {
+                Text(
+                    "ZONE DANGEREUSE",
+                    fontSize = dimensions.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = dimensions.itemSpacing / 2)
+                )
+
+                Text(
+                    "Cette action est irréversible",
+                    fontSize = dimensions.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = dimensions.itemSpacing)
+                )
+
+                Button(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(dimensions.buttonHeightSmall),
+                    shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_settings_1),
+                        contentDescription = null,
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
+                    )
+                    Spacer(Modifier.width(dimensions.itemSpacing / 2))
+                    Text(
+                        "Supprimer mon compte",
+                        fontSize = dimensions.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // 📦 VERSION DE L'APP
         // ═══════════════════════════════════════════════════════════════
         Card(
@@ -283,7 +356,7 @@ fun SettingsScreen() {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // 📱 DIALOGS
+    // 📱 DIALOGS EXISTANTS
     // ═══════════════════════════════════════════════════════════════
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false }, dimensions = dimensions)
@@ -299,6 +372,27 @@ fun SettingsScreen() {
 
     if (showPrivacyDialog) {
         PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false }, dimensions = dimensions)
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🗑️ NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
+    // ═══════════════════════════════════════════════════════════════
+    if (showDeleteDialog) {
+        DeleteAccountDialog(
+            confirmationText = deleteConfirmationText,
+            onConfirmationTextChange = { deleteConfirmationText = it },
+            isLoading = authState.isLoading,
+            error = authState.error,
+            onDismiss = {
+                showDeleteDialog = false
+                deleteConfirmationText = ""
+                authViewModel.clearError()
+            },
+            onConfirmDelete = {
+                authViewModel.deleteAccount()
+            },
+            dimensions = dimensions
+        )
     }
 }
 
@@ -515,9 +609,10 @@ private fun SettingsMenuItem(
                 modifier = Modifier.size(dimensions.iconSizeLarge)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Image(
+                    Icon(
                         painter = painterResource(id = icon),
                         contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(dimensions.iconSizeMedium)
                     )
                 }
@@ -534,10 +629,10 @@ private fun SettingsMenuItem(
             )
 
             Icon(
-                painter = painterResource(R.drawable.arrow),
+                painter = painterResource(id = R.drawable.ic_settings_1),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(dimensions.iconSizeSmall)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(dimensions.iconSizeMedium)
             )
         }
 
@@ -551,7 +646,144 @@ private fun SettingsMenuItem(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 📱 DIALOGS
+// 🗑️ NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
+// ═══════════════════════════════════════════════════════════════
+
+@Composable
+fun DeleteAccountDialog(
+    confirmationText: String,
+    onConfirmationTextChange: (String) -> Unit,
+    isLoading: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onConfirmDelete: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_settings_1),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(dimensions.iconSizeMedium)
+                )
+                Spacer(Modifier.width(dimensions.itemSpacing / 2))
+                Text(
+                    "Supprimer le compte",
+                    fontSize = dimensions.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
+            ) {
+                Text(
+                    "⚠️ Attention : Cette action est définitive !",
+                    fontSize = dimensions.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+
+                Text(
+                    "Toutes vos données seront supprimées :",
+                    fontSize = dimensions.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Column(
+                    modifier = Modifier.padding(start = dimensions.itemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 4)
+                ) {
+                    Text("• Votre profil", fontSize = dimensions.bodyMedium)
+                    Text("• Votre progression", fontSize = dimensions.bodyMedium)
+                    Text("• Vos Unity Points", fontSize = dimensions.bodyMedium)
+                    Text("• Votre historique de quiz", fontSize = dimensions.bodyMedium)
+                }
+
+                Spacer(Modifier.height(dimensions.itemSpacing / 2))
+
+                Text(
+                    "Pour confirmer, tapez SUPPRIMER ci-dessous :",
+                    fontSize = dimensions.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+
+                OutlinedTextField(
+                    value = confirmationText,
+                    onValueChange = onConfirmationTextChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("SUPPRIMER") },
+                    singleLine = true,
+                    enabled = !isLoading,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.error,
+                        focusedLabelColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+                )
+
+                if (error != null) {
+                    Text(
+                        error,
+                        fontSize = dimensions.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = dimensions.itemSpacing / 4)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmDelete,
+                enabled = confirmationText == "SUPPRIMER" && !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(dimensions.iconSizeMedium),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        "Supprimer définitivement",
+                        fontSize = dimensions.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading
+            ) {
+                Text(
+                    "Annuler",
+                    fontSize = dimensions.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 📖 DIALOGS D'INFORMATION (EXISTANTS)
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -560,33 +792,61 @@ fun HelpDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "Aide",
+                "Centre d'aide",
                 fontSize = dimensions.titleMedium,
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
             Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
             ) {
                 Text(
-                    "Besoin d'aide avec l'application ?",
-                    fontSize = dimensions.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    "COMMENT UTILISER LEARNITY ?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = dimensions.bodyMedium
                 )
-
                 Text(
                     """
-                    • Pour commencer, consultez la bibliothèque de cours
-                    • Faites vos quiz pour gagner des Unity Points
-                    • Suivez votre progression dans votre profil
-                    • La dette virtuelle diminue quand vous faites vos quiz
-                    • Vous pouvez choisir votre association préférée
-                    
-                    Pour toute question, contactez-nous à :
-                    support@learnity.fr
+                    1. Explorez les cours disponibles dans la bibliothèque
+                    2. Lisez les contenus et regardez les vidéos
+                    3. Complétez les quiz pour gagner des Unity Points
+                    4. Suivez votre progression et votre streak
+                    5. Choisissez une association à soutenir
                     """.trimIndent(),
+                    fontSize = dimensions.bodySmall
+                )
+
+                HorizontalDivider()
+
+                Text(
+                    "SYSTEM DE DETTE VIRTUELLE",
+                    fontWeight = FontWeight.Bold,
                     fontSize = dimensions.bodyMedium
+                )
+                Text(
+                    """
+                    Chaque semaine, vous devez compléter un quiz.
+                    Si vous manquez l'objectif, une dette virtuelle s'accumule.
+                    À la fin du mois, vous pouvez faire un don correspondant.
+                    """.trimIndent(),
+                    fontSize = dimensions.bodySmall
+                )
+
+                HorizontalDivider()
+
+                Text(
+                    "BESOIN D'AIDE ?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = dimensions.bodyMedium
+                )
+                Text(
+                    "Contactez-nous à support@learnity.fr",
+                    fontSize = dimensions.bodySmall
                 )
             }
         },
@@ -603,7 +863,11 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Ajout de fillMaxWidth pour permettre le centrage réel
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
                     contentDescription = "Logo",
@@ -613,12 +877,14 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
                 Text(
                     "À propos de Learnity",
                     fontSize = dimensions.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center // Sécurité supplémentaire
                 )
             }
         },
         text = {
             Column(
+                modifier = Modifier.fillMaxWidth(), // Centrage aussi pour le corps du texte
                 verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -647,16 +913,20 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
                     
                     Votre engagement profite aux associations partenaires.
                     
-                    © 2024 - Projet M2 MIAGE Bordeaux
+                    © 2026 - Projet M2 MIAGE Bordeaux
                     """.trimIndent(),
                     fontSize = dimensions.bodySmall,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Fermer", fontSize = dimensions.bodyMedium)
+            // Pour centrer aussi le bouton "Fermer", on peut le mettre dans une Box
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TextButton(onClick = onDismiss) {
+                    Text("Fermer", fontSize = dimensions.bodyMedium)
+                }
             }
         }
     )

@@ -1,10 +1,10 @@
 package com.miage.learnity.ui.screens.quiz
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miage.learnity.data.Question
 import com.miage.learnity.data.Quiz
-import com.miage.learnity.data.UserProfile
 import com.miage.learnity.data.QuizHistory
 import com.miage.learnity.model.PointsManager
 import com.miage.learnity.repository.QuizRepository
@@ -18,8 +18,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// ... (tes imports restent identiques)
-
 class QuizViewModel(
     private val repository: QuizRepository = QuizRepository(),
     private val progressRepository: UserProgressRepository = UserProgressRepository()
@@ -31,6 +29,15 @@ class QuizViewModel(
 
     private val _questions = MutableStateFlow<List<Question>>(emptyList())
     val questions: StateFlow<List<Question>> = _questions.asStateFlow()
+
+    // ⭐ ÉTATS POUR LES TITRES (Initialisés avec "" pour éviter les erreurs de type)
+    private val _courseTitle = MutableStateFlow<String>("")
+    val courseTitle: StateFlow<String> = _courseTitle.asStateFlow()
+
+    private val _chapterTitle = MutableStateFlow<String>("")
+    val chapterTitle: StateFlow<String> = _chapterTitle.asStateFlow()
+
+    private var isResultSaved = false
 
     private val _oldBestScore = MutableStateFlow(0)
     val oldBestScore: StateFlow<Int> = _oldBestScore.asStateFlow()
@@ -71,12 +78,47 @@ class QuizViewModel(
     val isCurrentAnswerRevealed: StateFlow<Boolean> = _isCurrentAnswerRevealed.asStateFlow()
 
     // ============================================
+    // ⭐ GESTION DU CONTEXTE (TITRES)
+    // ============================================
+
+    private suspend fun fetchContextTitles(courseId: String, chapterId: String?) {
+        try {
+            // 1. Cas Daily Quiz
+            if (courseId == "GLOBAL" || chapterId == "DISCOVERY" || chapterId == "REVIEW") {
+                _courseTitle.value = "Quiz du Jour"
+                _chapterTitle.value = if (chapterId == "DISCOVERY") "Mode Découverte" else "Mode Révisions"
+                return
+            }
+
+            // 2. Charger le titre du cours (UE)
+            repository.getCourseDetails(courseId).onSuccess { course ->
+                _courseTitle.value = course.title
+            }
+
+            // 3. Charger le titre du chapitre
+            when (chapterId) {
+                "ALL_CHAPTERS" -> _chapterTitle.value = "Synthèse de l'UE"
+                null -> _chapterTitle.value = ""
+                else -> {
+                    repository.getChapterDetails(courseId, chapterId).onSuccess { chapter ->
+                        _chapterTitle.value = chapter.title
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("QuizVM", "Erreur fetchContextTitles: ${e.message}")
+        }
+    }
+
+    // ============================================
     // CHARGEMENT DES MODES
     // ============================================
 
     fun loadQuiz(courseId: String, chapterId: String) {
+        isResultSaved = false
         viewModelScope.launch {
             _isLoading.value = true
+            fetchContextTitles(courseId, chapterId)
             fetchUserProgress(courseId, chapterId)
             repository.getQuizForChapter(courseId, chapterId).onSuccess { loadedQuiz ->
                 _quiz.value = loadedQuiz
@@ -86,10 +128,11 @@ class QuizViewModel(
         }
     }
 
-    // Mega Quiz et Daily Quiz utilisent la même logique de reset interne
     fun loadMegaQuiz(courseId: String) {
+        isResultSaved = false
         viewModelScope.launch {
             _isLoading.value = true
+            fetchContextTitles(courseId, "ALL_CHAPTERS")
             progressRepository.getChapterProgress(courseId, "ALL_CHAPTERS").onSuccess { progress ->
                 _oldBestScore.value = progress?.bestScore ?: 0
                 _wasAlreadyCompleted.value = (progress?.bestScore ?: 0) >= 20
@@ -103,8 +146,11 @@ class QuizViewModel(
     }
 
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
+        isResultSaved = false
+        val mode = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
         viewModelScope.launch {
             _isLoading.value = true
+            fetchContextTitles("GLOBAL", mode)
             repository.getDailyQuiz(isDiscoveryMode) { progress ->
                 _loadingProgress.value = progress
             }.onSuccess { dailyQuiz ->
@@ -126,7 +172,7 @@ class QuizViewModel(
     }
 
     // ============================================
-    // ⭐ LOGIQUE DE FINALISATION (SÉCURISÉE)
+    // ⭐ LOGIQUE DE FINALISATION
     // ============================================
 
     fun processFinalResults(
@@ -135,12 +181,13 @@ class QuizViewModel(
         courseId: String,
         chapterId: String
     ) {
-        val profile = userViewModel.uiState.value.profile ?: return // Sécurité
+        if (isResultSaved) return
+        isResultSaved = true
+        val profile = userViewModel.uiState.value.profile ?: return
         calculateAndSetScore(_userAnswers.value)
 
         val finalScore = _score.value
         val totalQuestions = _questions.value.size
-        val wasAlreadyPerfect = _oldBestScore.value >= totalQuestions
 
         val calculation = PointsManager.calculateResults(
             type = quizType,
@@ -148,13 +195,12 @@ class QuizViewModel(
             totalQuestions = totalQuestions,
             oldBestScore = _oldBestScore.value,
             profile = profile,
-            wasAlreadyPerfect = wasAlreadyPerfect
+            wasAlreadyPerfect = _wasAlreadyCompleted.value
         )
 
         _sessionPointsGained.value = calculation.progressionPoints + calculation.bonusGained
 
         viewModelScope.launch {
-            // Sauvegarde Historique
             val historyEntry = QuizHistory(
                 date = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date()),
                 hour = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
@@ -163,9 +209,8 @@ class QuizViewModel(
                 pointsGained = _sessionPointsGained.value,
                 timestamp = System.currentTimeMillis()
             )
-            repository.saveQuizHistory(courseId, chapterId, historyEntry)
+            repository.saveQuizHistory(courseId, chapterId, historyEntry, _userAnswers.value)
 
-            // Sauvegarde Firebase Transactionnelle
             userViewModel.repository.updateStatsWithHighscore(
                 courseId = courseId,
                 chapterId = chapterId,

@@ -16,12 +16,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 data class AuthUiState(
     val isLoading: Boolean = false,
     val user: FirebaseUser? = FirebaseAuth.getInstance().currentUser,
     val error: String? = null,
-    val resetPasswordSuccess: Boolean = false
+    val resetPasswordSuccess: Boolean = false,
+    val accountDeleteSuccess: Boolean = false  // ✅ NOUVEAU
 ) {
     val isAuthenticated: Boolean
         get() = user != null
@@ -143,6 +145,86 @@ class AuthViewModel : ViewModel() {
     fun signOut() {
         auth.signOut()
         _state.value = _state.value.copy(user = null)
+    }
+
+    // ============================================
+    // ✅ NOUVEAU : SUPPRESSION DE COMPTE
+    // ============================================
+
+    /**
+     * Supprime complètement le compte utilisateur et toutes ses données
+     * 1. Supprime les données Firestore (profil + progression)
+     * 2. Supprime le compte Firebase Auth
+     * 3. Déconnecte l'utilisateur
+     */
+    fun deleteAccount() {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            _state.value = _state.value.copy(
+                error = "Aucun utilisateur connecté"
+            )
+            return
+        }
+
+        setLoading()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val uid = currentUser.uid
+                println("🗑️ Début de la suppression du compte : $uid")
+
+                // 1. Supprimer le document utilisateur dans users/{uid}
+                firestore.collection("users")
+                    .document(uid)
+                    .delete()
+                    .await()
+                println("✅ Document utilisateur supprimé")
+
+                // 2. Supprimer toute la progression dans user_progress/{uid}
+                // On doit d'abord récupérer toutes les sous-collections
+                val userProgressRef = firestore.collection("user_progress").document(uid)
+
+                // Supprimer la collection courses et ses sous-collections
+                val coursesSnapshot = userProgressRef.collection("courses").get().await()
+                for (courseDoc in coursesSnapshot.documents) {
+                    // Supprimer les chapitres de chaque cours
+                    val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
+                    for (chapterDoc in chaptersSnapshot.documents) {
+                        chapterDoc.reference.delete().await()
+                    }
+                    // Supprimer le document cours
+                    courseDoc.reference.delete().await()
+                }
+
+                // Supprimer le document user_progress principal
+                userProgressRef.delete().await()
+                println("✅ Progression utilisateur supprimée")
+
+                // 3. Supprimer le compte Firebase Auth
+                currentUser.delete().await()
+                println("✅ Compte Firebase Auth supprimé")
+
+                // 4. Mettre à jour l'état
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    user = null,
+                    accountDeleteSuccess = true,
+                    error = null
+                )
+                println("✅ Suppression du compte terminée avec succès")
+
+            } catch (e: Exception) {
+                println("❌ Erreur lors de la suppression : ${e.message}")
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = "Échec de la suppression : ${e.localizedMessage}"
+                )
+            }
+        }
+    }
+
+    fun clearAccountDeleteSuccess() {
+        _state.value = _state.value.copy(accountDeleteSuccess = false)
     }
 
     // ============================================

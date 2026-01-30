@@ -7,6 +7,10 @@ import com.google.gson.annotations.SerializedName
 // ============================================
 
 
+// ============================================
+// PROFIL UTILISATEUR COMPLET
+// ============================================
+
 data class UserProfile(
     val uid: String = "",
     val email: String = "",
@@ -21,7 +25,7 @@ data class UserProfile(
     val bestStreak: Int = 0,
     val lastDailyQuizDate: String? = null,
     val selectedAssociationId: String? = null,
-    //val virtualDebt: Double = 0.0
+    val quizMode: String = "DISCOVERY"
 )
 
 // ============================================
@@ -123,14 +127,17 @@ data class Question(
     @SerializedName("text") val questionText: String = "",
     @SerializedName("options") val options: List<String> = emptyList(),
     @SerializedName("correct") val correctAnswerIndex: Int = 0,
-    @SerializedName("explanation") val explanation: String? = null
+    @SerializedName("explanation") val explanation: String? = null,
+    val chapterTitle: String? = null,
+    val courseTitle: String? = null
 )
 
 data class Association(
     val name: String = "",
     val websiteUrl: String = "",
-    val logoName: String = "",
+    val logoname: String = "",
     val description: String = ""
+
 )
 
 data class CourseProgress(

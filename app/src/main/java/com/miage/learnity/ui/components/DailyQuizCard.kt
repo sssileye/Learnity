@@ -1,5 +1,6 @@
 package com.miage.learnity.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -7,21 +8,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.miage.learnity.ui.theme.*
 import com.miage.learnity.ui.utils.ResponsiveDimensions
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
  * ═══════════════════════════════════════════════════════════════
- * 📝 DAILY QUIZ CARD - VERSION DARK MODE COMPATIBLE
+ * 📝 DAILY QUIZ CARD - VERSION GRADIENTS VIBRANTS
  * ═══════════════════════════════════════════════════════════════
  *
  * Card Vibrant du Quiz du Jour avec progression hebdomadaire intégrée
- * ✅ Dark mode support via gradients adaptatifs
- * ✅ Utilise MaterialTheme.colorScheme au lieu de couleurs hardcodées
+ * ✅ Gradients VIBRANTS forcés (même en dark mode)
+ * ✅ Structure IDENTIQUE au code original
  */
 @Composable
 fun DailyQuizCard(
@@ -44,16 +46,26 @@ fun DailyQuizCard(
         else -> "📚" to "Continue tes efforts"
     }
 
-    // ✅ GRADIENT ADAPTATIF selon état (dark mode compatible)
+    // ✅ CHANGEMENT ICI : Gradients VIBRANTS forcés au lieu d'adaptatifs
     val gradient = if (hasDoneQuizToday) {
-        quizCompletedGradient()  // Bleu-violet (adaptatif)
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF667EEA),  // Bleu vibrant
+                Color(0xFF764BA2)   // Violet vibrant
+            )
+        )
     } else {
-        quizPendingGradient()    // Violet-rose (adaptatif)
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF667EEA),  // Violet
+                Color(0xFFF093FB)   // Rose vibrant
+            )
+        )
     }
 
-    // ✅ COULEURS DE TEXTE ADAPTATIVES
-    val textColor = getOnGradientTextColor()
-    val overlayColor = getGradientOverlayColor(alpha = 0.25f)
+    // ✅ CHANGEMENT ICI : Couleurs de texte forcées au lieu d'adaptatives
+    val textColor = Color.White
+    val overlayColor = Color.White.copy(alpha = 0.25f)
 
     Column(modifier = modifier) {
         Card(
@@ -88,20 +100,20 @@ fun DailyQuizCard(
                                 text = if (hasDoneQuizToday) message else "Quiz du jour",
                                 fontSize = dimensions.bodyLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = textColor  // ✅ ADAPTATIF
+                                color = textColor
                             )
                         }
 
                         // Badge mode
                         Surface(
                             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-                            color = overlayColor  // ✅ ADAPTATIF
+                            color = overlayColor
                         ) {
                             Text(
                                 text = if (isDiscoveryMode) "Découverte" else "Révision",
                                 fontSize = dimensions.bodySmall,
                                 fontWeight = FontWeight.Medium,
-                                color = textColor,  // ✅ ADAPTATIF
+                                color = textColor,
                                 modifier = Modifier.padding(
                                     horizontal = dimensions.itemSpacing,
                                     vertical = dimensions.itemSpacing / 2
@@ -122,12 +134,12 @@ fun DailyQuizCard(
                                 text = "$scoreValue",
                                 fontSize = dimensions.displayLarge * 1.5f,
                                 fontWeight = FontWeight.Black,
-                                color = textColor  // ✅ ADAPTATIF
+                                color = textColor
                             )
                             Text(
                                 text = "/$totalQuestions",
                                 fontSize = dimensions.titleLarge,
-                                color = textColor.copy(alpha = 0.9f),  // ✅ ADAPTATIF
+                                color = textColor.copy(alpha = 0.9f),
                                 modifier = Modifier.offset(y = (-8).dp)
                             )
                         }
@@ -146,11 +158,11 @@ fun DailyQuizCard(
                                     .height(dimensions.buttonHeightSmall),
                                 shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = textColor  // ✅ ADAPTATIF
+                                    contentColor = textColor
                                 ),
-                                border = androidx.compose.foundation.BorderStroke(
+                                border = BorderStroke(
                                     2.dp,
-                                    textColor  // ✅ ADAPTATIF
+                                    textColor
                                 )
                             ) {
                                 Text(
@@ -166,7 +178,7 @@ fun DailyQuizCard(
                                     .weight(1f)
                                     .height(dimensions.buttonHeightSmall),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surface  // ✅ ADAPTATIF
+                                    containerColor = MaterialTheme.colorScheme.surface
                                 ),
                                 shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
                             ) {
@@ -174,7 +186,7 @@ fun DailyQuizCard(
                                     "Refaire",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = dimensions.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary  // ✅ ADAPTATIF
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -184,7 +196,7 @@ fun DailyQuizCard(
                         Button(
                             onClick = { onAction(false) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surface  // ✅ ADAPTATIF
+                                containerColor = MaterialTheme.colorScheme.surface
                             ),
                             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                             modifier = Modifier
@@ -198,7 +210,7 @@ fun DailyQuizCard(
                                 "Commencer maintenant",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = dimensions.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary  // ✅ ADAPTATIF
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -206,7 +218,7 @@ fun DailyQuizCard(
             }
         }
 
-        // ✅ WeeklyProgressCard (déjà partiellement adaptatif)
+        // WeeklyProgressCard
         Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
 
         weeklyProgress?.let { (completed, total) ->
@@ -225,13 +237,13 @@ fun DailyQuizCard(
                 Text(
                     text = "Cette semaine",
                     fontSize = dimensions.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ Déjà adaptatif
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = "Chargement...",
                     fontSize = dimensions.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,  // ✅ Déjà adaptatif
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -240,10 +252,10 @@ fun DailyQuizCard(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 📱 PREVIEWS - Light & Dark Mode
+// 📱 PREVIEWS
 // ═══════════════════════════════════════════════════════════════
 
-@Preview(name = "Moyen (360dp) - Light", widthDp = 360)
+@Preview(name = "Moyen (360dp)", widthDp = 360)
 @Composable
 fun DailyQuizCardWithProgressPreview() {
     MaterialTheme {
