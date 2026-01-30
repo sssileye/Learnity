@@ -134,8 +134,8 @@ data class Association(
     val name: String = "",
     val websiteUrl: String = "",
     val logoname: String = "",
-    val description: String = "",
-    val country: String = ""
+    val description: String = ""
+
 )
 
 data class CourseProgress(

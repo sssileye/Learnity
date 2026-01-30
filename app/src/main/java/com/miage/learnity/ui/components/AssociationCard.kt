@@ -1,6 +1,9 @@
 package com.miage.learnity.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,13 +25,16 @@ import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
  * ═══════════════════════════════════════════════════════════════
- * 🎗️ ASSOCIATION CARD - VERSION DARK MODE COMPATIBLE
+ * 🎗️ ASSOCIATION CARD - VERSION COMPLÈTE
  * ═══════════════════════════════════════════════════════════════
  *
  * Card affichant une association avec :
  * ✅ Couleurs adaptées au thème (light/dark)
  * ✅ Description expandable avec bouton "Voir plus"
  * ✅ Animation smooth lors de l'expansion
+ * ✅ Bordures visibles entre les cards
+ * ✅ Logo cliquable → ouvre le site
+ * ✅ Nom cliquable → ouvre le site
  */
 @Composable
 fun AssociationCardCustom(
@@ -42,16 +48,26 @@ fun AssociationCardCustom(
     // ✅ État pour gérer l'expansion de la description
     var isExpanded by remember { mutableStateOf(false) }
 
+    // ✅ Fonction pour ouvrir le site de l'association
+    val openWebsite = {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(asso.websiteUrl))
+        context.startActivity(intent)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = dimensions.iconSizeLarge)
-            .animateContentSize(), // ✅ Animation smooth lors de l'expansion
+            .animateContentSize(), // ✅ Animation smooth
         shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface  // ✅ ADAPTATIF
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),  // ✅ Élévation visible
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant  // ✅ Bordure adaptative
+        )
     ) {
         Column(
             modifier = Modifier.padding(dimensions.cardPadding)
@@ -61,7 +77,7 @@ fun AssociationCardCustom(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Logo de l'association
+                // ✅ LOGO CLIQUABLE → Ouvre le site
                 Image(
                     painter = painterResource(
                         id = if (imageResId != 0) imageResId else android.R.drawable.ic_menu_gallery
@@ -69,12 +85,17 @@ fun AssociationCardCustom(
                     contentDescription = "Logo ${asso.name}",
                     modifier = Modifier
                         .size(dimensions.iconSizeLarge)
-                        .padding(end = dimensions.itemSpacing / 2),
+                        .padding(end = dimensions.itemSpacing / 2)
+                        .clickable { openWebsite() },  // ✅ CLIC → Site
                     contentScale = ContentScale.Fit
                 )
 
-                // Nom de l'association
-                Column(modifier = Modifier.weight(1f)) {
+                // ✅ NOM CLIQUABLE → Ouvre le site
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { openWebsite() }  // ✅ CLIC → Site
+                ) {
                     Text(
                         text = asso.name,
                         color = MaterialTheme.colorScheme.onSurface,  // ✅ ADAPTATIF
@@ -103,7 +124,7 @@ fun AssociationCardCustom(
                 }
             }
 
-            // ✅ Description avec expansion
+            // ✅ DESCRIPTION PLIABLE avec bouton "Voir plus"
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -113,12 +134,12 @@ fun AssociationCardCustom(
                     text = asso.description,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ ADAPTATIF
                     fontSize = dimensions.bodySmall,
-                    maxLines = if (isExpanded) Int.MAX_VALUE else 2,  // ✅ Expandable
+                    maxLines = if (isExpanded) Int.MAX_VALUE else 2,  // ✅ PLIABLE
                     overflow = TextOverflow.Ellipsis
                 )
 
                 // ✅ Bouton "Voir plus" / "Voir moins"
-                if (asso.description.length > 100) { // Affiche le bouton si texte long
+                if (asso.description.length > 100) {
                     TextButton(
                         onClick = { isExpanded = !isExpanded },
                         contentPadding = PaddingValues(0.dp),
@@ -141,8 +162,8 @@ fun AssociationCardCustom(
 // 📱 PREVIEWS
 // ═══════════════════════════════════════════════════════════════
 
-@Preview(name = "Card Collapsed", widthDp = 360)
-@Preview(name = "Card Expanded", widthDp = 360)
+@Preview(name = "Card Light Mode", widthDp = 360)
+@Preview(name = "Card Dark Mode", widthDp = 360, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun AssociationCardPreview() {
     MaterialTheme {
