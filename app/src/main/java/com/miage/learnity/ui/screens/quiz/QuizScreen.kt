@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -425,9 +426,10 @@ fun QuizOptionCard(
 
     Box(contentAlignment = Alignment.Center) {
         Card(
-            modifier = Modifier.fillMaxWidth().height(dimensions.iconSizeLarge * 2.3f).pointerInput(Unit) {
-                detectTapGestures(onLongPress = { showPreview = true }, onTap = { onClick() })
-            },
+            modifier = Modifier.fillMaxWidth().height(dimensions.iconSizeLarge * 2.3f).combinedClickable(
+                onClick = onClick,
+                onLongClick = { showPreview = true }
+            ),
             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
             colors = CardDefaults.cardColors(containerColor = backgroundColor),
             border = BorderStroke(if (isSelected || isCorrect || isWrong) 3.dp else 1.dp, borderColor.copy(alpha = 0.5f)),
