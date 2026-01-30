@@ -2,32 +2,21 @@ package com.miage.learnity.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.data.Association
 import com.miage.learnity.ui.components.*
@@ -41,10 +30,6 @@ fun AssociationScreen(
     val context = LocalContext.current
 
     val uiState by userViewModel.uiState.collectAsState()
-
-    // ⭐ RÉCUPÉRATION DYNAMIQUE (Plus de liste hardcodée)
-    val firebaseAssociations by userViewModel.associations.collectAsState()
-
     val profile = uiState.profile
     val detteVirtuelle = profile?.detteCumulee ?: 0.0
     val isLoading = uiState.isLoading
@@ -53,19 +38,54 @@ fun AssociationScreen(
     var selectedAsso by remember { mutableStateOf<Association?>(null) }
     var montantDon by remember { mutableStateOf("") }
     var isInputError by remember { mutableStateOf(false) }
-    var filterCountry by remember { mutableStateOf<String?>(null) }
 
-    // ⭐ FILTRAGE DE LA LISTE DYNAMIQUE
-    val displayedAssociations = remember(firebaseAssociations, filterCountry) {
-        if (filterCountry != null) {
-            firebaseAssociations.filter { it.country == filterCountry }
-        } else {
-            firebaseAssociations
-        }
+    // ✅ LISTE COMPLÈTE : 19 associations AVEC UNDERSCORES
+    val allAssociations = remember {
+        listOf(
+            // FRANCE (5)
+            Association("Fédération ATENA", "https://www.helloasso.com/associations/federation-atena/formulaires/1", "logo_atena", "Épicerie solidaire pour étudiants à Bordeaux."),
+            Association("Les Restos du Cœur", "https://www.restosducoeur.org/faire-un-don-financier/", "logo_restosducoeur", "Aide alimentaire et accompagnement social en France."),
+            Association("Secours Populaire", "https://www.secourspopulaire.fr/don", "logo_secours_populaire_francais", "Lutte contre la pauvreté et l'exclusion."),
+            Association("Linkee", "https://www.helloasso.com/associations/linkee-bordeaux/formulaires/3", "logo_linkee", "Anti-gaspillage alimentaire, redistribution étudiants."),
+            Association("M-Tech", "https://www.helloasso.com/associations/association-m-tech/formulaires/1", "logo_mtech", "Association technologique étudiante innovante."),
+
+            // SÉNÉGAL (3) - ✅ UNDERSCORES
+            Association("ENDA Pronat", "https://endapronat.org/", "logo_enda_senegal", "Agriculture durable et sécurité alimentaire au Sénégal."),
+            Association("SOS Villages Sénégal", "https://www.sosve.org/senegal", "logo_sosenfantvillage_senegal", "Protection et éducation des enfants vulnérables."),
+            Association("APAF Sénégal", "https://www.apaf-afrique.org/", "logo_apafsenegal", "Formation agricole pour jeunes sénégalais."),
+
+            // MALI (3) - ✅ UNDERSCORES
+            Association("UNICEF Mali", "https://www.unicef.org/mali/", "logo_unicefmali", "Protection et éducation des enfants maliens."),
+            Association("Croix-Rouge Mali", "https://www.ifrc.org/our-network/national-societies/mali", "logo_croixrougemali", "Secours d'urgence et aide humanitaire au Mali."),
+            Association("MSF Mali", "https://www.msf.org/mali", "logo_medecinsansfrontiere", "Soins médicaux d'urgence dans les zones de conflit."),
+
+            // RDC (3) - ✅ UNDERSCORES
+            Association("Caritas Congo", "https://www.caritas.org/where-caritas-work/africa/democratic-republic-of-congo/", "logo_caritascongo", "Aide humanitaire et développement communautaire en RDC."),
+            Association("World Vision RDC", "https://www.worldvision.org/our-work/countries/democratic-republic-of-congo", "logo_worldvisoncongo", "Parrainage d'enfants et développement en RDC."),
+            Association("PAM RDC", "https://www.wfp.org/countries/democratic-republic-congo", "logo_pamcongo", "Aide alimentaire d'urgence et lutte contre la faim."),
+
+            // MARTINIQUE (3) - ✅ UNDERSCORES
+            Association("Secours Populaire 972", "https://www.secourspopulaire.fr/", "logo_secourspopulairemartinique", "Aide alimentaire et lutte contre l'exclusion en Martinique."),
+            Association("Banque Alimentaire 972", "https://www.banquealimentaire.org/", "logo_banquealimentairemartinique", "Collecte et redistribution de denrées alimentaires."),
+            Association("Secours Catholique 972", "https://www.secours-catholique.org/", "logo_secourscatholiquemartinique", "Solidarité et accompagnement des personnes en précarité."),
+
+            // MAROC (2) - ✅ UNDERSCORES
+            Association("AMADE Maroc", "https://www.amade.ma/", "logo_amadmaroc", "Protection et éducation des enfants défavorisés au Maroc."),
+            Association("Fondation Mohammed V", "https://fm5.ma/", "logo_fondationmaroc", "Solidarité sociale et aide aux démunis au Maroc.")
+        )
     }
 
+    // ✅ FOND ADAPTATIF DARK MODE
     val backgroundGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
+        colors = listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.03f),
+            MaterialTheme.colorScheme.background
+        )
+    )
+
+    // ✅ GRADIENT DETTE - Orange/Jaune
+    val cardGradient = Brush.horizontalGradient(
+        colors = listOf(Color(0xFFF2994A), Color(0xFFF2C94C))
     )
 
     Box(
@@ -73,75 +93,73 @@ fun AssociationScreen(
             .fillMaxSize()
             .background(backgroundGradient)
     ) {
-        // État de chargement initial (si la liste est vide au début)
-        if (firebaseAssociations.isEmpty() && isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
+        if (isLoading && profile == null) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                color = MaterialTheme.colorScheme.primary
+            )
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = dimensions.screenPaddingHorizontal, vertical = dimensions.screenPaddingVertical),
-                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = dimensions.screenPaddingHorizontal),
+                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
+                contentPadding = PaddingValues(vertical = dimensions.screenPaddingVertical)
             ) {
-                // En-tête
+                // Titre
                 item {
                     Text(
-                        text = "Mes Associations",
-                        fontSize = dimensions.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        text = "Nos associations partenaires",
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = dimensions.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
                 // Dette Virtuelle
                 item {
-                    CompactDetteCard(montant = detteVirtuelle, dimensions = dimensions)
-                }
-
-                // Barre d'outils (Filtre + Compteur)
-                item {
-                    Row(
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
+                        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation)
                     ) {
-                        CountryFilterDropdown(
-                            selectedCountry = filterCountry,
-                            onCountrySelected = { filterCountry = it },
-                            dimensions = dimensions
-                        )
-
-                        Text(
-                            text = "${displayedAssociations.size} trouvée(s)",
-                            fontSize = dimensions.bodySmall,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(cardGradient)
+                                .padding(dimensions.cardPadding)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Dette Virtuelle",
+                                    color = Color.White,
+                                    fontSize = dimensions.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = String.format("%.2f €", detteVirtuelle),
+                                    color = Color.White,
+                                    fontSize = dimensions.displayLarge,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
                     }
                 }
 
-                // Liste des associations
-                if (displayedAssociations.isEmpty() && firebaseAssociations.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Aucune association pour ce filtre.",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = dimensions.bodyMedium,
-                            modifier = Modifier.padding(top = 16.dp)
-                        )
-                    }
-                } else {
-                    items(displayedAssociations) { asso ->
-                        ModernAssociationCard(
-                            asso = asso,
-                            onDonClick = {
-                                selectedAsso = asso
-                                showDialog = true
-                                montantDon = ""
-                                isInputError = false
-                            },
-                            dimensions = dimensions
-                        )
-                    }
+                // ✅ LISTE DES 19 ASSOCIATIONS AVEC CARDS SÉPARÉES
+                items(allAssociations) { asso ->
+                    AssociationCardCustom(
+                        asso = asso,
+                        onDonClick = {
+                            selectedAsso = asso
+                            showDialog = true
+                            montantDon = ""
+                            isInputError = false
+                        },
+                        dimensions = dimensions
+                    )
                 }
 
                 item {
@@ -152,253 +170,76 @@ fun AssociationScreen(
 
         // Dialog de don
         if (showDialog && selectedAsso != null) {
-            DonationDialog(
-                association = selectedAsso!!,
-                montantDon = montantDon,
-                onMontantChange = { montantDon = it; isInputError = false },
-                detteActuelle = detteVirtuelle,
-                isInputError = isInputError,
-                onDismiss = { showDialog = false },
-                onConfirm = {
-                    val montant = montantDon.replace(",", ".").toDoubleOrNull() ?: 0.0
-                    if (montant > 0 && montant <= (detteVirtuelle + 0.001)) {
-                        userViewModel.makeDonation(montant)
-                        showDialog = false
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(selectedAsso?.websiteUrl))
-                        context.startActivity(intent)
-                    } else {
-                        isInputError = true
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
+                title = {
+                    Text(
+                        text = "Donner à ${selectedAsso?.name}",
+                        fontSize = dimensions.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Montant à déduire de votre dette :",
+                            fontSize = dimensions.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        ResponsiveTextField(
+                            value = montantDon,
+                            onValueChange = {
+                                if (it.all { char -> char.isDigit() || char == '.' || char == ',' }) {
+                                    montantDon = it
+                                    isInputError = false
+                                }
+                            },
+                            label = "Montant (€)",
+                            isError = isInputError,
+                            errorMessage = "Max possible : ${String.format("%.2f", detteVirtuelle)} €"
+                        )
                     }
                 },
-                dimensions = dimensions
+                confirmButton = {
+                    ResponsiveSmallButton(
+                        text = "Confirmer",
+                        onClick = {
+                            val montant = montantDon.replace(",", ".").toDoubleOrNull() ?: 0.0
+
+                            if (montant > 0 && montant <= (detteVirtuelle + 0.001)) {
+                                userViewModel.makeDonation(montant)
+                                showDialog = false
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(selectedAsso?.websiteUrl))
+                                context.startActivity(intent)
+                            } else {
+                                isInputError = true
+                            }
+                        }
+                    )
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDialog = false }) {
+                        Text(
+                            text = "Annuler",
+                            fontSize = dimensions.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
         }
     }
 }
 
-// ========================================
-// COMPOSANTS (Filtre, Carte, Dialog)
-// ========================================
-
-@Composable
-private fun CountryFilterDropdown(
-    selectedCountry: String?,
-    onCountrySelected: (String?) -> Unit,
-    dimensions: com.miage.learnity.ui.utils.ResponsiveDimensions
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val countries = listOf("Tous les pays", "France", "Sénégal", "Mali", "RDC", "Martinique", "Maroc")
-
-    Box {
-        Surface(
-            shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-            color = Color.White.copy(alpha = 0.2f),
-            modifier = Modifier.clickable { expanded = true }
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.FilterList, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = selectedCountry ?: "Tous les pays",
-                    color = Color.White,
-                    fontSize = dimensions.bodySmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
-            }
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color.White)
-        ) {
-            countries.forEach { country ->
-                DropdownMenuItem(
-                    text = { Text(country, fontSize = dimensions.bodySmall) },
-                    onClick = {
-                        onCountrySelected(if (country == "Tous les pays") null else country)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        if ((country == "Tous les pays" && selectedCountry == null) || country == selectedCountry) {
-                            Icon(Icons.Default.Check, null, tint = Color(0xFF6366F1))
-                        }
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModernAssociationCard(
-    asso: Association,
-    onDonClick: () -> Unit,
-    dimensions: com.miage.learnity.ui.utils.ResponsiveDimensions
-) {
-    val context = LocalContext.current
-
-    // ⭐ Résolution dynamique de l'image (logo_name -> drawable id)
-    val imageResId = remember(asso.logoname) {
-        try {
-            val id = context.resources.getIdentifier(asso.logoname, "drawable", context.packageName)
-            if (id != 0) id else android.R.drawable.ic_menu_gallery
-        } catch (e: Exception) {
-            android.R.drawable.ic_menu_gallery
-        }
-    }
-
-    var isExpanded by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize()
-            .clickable { isExpanded = !isExpanded },
-        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Column(modifier = Modifier.padding(dimensions.cardPadding)) {
-            // Header (Logo + Nom + Flèche)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box(
-                    modifier = Modifier.size(42.dp).clip(CircleShape).background(Color(0xFFF3F4F6)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = imageResId),
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = asso.name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimensions.bodyMedium,
-                    color = Color(0xFF1F2937),
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = Color(0xFF9CA3AF)
-                )
-            }
-
-            // Contenu déplié
-            if (isExpanded) {
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(modifier = Modifier.padding(start = 54.dp), color = Color(0xFFF3F4F6))
-                Spacer(modifier = Modifier.height(12.dp))
-                Column(modifier = Modifier.padding(start = 54.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Place, null, tint = Color(0xFF6366F1), modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(text = asso.country, fontSize = dimensions.bodySmall, color = Color(0xFF6366F1), fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = asso.description, fontSize = dimensions.bodySmall, lineHeight = 18.sp, color = Color(0xFF4B5563))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onDonClick,
-                        modifier = Modifier.fillMaxWidth().height(36.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63)),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Icon(Icons.Default.Favorite, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Faire un don", fontSize = dimensions.bodySmall, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactDetteCard(montant: Double, dimensions: com.miage.learnity.ui.utils.ResponsiveDimensions) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(dimensions.cornerRadiusLarge), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().background(Brush.horizontalGradient(listOf(Color(0xFFFF6B6B), Color(0xFFFFAB40)))).padding(dimensions.cardPadding),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text("Dette Virtuelle", color = Color.White.copy(alpha = 0.9f), fontSize = dimensions.bodyMedium, fontWeight = FontWeight.Medium)
-                Text(String.format("%.2f €", montant), color = Color.White, fontSize = dimensions.displayLarge, fontWeight = FontWeight.ExtraBold)
-            }
-            Text(text = "💸", fontSize = 36.sp)
-        }
-    }
-}
-
-@Composable
-private fun DonationDialog(
-    association: Association,
-    montantDon: String,
-    onMontantChange: (String) -> Unit,
-    detteActuelle: Double,
-    isInputError: Boolean,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    dimensions: com.miage.learnity.ui.utils.ResponsiveDimensions
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-        title = {
-            Column {
-                Text(association.name, fontSize = dimensions.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                Text(association.country, fontSize = dimensions.bodySmall, color = Color(0xFF6B7280))
-            }
-        },
-        text = {
-            Column {
-                Text("Montant du don :", fontSize = dimensions.bodyMedium, color = Color(0xFF6B7280))
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = montantDon,
-                    onValueChange = onMontantChange,
-                    placeholder = { Text("0.00") },
-                    suffix = { Text("€") },
-                    isError = isInputError,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    singleLine = true
-                )
-                if (isInputError) {
-                    Text("Max : ${String.format("%.2f €", detteActuelle)}", fontSize = dimensions.bodySmall, color = Color.Red)
-                } else {
-                    Text("Dette : ${String.format("%.2f €", detteActuelle)}", fontSize = dimensions.bodySmall, color = Color(0xFF9CA3AF))
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onConfirm, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63))) { Text("Confirmer") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler", color = Color(0xFF6B7280)) }
-        }
-    )
-}
-
-@Preview(showBackground = true)
+@Preview(name = "Light Mode", showBackground = true)
+@Preview(name = "Dark Mode", uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun AssociationScreenPreview() {
-    AssociationScreen()
+    MaterialTheme {
+        AssociationScreen()
+    }
 }
