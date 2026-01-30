@@ -87,10 +87,12 @@ fun MainNav(onLogout: () -> Unit = {}) {
             // --- PROFIL ---
             composable("profile") {
                 ProfileScreen(
-                    onLogout = { navController.navigate("login") { popUpTo(0) } },
-                    onEditClick = { /* Ton action edit */ },
-                    onNavigateToSettings = { navController.navigate("settings") },      // 👈 Route vers réglages
-                    onNavigateToAssociation = { navController.navigate("association") } // 👈 Route vers association
+                    onLogout = onLogout,  // ✅ FIX 1: Utilisation de la vraie fonction de déconnexion
+                    onEditClick = {  // ✅ FIX 2: Navigation vers l'éditeur de profil
+                        navController.navigate("profile_editor")
+                    },
+                    onNavigateToSettings = { navController.navigate("settings") },
+                    onNavigateToAssociation = { navController.navigate("association") }
                 )
             }
 
