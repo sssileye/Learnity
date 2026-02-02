@@ -17,6 +17,10 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.ktx.analytics
+import com.google.firebase.analytics.logEvent
+import com.google.firebase.ktx.Firebase
 
 class QuizViewModel(
     private val repository: QuizRepository = QuizRepository(),
@@ -183,6 +187,7 @@ class QuizViewModel(
     ) {
         if (isResultSaved) return
         isResultSaved = true
+
         val profile = userViewModel.uiState.value.profile ?: return
         calculateAndSetScore(_userAnswers.value)
 
@@ -200,6 +205,15 @@ class QuizViewModel(
 
         _sessionPointsGained.value = calculation.progressionPoints + calculation.bonusGained
 
+        // ⭐ LE DÉCLENCHEUR ANALYTICS EST ICI
+        if (chapterId == "REVIEW" || chapterId == "DISCOVERY") {
+            com.google.firebase.ktx.Firebase.analytics.logEvent("qdj_completed_today") {
+                param("score", finalScore.toLong())
+                param("mode", chapterId)
+            }
+            android.util.Log.d("LearnityAnalytics", "✅ Signal QDJ envoyé depuis QuizViewModel")
+        }
+
         viewModelScope.launch {
             val historyEntry = QuizHistory(
                 date = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date()),
@@ -209,8 +223,11 @@ class QuizViewModel(
                 pointsGained = _sessionPointsGained.value,
                 timestamp = System.currentTimeMillis()
             )
+
+            // Sauvegarde de l'historique détaillé
             repository.saveQuizHistory(courseId, chapterId, historyEntry, _userAnswers.value)
 
+            // Mise à jour du profil utilisateur (points, dettes, record)
             userViewModel.repository.updateStatsWithHighscore(
                 courseId = courseId,
                 chapterId = chapterId,
@@ -221,6 +238,9 @@ class QuizViewModel(
                 bonusCalculated = calculation.bonusGained,
                 debtCalculated = calculation.debtAdded
             )
+
+            // On rafraîchit les stats globales après la sauvegarde
+            userViewModel.refreshProgressionStats()
         }
     }
 

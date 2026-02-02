@@ -15,6 +15,8 @@ import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import com.google.firebase.messaging.FirebaseMessaging
+
 
 /**
  * État UI enrichi pour le profil et la progression
@@ -158,44 +160,59 @@ class UserViewModel(
         }
     }
 
-    fun processQuizResult(
-        quizType: PointsManager.QuizType,
-        score: Int,
-        totalQuestions: Int,
-        courseId: String,
-        chapterId: String
-    ) {
-        val profile = _uiState.value.profile ?: return
-        viewModelScope.launch {
-            val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
-            val absoluteBestScore = progress?.bestScore ?: 0
-            val wasAlreadyPerfect = absoluteBestScore >= totalQuestions
-
-            val result = PointsManager.calculateResults(
-                type = quizType,
-                score = score,
-                totalQuestions = totalQuestions,
-                oldBestScore = absoluteBestScore,
-                profile = profile,
-                wasAlreadyPerfect = wasAlreadyPerfect
-            )
-
-            repository.updateStatsWithHighscore(
-                courseId = courseId,
-                chapterId = chapterId,
-                newScore = score,
-                totalQuestions = totalQuestions,
-                quizType = quizType,
-                pointsCalculated = result.progressionPoints,
-                bonusCalculated = result.bonusGained,
-                debtCalculated = result.debtAdded
-            ).onSuccess {
-                refreshProgressionStats()
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = "Erreur sauvegarde : ${e.message}") }
-            }
-        }
-    }
+//    fun processQuizResult( //A SUPPRIMER
+//        quizType: PointsManager.QuizType,
+//        score: Int,
+//        totalQuestions: Int,
+//        courseId: String,
+//        chapterId: String
+//    ) {
+//        val profile = _uiState.value.profile ?: return
+//        viewModelScope.launch {
+//            // --- ÉTAPE 1 : ENVOI ANALYTICS (AVANT LA SAUVEGARDE) ---
+//            // On log pour vérifier que le chapterId est bien détecté
+//            Log.d("LearnityAnalytics", "Tentative d'envoi pour chapterId: $chapterId")
+//
+//            if (chapterId == "REVIEW" || chapterId == "DISCOVERY") {
+//                Firebase.analytics.logEvent("qdj_completed_today") {
+//                    param("score", score.toLong())
+//                    param("mode", quizType.name)
+//                }
+//                Log.d("LearnityAnalytics", "✅ Signal QDJ envoyé à Firebase Analytics")
+//            }
+//
+//            // --- ÉTAPE 2 : LOGIQUE DE POINTS ET SAUVEGARDE FIRESTORE ---
+//            val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
+//            val absoluteBestScore = progress?.bestScore ?: 0
+//            val wasAlreadyPerfect = absoluteBestScore >= totalQuestions
+//
+//            val result = PointsManager.calculateResults(
+//                type = quizType,
+//                score = score,
+//                totalQuestions = totalQuestions,
+//                oldBestScore = absoluteBestScore,
+//                profile = profile,
+//                wasAlreadyPerfect = wasAlreadyPerfect
+//            )
+//
+//            repository.updateStatsWithHighscore(
+//                courseId = courseId,
+//                chapterId = chapterId,
+//                newScore = score,
+//                totalQuestions = totalQuestions,
+//                quizType = quizType,
+//                pointsCalculated = result.progressionPoints,
+//                bonusCalculated = result.bonusGained,
+//                debtCalculated = result.debtAdded
+//            ).onSuccess {
+//                refreshProgressionStats()
+//                Log.d("LearnityAnalytics", "📊 Sauvegarde Firestore réussie")
+//            }.onFailure { e ->
+//                _uiState.update { it.copy(error = "Erreur sauvegarde : ${e.message}") }
+//                Log.e("LearnityAnalytics", "❌ Erreur sauvegarde Firestore : ${e.message}")
+//            }
+//        }
+//    }
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
@@ -220,7 +237,34 @@ class UserViewModel(
             }
         }
     }
+    /**
+     * 🔥 GESTION DU TOKEN DE NOTIFICATION (FCM)
+     * Récupère l'identifiant unique du téléphone et le stocke dans Firestore
+     */
+    fun updateFcmToken() {
+        val userId = repository.getCurrentUserId() ?: return
 
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("LearnityFCM", "❌ Échec récupération Token", task.exception)
+                return@addOnCompleteListener
+            }
+
+            val token = task.result
+
+            viewModelScope.launch {
+                try {
+                    // On met à jour le champ fcmToken dans le document de l'utilisateur
+                    firestore.collection("users").document(userId)
+                        .update("fcmToken", token)
+                        .await()
+                    Log.d("LearnityFCM", "✅ Token mis à jour pour $userId : $token")
+                } catch (e: Exception) {
+                    Log.e("LearnityFCM", "❌ Erreur sauvegarde Firestore : ${e.message}")
+                }
+            }
+        }
+    }
     fun updateRedevance(newValue: Double) {
         viewModelScope.launch { repository.updateRedevanceUnitaire(newValue) }
     }
