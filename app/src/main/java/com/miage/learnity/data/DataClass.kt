@@ -23,6 +23,7 @@ data class UserProfile(
     val unityPoints: Int = 0,
     val currentStreak: Int = 0,
     val bestStreak: Int = 0,
+    val fcmToken: String? = null,
     val lastDailyQuizDate: String? = null,
     val selectedAssociationId: String? = null,
     val quizMode: String = "DISCOVERY"
