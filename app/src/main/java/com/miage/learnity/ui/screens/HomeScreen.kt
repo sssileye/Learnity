@@ -87,7 +87,7 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(dimensions.screenPaddingVertical))
 
-        // 📝 Quiz du Jour (Synchronisé en temps réel)
+        // 🔍 Quiz du Jour (Synchronisé en temps réel)
         DailyQuizCard(
             dimensions = dimensions,
             isDiscoveryMode = isDiscoveryMode, // Utilise la valeur dynamique
@@ -104,7 +104,7 @@ fun HomeScreen(
             VirtualDebtCard(
                 debtAmount = profile.detteCumulee,
                 monthsRemaining = 4,
-                onPayClick = { /* Navigation vers paiement */ },
+                onPayClick = { navController.navigate("association") },
                 dimensions = dimensions
             )
         }
@@ -114,7 +114,7 @@ fun HomeScreen(
             UnityPointsCard(
                 currentPoints = profile.unityPoints,
                 nextDonationGoal = 2000,
-                onViewImpactClick = { /* Navigation vers impact */ },
+                onViewImpactClick = { navController.navigate("association") },
                 dimensions = dimensions
             )
         }
