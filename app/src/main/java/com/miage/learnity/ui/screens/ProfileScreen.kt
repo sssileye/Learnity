@@ -34,12 +34,13 @@ import com.miage.learnity.ui.utils.*
 fun ProfileScreen(
     onLogout: () -> Unit,
     onEditClick: () -> Unit,
-    onNavigateToSettings: () -> Unit,      // Ajouté
-    onNavigateToAssociation: () -> Unit,   // Ajouté
+    onNavigateToSettings: () -> Unit,
+    onNavigateToAssociation: () -> Unit,
     viewModel: UserViewModel = viewModel()
 ) {
     LaunchedEffect(Unit) {
         viewModel.refreshProgressionStats()
+        viewModel.refreshDailyStats() // Crucial pour savoir si un quiz est déjà fait
     }
 
     val dimensions = rememberResponsiveDimensions()
@@ -48,6 +49,9 @@ fun ProfileScreen(
     val currentQuizMode = uiState.profile?.quizMode ?: "DISCOVERY"
     val isDiscoveryMode = currentQuizMode == "DISCOVERY"
     val isReviewUnlocked = uiState.readChaptersCount >= 5
+
+    // ⭐ Détermine si le mode doit être verrouillé (Quiz déjà fait aujourd'hui)
+    val isAlreadyDoneToday = uiState.dailyScore != null
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -75,6 +79,7 @@ fun ProfileScreen(
                         ProfileContent(
                             profile = uiState.profile!!,
                             isDiscoveryMode = isDiscoveryMode,
+                            isAlreadyDoneToday = isAlreadyDoneToday, // Passé au contenu
                             readCount = uiState.readChaptersCount,
                             totalCount = uiState.totalChaptersCount,
                             isReviewUnlocked = isReviewUnlocked,
@@ -84,8 +89,8 @@ fun ProfileScreen(
                             },
                             onLogout = onLogout,
                             onEditClick = onEditClick,
-                            onNavigateToSettings = onNavigateToSettings,        // FIX : Passage du paramètre
-                            onNavigateToAssociation = onNavigateToAssociation,  // FIX : Passage du paramètre
+                            onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToAssociation = onNavigateToAssociation,
                             dimensions = dimensions
                         )
                     }
@@ -104,6 +109,7 @@ fun ProfileScreen(
 private fun ProfileContent(
     profile: UserProfile,
     isDiscoveryMode: Boolean,
+    isAlreadyDoneToday: Boolean,
     readCount: Int,
     totalCount: Int,
     isReviewUnlocked: Boolean,
@@ -229,6 +235,7 @@ private fun ProfileContent(
                 QuizModeToggleRow(
                     isDiscoveryMode = isDiscoveryMode,
                     isLocked = !isReviewUnlocked,
+                    isAlreadyDoneToday = isAlreadyDoneToday, // Passé ici
                     readCount = readCount,
                     onToggle = { onModeChange(!isDiscoveryMode) },
                     dimensions = dimensions
@@ -245,7 +252,6 @@ private fun ProfileContent(
         Spacer(modifier = Modifier.height(dimensions.bottomNavHeight * 1.56f))
     }
 }
-
 @Composable
 private fun ProgressionSection(readCount: Int, totalCount: Int, dimensions: ResponsiveDimensions) {
     val progress = if (totalCount > 0) readCount.toFloat() / totalCount else 0f
@@ -268,47 +274,49 @@ private fun ProgressionSection(readCount: Int, totalCount: Int, dimensions: Resp
         )
     }
 }
-
 @Composable
 private fun QuizModeToggleRow(
     isDiscoveryMode: Boolean,
     isLocked: Boolean,
+    isAlreadyDoneToday: Boolean,
     readCount: Int,
     onToggle: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
+    // ⭐ Le switch est désactivé si l'un des deux verrous est actif
+    val isDisabled = isLocked || isAlreadyDoneToday
+
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = !isLocked) { onToggle() }
+                .clickable(enabled = !isDisabled) { onToggle() }
                 .padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = CircleShape,
-                color = if (!isLocked && !isDiscoveryMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                color = if (!isDisabled && !isDiscoveryMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .size(dimensions.iconSizeLarge * 0.83f)
-                    .alpha(if (isLocked) 0.5f else 1f)
+                    .alpha(if (isDisabled) 0.5f else 1f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painter = painterResource(R.drawable.ic_settings_1),
                         contentDescription = null,
-                        tint = if (!isLocked && !isDiscoveryMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (!isDisabled && !isDiscoveryMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(dimensions.iconSizeSmall)
                     )
                 }
             }
 
-            // ⭐ ESPACEMENT HORIZONTAL RESPONSIVE
             Spacer(Modifier.width(dimensions.itemSpacing * 1.5f))
 
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .alpha(if (isLocked) 0.5f else 1f),
+                    .alpha(if (isDisabled) 0.5f else 1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Mode Quiz", fontSize = dimensions.bodyLarge * 0.94f, fontWeight = FontWeight.SemiBold)
@@ -323,22 +331,36 @@ private fun QuizModeToggleRow(
             Switch(
                 checked = !isDiscoveryMode,
                 onCheckedChange = { onToggle() },
-                enabled = !isLocked,
+                enabled = !isDisabled,
                 modifier = Modifier.scale(0.85f)
             )
         }
+
+        // --- TEXTES D'INFORMATION ---
         if (isLocked) {
             Text(
                 "Débloquez les révisions après 5 chapitres lus ($readCount/5)",
                 color = MaterialTheme.colorScheme.error,
                 fontSize = dimensions.bodySmall * 0.85f,
                 modifier = Modifier
-                    .padding(start = dimensions.cardPadding + (dimensions.iconSizeLarge * 0.83f) + (dimensions.itemSpacing * 1.5f))
+                    .padding(start = dimensions.cardPadding + 48.dp)
+                    .offset(y = (-4).dp)
+            )
+        } else if (isAlreadyDoneToday) {
+            Text(
+                "Mode verrouillé jusqu'à demain (Quiz déjà effectué)",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = dimensions.bodySmall * 0.85f,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .padding(start = dimensions.cardPadding + 48.dp)
                     .offset(y = (-4).dp)
             )
         }
     }
 }
+
+// ... (Les autres sous-composants MenuItemRow, StatsCard, etc. restent identiques)
 
 @Composable
 private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit, dimensions: ResponsiveDimensions) {
@@ -362,12 +384,8 @@ private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit, dimens
                 )
             }
         }
-
-        // ⭐ ESPACEMENT HORIZONTAL RESPONSIVE
         Spacer(Modifier.width(dimensions.itemSpacing * 1.5f))
-
         Text(title, fontSize = dimensions.bodyLarge * 0.94f, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-
         Icon(
             painter = painterResource(R.drawable.arrow),
             null,
@@ -421,14 +439,15 @@ fun ProfileScreenPreview() {
                 photoUrl = "avatar_b1"
             ),
             isDiscoveryMode = true,
+            isAlreadyDoneToday = false,
             readCount = 3,
             totalCount = 50,
             isReviewUnlocked = false,
             onModeChange = {},
             onLogout = {},
             onEditClick = {},
-            onNavigateToSettings = {},      // FIX PREVIEW
-            onNavigateToAssociation = {},   // FIX PREVIEW
+            onNavigateToSettings = {},
+            onNavigateToAssociation = {},
             dimensions = rememberResponsiveDimensions()
         )
     }

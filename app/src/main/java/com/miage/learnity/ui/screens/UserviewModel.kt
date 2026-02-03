@@ -17,6 +17,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import com.google.firebase.messaging.FirebaseMessaging
 
+
 /**
  * État UI enrichi pour le profil et la progression
  */
@@ -25,7 +26,9 @@ data class UserUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val readChaptersCount: Int = 0,
-    val totalChaptersCount: Int = 0
+    val totalChaptersCount: Int = 0,
+    val dailyScore: Pair<Int, Int>? = null,    // ⭐ Ajouté
+    val weeklyProgress: Pair<Int, Int>? = null // ⭐ Ajouté
 )
 
 class UserViewModel(
@@ -159,44 +162,70 @@ class UserViewModel(
         }
     }
 
-    fun processQuizResult(
-        quizType: PointsManager.QuizType,
-        score: Int,
-        totalQuestions: Int,
-        courseId: String,
-        chapterId: String
-    ) {
-        val profile = _uiState.value.profile ?: return
-        viewModelScope.launch {
-            val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
-            val absoluteBestScore = progress?.bestScore ?: 0
-            val wasAlreadyPerfect = absoluteBestScore >= totalQuestions
-
-            val result = PointsManager.calculateResults(
-                type = quizType,
-                score = score,
-                totalQuestions = totalQuestions,
-                oldBestScore = absoluteBestScore,
-                profile = profile,
-                wasAlreadyPerfect = wasAlreadyPerfect
-            )
-
-            repository.updateStatsWithHighscore(
-                courseId = courseId,
-                chapterId = chapterId,
-                newScore = score,
-                totalQuestions = totalQuestions,
-                quizType = quizType,
-                pointsCalculated = result.progressionPoints,
-                bonusCalculated = result.bonusGained,
-                debtCalculated = result.debtAdded
-            ).onSuccess {
-                refreshProgressionStats()
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = "Erreur sauvegarde : ${e.message}") }
-            }
+//    fun processQuizResult( //A SUPPRIMER
+//        quizType: PointsManager.QuizType,
+//        score: Int,
+//        totalQuestions: Int,
+//        courseId: String,
+//        chapterId: String
+//    ) {
+//        val profile = _uiState.value.profile ?: return
+//        viewModelScope.launch {
+//            // --- ÉTAPE 1 : ENVOI ANALYTICS (AVANT LA SAUVEGARDE) ---
+//            // On log pour vérifier que le chapterId est bien détecté
+//            Log.d("LearnityAnalytics", "Tentative d'envoi pour chapterId: $chapterId")
+//
+//            if (chapterId == "REVIEW" || chapterId == "DISCOVERY") {
+//                Firebase.analytics.logEvent("qdj_completed_today") {
+//                    param("score", score.toLong())
+//                    param("mode", quizType.name)
+//                }
+//                Log.d("LearnityAnalytics", "✅ Signal QDJ envoyé à Firebase Analytics")
+//            }
+//
+//            // --- ÉTAPE 2 : LOGIQUE DE POINTS ET SAUVEGARDE FIRESTORE ---
+//            val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
+//            val absoluteBestScore = progress?.bestScore ?: 0
+//            val wasAlreadyPerfect = absoluteBestScore >= totalQuestions
+//
+//            val result = PointsManager.calculateResults(
+//                type = quizType,
+//                score = score,
+//                totalQuestions = totalQuestions,
+//                oldBestScore = absoluteBestScore,
+//                profile = profile,
+//                wasAlreadyPerfect = wasAlreadyPerfect
+//            )
+//
+//            repository.updateStatsWithHighscore(
+//                courseId = courseId,
+//                chapterId = chapterId,
+//                newScore = score,
+//                totalQuestions = totalQuestions,
+//                quizType = quizType,
+//                pointsCalculated = result.progressionPoints,
+//                bonusCalculated = result.bonusGained,
+//                debtCalculated = result.debtAdded
+//            ).onSuccess {
+//                refreshProgressionStats()
+//                Log.d("LearnityAnalytics", "📊 Sauvegarde Firestore réussie")
+//            }.onFailure { e ->
+//                _uiState.update { it.copy(error = "Erreur sauvegarde : ${e.message}") }
+//                Log.e("LearnityAnalytics", "❌ Erreur sauvegarde Firestore : ${e.message}")
+//            }
+//        }
+//    }
+fun refreshDailyStats() {
+    val quizRepo = com.miage.learnity.repository.QuizRepository()
+    viewModelScope.launch {
+        quizRepo.getLastDailyQuizScore().onSuccess { score ->
+            _uiState.update { it.copy(dailyScore = score) }
+        }
+        quizRepo.getWeeklyProgress(goalPerWeek = 4).onSuccess { progress ->
+            _uiState.update { it.copy(weeklyProgress = progress) }
         }
     }
+}
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
