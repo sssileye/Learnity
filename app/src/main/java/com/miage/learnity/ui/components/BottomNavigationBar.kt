@@ -1,6 +1,8 @@
 package com.miage.learnity.ui.components
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -18,8 +20,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.miage.learnity.R
 import com.miage.learnity.ui.utils.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
@@ -30,9 +30,8 @@ fun BottomNavigationBar(navController: NavHostController) {
 
     NavigationBar(
         modifier = Modifier,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface  // ✅ CHANGÉ
     ) {
-        // 1️⃣ ACCUEIL
         NavigationBarItem(
             icon = {
                 Icon(
@@ -56,7 +55,6 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // 2️⃣ ASSOCIATION
         NavigationBarItem(
             icon = {
                 Icon(
@@ -81,7 +79,6 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // 3️⃣ COURS
         NavigationBarItem(
             icon = {
                 Icon(
@@ -105,36 +102,35 @@ fun BottomNavigationBar(navController: NavHostController) {
             }
         )
 
-        // 4️⃣ OUTILS (ex-Ranking)
-        NavigationBarItem(
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_settings_1),
-                    contentDescription = null,
-                    modifier = Modifier.size(dimensions.iconSizeMedium)
-                )
-            },
-            label = {
-                Text(
-                    "Outils",
-                    fontSize = dimensions.bodySmall
-                )
-            },
-            selected = route == "settings",
-            onClick = {
-                navController.navigate("settings") {
-                    popUpTo("home") { inclusive = true }
-                    launchSingleTop = true
-                }
-            }
-        )
+//        NavigationBarItem(
+//            icon = {
+//                Icon(
+//                    painter = painterResource(id = R.drawable.ic_ranking),
+//                    contentDescription = null,
+//                    modifier = Modifier.size(dimensions.iconSizeMedium)
+//                )
+//            },
+//            label = {
+//                Text(
+//                    "Ranking",
+//                    fontSize = dimensions.bodySmall
+//                )
+//            },
+//            selected = route == "ranking",
+//            onClick = {
+//                navController.navigate("ranking") {
+//                    popUpTo("home") { inclusive = true }
+//                    launchSingleTop = true
+//                }
+//            }
+//        )
 
-        // 5️⃣ PROFIL (ex-Outils)
         NavigationBarItem(
             icon = {
                 Icon(
+                    //painter = painterResource(id = R.drawable.ic_settings_1),
                     imageVector = Icons.Default.Person,
-                    contentDescription = null,
+                    contentDescription = "Profil",
                     modifier = Modifier.size(dimensions.iconSizeMedium)
                 )
             },
