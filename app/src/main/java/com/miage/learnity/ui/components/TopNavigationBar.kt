@@ -8,11 +8,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,9 +30,9 @@ import com.miage.learnity.ui.utils.*
 @Composable
 fun TopNavigationBar(
     currentStreak: Int = 0,
-    onProfileClick: () -> Unit,
     onLogoClick: () -> Unit = {},
-    onStreakClick: (() -> Unit)? = null
+    onStreakClick: (() -> Unit)? = null,
+    onHelpClick: () -> Unit = {}
 ) {
     val dimensions = rememberResponsiveDimensions()
 
@@ -118,25 +119,25 @@ fun TopNavigationBar(
                     }
                 }
 
-                // Bouton Profil
+                // ✅ BOUTON HELP (?) - UNIQUEMENT
                 IconButton(
-                    onClick = onProfileClick,
-                    modifier = Modifier.size(dimensions.iconSizeLarge * 0.9f) // ⭐ Légèrement réduit
+                    onClick = onHelpClick,
+                    modifier = Modifier.size(dimensions.iconSizeLarge * 0.9f)
                 ) {
                     Box(
                         modifier = Modifier
                             .size(dimensions.iconSizeLarge * 0.9f)
                             .background(
-                                color = MaterialTheme.colorScheme.primaryContainer,
+                                color = Color(0xFFE8E0FF),
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profil",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(dimensions.iconSizeMedium * 0.9f)
+                            imageVector = Icons.Default.HelpOutline,
+                            contentDescription = "Aide",
+                            tint = Color(0xFF635BFF),
+                            modifier = Modifier.size(dimensions.iconSizeMedium * 0.85f)
                         )
                     }
                 }
@@ -155,15 +156,15 @@ fun TopNavigationBarOptimizedPreview() {
             // Avec streak
             TopNavigationBar(
                 currentStreak = 12,
-                onProfileClick = { }
+                onHelpClick = { }
             )
 
-            Divider()
+            HorizontalDivider()
 
             // Sans streak
             TopNavigationBar(
                 currentStreak = 0,
-                onProfileClick = { }
+                onHelpClick = { }
             )
         }
     }
