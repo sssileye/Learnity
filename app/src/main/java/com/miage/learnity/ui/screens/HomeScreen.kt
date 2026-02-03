@@ -11,6 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,7 +28,7 @@ fun HomeScreen(
 ) {
     val dimensions = rememberResponsiveDimensions()
 
-    // 1. On observe l'état global du UserViewModel (Profil + Scores synchronisés)
+    // 1. On observe l'état global du UserViewModel
     val userUiState by userViewModel.uiState.collectAsState()
 
     // --- 🚀 GESTION DES NOTIFICATIONS ---
@@ -38,18 +40,45 @@ fun HomeScreen(
         }
     }
 
-    // 2. Logique de lancement et rafraîchissement au chargement
+    // 2. Logique de lancement
     LaunchedEffect(Unit) {
-        // Demande de permission Notifs
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             userViewModel.updateFcmToken()
         }
 
-        // ⭐ FORCE LA MISE À JOUR DES DONNÉES (Indispensable quand on revient d'un quiz)
         userViewModel.refreshDailyStats()
         userViewModel.refreshProgressionStats()
+    }
+
+    // --- 🛡️ GESTION DE LA POPUP DE PÉNALITÉ ---
+    // Si un message de pénalité est présent dans l'état, on affiche la boîte de dialogue
+    userUiState.penaltyMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { userViewModel.dismissPenaltyPopup() },
+            title = {
+                Text(
+                    text = "Rapport d'assiduité",
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { userViewModel.dismissPenaltyPopup() }
+                ) {
+                    Text("J'ai compris")
+                }
+            }
+        )
     }
 
     // 3. Source de vérité extraite de l'état UI
@@ -67,12 +96,12 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(dimensions.screenPaddingVertical))
 
-        // 🔍 Quiz du Jour (Maintenant branché sur les données du ViewModel)
+        // 🔍 Quiz du Jour
         DailyQuizCard(
             dimensions = dimensions,
             isDiscoveryMode = isDiscoveryMode,
-            lastScore = userUiState.dailyScore,        // ⭐ Donnée synchronisée
-            weeklyProgress = userUiState.weeklyProgress, // ⭐ Donnée synchronisée
+            lastScore = userUiState.dailyScore,
+            weeklyProgress = userUiState.weeklyProgress,
             onAction = { isReview ->
                 navController.navigate("quiz/GLOBAL/$currentQuizMode?isReviewMode=$isReview")
             }
@@ -82,7 +111,6 @@ fun HomeScreen(
         userUiState.profile?.let { profile ->
             VirtualDebtCard(
                 debtAmount = profile.detteCumulee,
-                monthsRemaining = 4,
                 onPayClick = { navController.navigate("association") },
                 dimensions = dimensions
             )
@@ -92,8 +120,6 @@ fun HomeScreen(
         userUiState.profile?.let { profile ->
             UnityPointsCard(
                 currentPoints = profile.unityPoints,
-                nextDonationGoal = 2000,
-                onViewImpactClick = { navController.navigate("association") },
                 dimensions = dimensions
             )
         }
