@@ -7,13 +7,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -23,27 +24,17 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import com.miage.learnity.ui.utils.*
 
 /**
- * TopNavigationBar optimisé avec avatar dynamique et badge streak
+ * TopNavigationBar optimisé avec badge streak et logo réduit
+ * Version finale pour économiser de l'espace
  */
 @Composable
 fun TopNavigationBar(
     currentStreak: Int = 0,
-    photoUrl: String? = null, // ⭐ Ajout du paramètre pour l'avatar
-    onProfileClick: () -> Unit,
     onLogoClick: () -> Unit = {},
-    onStreakClick: (() -> Unit)? = null
+    onStreakClick: (() -> Unit)? = null,
+    onHelpClick: () -> Unit = {}
 ) {
     val dimensions = rememberResponsiveDimensions()
-    val context = LocalContext.current
-
-    // ⭐ Logique de récupération de l'avatar (identique au ProfileScreen)
-    val avatarResId = remember(photoUrl) {
-        val photoName = if (photoUrl.isNullOrBlank()) "avatar_b1" else photoUrl
-        try {
-            val id = context.resources.getIdentifier(photoName, "drawable", context.packageName)
-            if (id != 0) id else R.drawable.avatar_b1
-        } catch (e: Exception) { R.drawable.avatar_b1 }
-    }
 
     // Animation flamme
     val infiniteTransition = rememberInfiniteTransition(label = "streak_pulse")
@@ -67,13 +58,13 @@ fun TopNavigationBar(
                 .fillMaxWidth()
                 .padding(
                     horizontal = dimensions.screenPaddingHorizontal,
-                    vertical = dimensions.itemSpacing * 0.8f
+                    vertical = dimensions.itemSpacing * 0.8f // ⭐ Légèrement réduit
                 )
                 .statusBarsPadding(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Logo LEARNITY
+            // Logo LEARNITY (réduit)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -83,20 +74,20 @@ fun TopNavigationBar(
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
                     contentDescription = "Logo Learnity",
-                    modifier = Modifier.size(dimensions.iconSizeLarge),
+                    modifier = Modifier.size(dimensions.iconSizeLarge), // ⭐ Réduit (était iconSizeLarge)
                     contentScale = ContentScale.Fit
                 )
-                Spacer(modifier = Modifier.width(dimensions.itemSpacing / 3))
+                Spacer(modifier = Modifier.width(dimensions.itemSpacing / 3)) // ⭐ Réduit
                 Text(
                     text = "LEARNITY",
-                    fontSize = dimensions.bodyLarge,
+                    fontSize = dimensions.bodyLarge, // ⭐ Réduit (était titleMedium)
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 0.8f),
+                horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 0.8f), // ⭐ Espacement réduit
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Badge Streak
@@ -128,21 +119,27 @@ fun TopNavigationBar(
                     }
                 }
 
-                // ⭐ Bouton Profil avec Avatar Dynamique
-                Box(
-                    modifier = Modifier
-                        .size(dimensions.iconSizeLarge * 0.95f) // Taille ajustée
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .clickable { onProfileClick() },
-                    contentAlignment = Alignment.Center
+                // ✅ BOUTON HELP (?) - UNIQUEMENT
+                IconButton(
+                    onClick = onHelpClick,
+                    modifier = Modifier.size(dimensions.iconSizeLarge * 0.9f)
                 ) {
-                    Image(
-                        painter = painterResource(id = avatarResId),
-                        contentDescription = "Profil",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(dimensions.iconSizeLarge * 0.9f)
+                            .background(
+                                color = Color(0xFFE8E0FF),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.HelpOutline,
+                            contentDescription = "Aide",
+                            tint = Color(0xFF635BFF),
+                            modifier = Modifier.size(dimensions.iconSizeMedium * 0.85f)
+                        )
+                    }
                 }
             }
         }
@@ -159,15 +156,15 @@ fun TopNavigationBarOptimizedPreview() {
             // Avec streak
             TopNavigationBar(
                 currentStreak = 12,
-                onProfileClick = { }
+                onHelpClick = { }
             )
 
-            Divider()
+            HorizontalDivider()
 
             // Sans streak
             TopNavigationBar(
                 currentStreak = 0,
-                onProfileClick = { }
+                onHelpClick = { }
             )
         }
     }
