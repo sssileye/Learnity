@@ -151,27 +151,6 @@ fun DailyQuizCard(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
                         ) {
-                            OutlinedButton(
-                                onClick = { onAction(true) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(dimensions.buttonHeightSmall),
-                                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = textColor
-                                ),
-                                border = BorderStroke(
-                                    2.dp,
-                                    textColor
-                                )
-                            ) {
-                                Text(
-                                    "Revoir",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = dimensions.bodyMedium
-                                )
-                            }
-
                             Button(
                                 onClick = { onAction(false) },
                                 modifier = Modifier
@@ -218,36 +197,36 @@ fun DailyQuizCard(
             }
         }
 
-        // WeeklyProgressCard
-        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-
-        weeklyProgress?.let { (completed, total) ->
-            WeeklyProgressCard(
-                completedSessions = completed,
-                totalGoal = total,
-                dimensions = dimensions
-            )
-        } ?: run {
-            // Fallback si les données ne sont pas encore chargées
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Cette semaine",
-                    fontSize = dimensions.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "Chargement...",
-                    fontSize = dimensions.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
+//        // WeeklyProgressCard
+//        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
+//
+//        weeklyProgress?.let { (completed, total) ->
+//            WeeklyProgressCard(
+//                completedSessions = completed,
+//                totalGoal = total,
+//                dimensions = dimensions
+//            )
+//        } ?: run {
+//            // Fallback si les données ne sont pas encore chargées
+//            Row(
+//                modifier = Modifier.fillMaxWidth(),
+//                horizontalArrangement = Arrangement.SpaceBetween,
+//                verticalAlignment = Alignment.CenterVertically
+//            ) {
+//                Text(
+//                    text = "Cette semaine",
+//                    fontSize = dimensions.bodySmall,
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                    fontWeight = FontWeight.Medium
+//                )
+//                Text(
+//                    text = "Chargement...",
+//                    fontSize = dimensions.bodySmall,
+//                    color = MaterialTheme.colorScheme.primary,
+//                    fontWeight = FontWeight.SemiBold
+//                )
+//            }
+//        }
     }
 }
 

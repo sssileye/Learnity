@@ -26,7 +26,9 @@ data class UserUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val readChaptersCount: Int = 0,
-    val totalChaptersCount: Int = 0
+    val totalChaptersCount: Int = 0,
+    val dailyScore: Pair<Int, Int>? = null,    // ⭐ Ajouté
+    val weeklyProgress: Pair<Int, Int>? = null // ⭐ Ajouté
 )
 
 class UserViewModel(
@@ -213,6 +215,17 @@ class UserViewModel(
 //            }
 //        }
 //    }
+fun refreshDailyStats() {
+    val quizRepo = com.miage.learnity.repository.QuizRepository()
+    viewModelScope.launch {
+        quizRepo.getLastDailyQuizScore().onSuccess { score ->
+            _uiState.update { it.copy(dailyScore = score) }
+        }
+        quizRepo.getWeeklyProgress(goalPerWeek = 4).onSuccess { progress ->
+            _uiState.update { it.copy(weeklyProgress = progress) }
+        }
+    }
+}
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {

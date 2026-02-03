@@ -1,5 +1,6 @@
 package com.miage.learnity.repository
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -18,7 +19,9 @@ class UserRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+
     fun getCurrentUserId(): String? = auth.currentUser?.uid
+
     // ============================================
     // LECTURE & OBSERVATION
     // ============================================
@@ -76,14 +79,21 @@ class UserRepository {
                 val oldBestScore = progressSnapshot.getLong("bestScore")?.toInt() ?: 0
                 val hadPerfect = progressSnapshot.getBoolean("isPerfectCompleted") ?: false
 
-                // 1. GESTION DES POINTS (Seulement si record battu)
-                val netPointsToAdd = if (newScore > oldBestScore) pointsCalculated else 0
+                // --- 1. GESTION DES POINTS ---
+                // ⭐ CORRECTION : Si c'est le DAILY, on donne les points direct (puisque le VM bloque déjà si c'est un re-play)
+                // Si c'est un chapitre, on ne donne que si on bat le record.
+                val netPointsToAdd = if (quizType == PointsManager.QuizType.DAILY) {
+                    pointsCalculated
+                } else {
+                    if (newScore > oldBestScore) pointsCalculated else 0
+                }
 
-                // 2. GESTION DU BONUS (Premier 100% uniquement)
+                // --- 2. GESTION DU BONUS ---
+                // Premier 100% uniquement (pour le mode concerné)
                 val isFirstPerfect = (newScore == totalQuestions && !hadPerfect)
                 val netBonusToAdd = if (isFirstPerfect) bonusCalculated else 0
 
-                // 3. GESTION DE LA DETTE (À chaque essai du Daily Quiz)
+                // --- 3. GESTION DE LA DETTE ---
                 val netDebtToAdd = if (quizType == PointsManager.QuizType.DAILY) debtCalculated else 0.0
 
                 // Récupération des totaux actuels
@@ -94,6 +104,8 @@ class UserRepository {
                     "unityPoints" to (currentTotalPoints + netPointsToAdd + netBonusToAdd),
                     "detteCumulee" to (currentTotalDebt + netDebtToAdd)
                 )
+
+                Log.d("LearnityDebug", "💰 Update Points: $currentTotalPoints + $netPointsToAdd + $netBonusToAdd")
 
                 // Streak & Date (Uniquement Daily Quiz)
                 if (quizType == PointsManager.QuizType.DAILY) {
@@ -114,7 +126,7 @@ class UserRepository {
 
                 transaction.update(userRef, userUpdates)
 
-                // Mise à jour du record de progression
+                // Mise à jour du record de progression local (Chapitre ou Mode Global)
                 val progressUpdates = mutableMapOf<String, Any>(
                     "bestScore" to maxOf(oldBestScore, newScore),
                     "isQuizCompleted" to true
@@ -122,29 +134,14 @@ class UserRepository {
                 if (isFirstPerfect) progressUpdates["isPerfectCompleted"] = true
 
                 transaction.set(progressRef, progressUpdates, SetOptions.merge())
+                null
             }.await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("LearnityDebug", "❌ Erreur Transaction: ${e.message}")
             Result.failure(e)
         }
     }
-    suspend fun updateQuizMode(mode: String): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
-
-            // On met à jour le champ "quizMode" (ou le nom que tu préfères) dans le document user
-            firestore.collection("users").document(userId)
-                .update("quizMode", mode)
-                .await()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-    // ============================================
-    // ✅ ACTIONS UTILISATEUR (Pénalité, Dons, Paramètres)
-    // ============================================
 
     suspend fun applyAbsenteeismPenalty(amount: Double): Result<Unit> = withContext(Dispatchers.IO) {
         val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
@@ -162,6 +159,14 @@ class UserRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
+    suspend fun updateQuizMode(mode: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+            firestore.collection("users").document(userId).update("quizMode", mode).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
     suspend fun deductFromDebt(amount: Double): Result<Unit> = withContext(Dispatchers.IO) {
         val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
         val userRef = firestore.collection("users").document(userId)
@@ -171,6 +176,7 @@ class UserRepository {
                 val currentDebt = snapshot.getDouble("detteCumulee") ?: 0.0
                 val newDebt = (currentDebt - amount).coerceAtLeast(0.0)
                 transaction.update(userRef, "detteCumulee", newDebt)
+                null
             }.await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
@@ -184,17 +190,10 @@ class UserRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    // ============================================
-    // ÉCRITURE GÉNÉRALE (Sauvegarde Profil)
-    // ============================================
-
     suspend fun saveUserProfile(profile: UserProfile): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            firestore.collection("users").document(profile.uid)
-                .set(profile, SetOptions.merge()).await()
+            firestore.collection("users").document(profile.uid).set(profile, SetOptions.merge()).await()
             Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 }

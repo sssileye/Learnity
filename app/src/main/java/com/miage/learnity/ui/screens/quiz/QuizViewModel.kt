@@ -151,19 +151,41 @@ class QuizViewModel(
 
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
         isResultSaved = false
-        val mode = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
+
         viewModelScope.launch {
             _isLoading.value = true
+
+            // 1. On vérifie d'abord s'il existe UN score aujourd'hui, peu importe le mode
+            // Cela permet de verrouiller la session sur le premier mode choisi
+            repository.getLastDailyQuizScore().onSuccess { result ->
+                if (result != null) {
+                    _oldBestScore.value = result.first
+                    android.util.Log.d("QuizVM_Debug", "📥 DB -> Score existant trouvé (${result.first}). Mode verrouillé pour aujourd'hui.")
+                } else {
+                    _oldBestScore.value = 0
+                    android.util.Log.d("QuizVM_Debug", "📥 DB -> Aucun score. Première tentative du jour.")
+                }
+            }.onFailure { e ->
+                android.util.Log.e("QuizVM_Debug", "❌ Erreur check score: ${e.message}")
+            }
+
+            // 2. Détermination du mode à charger
+            val mode = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
+            android.util.Log.d("QuizVM_Debug", "🚀 Chargement du contenu - Mode: $mode")
+
             fetchContextTitles("GLOBAL", mode)
+
+            // 3. Chargement effectif du quiz
             repository.getDailyQuiz(isDiscoveryMode) { progress ->
                 _loadingProgress.value = progress
             }.onSuccess { dailyQuiz ->
                 _quiz.value = dailyQuiz
                 _questions.value = dailyQuiz.questions
-                repository.getLastDailyQuizScore().onSuccess { result ->
-                    if (result != null) _oldBestScore.value = result.first
-                }
+                android.util.Log.d("QuizVM_Debug", "✅ Questions chargées avec succès.")
+            }.onFailure { e ->
+                android.util.Log.e("QuizVM_Debug", "❌ Erreur chargement questions: ${e.message}")
             }
+
             _isLoading.value = false
         }
     }
@@ -194,6 +216,22 @@ class QuizViewModel(
         val finalScore = _score.value
         val totalQuestions = _questions.value.size
 
+        // ⭐ LOG DE DIAGNOSTIC INITIAL
+        android.util.Log.d("QuizVM_Debug", "=== FIN DE QUIZ DETECTÉE ===")
+        android.util.Log.d("QuizVM_Debug", "📍 Mode: $chapterId | Score: $finalScore/$totalQuestions")
+        android.util.Log.d("QuizVM_Debug", "🔄 Valeur de _oldBestScore en mémoire: ${_oldBestScore.value}")
+
+        // 1. Détermination du mode (Premier essai vs Entraînement)
+        val isDailyQuiz = (chapterId == "REVIEW" || chapterId == "DISCOVERY")
+        val isAlreadyDone = isDailyQuiz && _oldBestScore.value > 0
+
+        if (isAlreadyDone) {
+            android.util.Log.w("QuizVM_Debug", "⚠️ VERROU ACTIVÉ : Un score de ${_oldBestScore.value} existe déjà. Mode Entraînement activé.")
+        } else {
+            android.util.Log.i("QuizVM_Debug", "✅ VERROU DÉSACTIVÉ : Premier essai détecté (ou nouveau record hors QDJ).")
+        }
+
+        // 2. Calcul des résultats théoriques
         val calculation = PointsManager.calculateResults(
             type = quizType,
             score = finalScore,
@@ -205,42 +243,55 @@ class QuizViewModel(
 
         _sessionPointsGained.value = calculation.progressionPoints + calculation.bonusGained
 
-        // ⭐ LE DÉCLENCHEUR ANALYTICS EST ICI
-        if (chapterId == "REVIEW" || chapterId == "DISCOVERY") {
+        // 3. Analytics (Uniquement premier essai QDJ)
+        if (isDailyQuiz && !isAlreadyDone) {
             com.google.firebase.ktx.Firebase.analytics.logEvent("qdj_completed_today") {
                 param("score", finalScore.toLong())
                 param("mode", chapterId)
             }
-            android.util.Log.d("LearnityAnalytics", "✅ Signal QDJ envoyé depuis QuizViewModel")
+            android.util.Log.d("LearnityAnalytics", "📊 Firebase Analytics : Événement qdj_completed_today envoyé.")
         }
 
         viewModelScope.launch {
-            val historyEntry = QuizHistory(
-                date = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date()),
-                hour = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                score = finalScore,
-                total = totalQuestions,
-                pointsGained = _sessionPointsGained.value,
-                timestamp = System.currentTimeMillis()
-            )
+            try {
+                val historyEntry = QuizHistory(
+                    date = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date()),
+                    hour = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                    score = finalScore,
+                    total = totalQuestions,
+                    pointsGained = _sessionPointsGained.value,
+                    timestamp = System.currentTimeMillis()
+                )
 
-            // Sauvegarde de l'historique détaillé
-            repository.saveQuizHistory(courseId, chapterId, historyEntry, _userAnswers.value)
+                // 4. Sauvegarde historique (le Repository gère l'unicité en DB)
+                repository.saveQuizHistory(courseId, chapterId, historyEntry, _userAnswers.value)
 
-            // Mise à jour du profil utilisateur (points, dettes, record)
-            userViewModel.repository.updateStatsWithHighscore(
-                courseId = courseId,
-                chapterId = chapterId,
-                newScore = finalScore,
-                totalQuestions = totalQuestions,
-                quizType = quizType,
-                pointsCalculated = calculation.progressionPoints,
-                bonusCalculated = calculation.bonusGained,
-                debtCalculated = calculation.debtAdded
-            )
+                // 5. Mise à jour réelle du profil Firestore
+                if (!isAlreadyDone) {
+                    userViewModel.repository.updateStatsWithHighscore(
+                        courseId = courseId,
+                        chapterId = chapterId,
+                        newScore = finalScore,
+                        totalQuestions = totalQuestions,
+                        quizType = quizType,
+                        pointsCalculated = calculation.progressionPoints,
+                        bonusCalculated = calculation.bonusGained,
+                        debtCalculated = calculation.debtAdded
+                    )
+                    android.util.Log.d("QuizVM_Debug", "💰 Firestore mis à jour : +${calculation.progressionPoints} pts / Dette: ${calculation.debtAdded}€")
+                } else {
+                    android.util.Log.w("QuizVM_Debug", "🚫 Firestore IGNORE : Pas de modification de points/dette (Doublon QDJ).")
+                }
 
-            // On rafraîchit les stats globales après la sauvegarde
-            userViewModel.refreshProgressionStats()
+                // 6. Rafraîchissement UI
+                userViewModel.refreshProgressionStats()
+                userViewModel.refreshDailyStats()
+
+                android.util.Log.d("QuizVM_Debug", "🏁 Fin du process. Homepage prête à être synchronisée.")
+
+            } catch (e: Exception) {
+                android.util.Log.e("QuizVM_Debug", "❌ ERREUR FATALE dans processFinalResults: ${e.message}")
+            }
         }
     }
 

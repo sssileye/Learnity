@@ -35,7 +35,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
     // Récupération des données du profil
     val currentStreak = userUiState.profile?.currentStreak ?: 0
     val quizMode = userUiState.profile?.quizMode ?: "DISCOVERY"
-
+    val profile = userUiState.profile
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -50,7 +50,8 @@ fun MainNav(onLogout: () -> Unit = {}) {
         topBar = {
             if (showBars) {
                 TopNavigationBar(
-                    currentStreak = currentStreak,
+                    currentStreak = profile?.currentStreak ?: 0,
+                    photoUrl = profile?.photoUrl, // ⭐ Photo dynamique
                     onProfileClick = { navController.navigate("profile") },
                     onLogoClick = {
                         navController.navigate("home") {
