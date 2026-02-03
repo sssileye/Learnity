@@ -26,26 +26,28 @@ import java.nio.charset.StandardCharsets
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
 
-    // Utilisation du UserViewModel comme source de vérité globale
+    // Source de vérité globale pour le profil
     val userViewModel: UserViewModel = viewModel()
     val userUiState by userViewModel.uiState.collectAsState()
 
-    // Récupération des données du profil
-    val currentStreak = userUiState.profile?.currentStreak ?: 0
-    val quizMode = userUiState.profile?.quizMode ?: "DISCOVERY"
+    // Données extraites
+    val profile = userUiState.profile
+    val currentStreak = profile?.currentStreak ?: 0
+    val photoUrl = profile?.photoUrl
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // On cache les barres pour les écrans immersifs
+    // Gestion de l'affichage des barres
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf") &&
             !currentRoute.contains("video") &&
             currentRoute != "profile_editor"
 
-    //  États pour gérer les dialogs d'aide
+    // États pour les dialogs d'aide
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showStreakDialog by remember { mutableStateOf(false) } // ⭐ État pour le Winstreak
     var showQuizDuJourDialog by remember { mutableStateOf(false) }
     var showDetteDialog by remember { mutableStateOf(false) }
     var showUnityPointsDialog by remember { mutableStateOf(false) }
@@ -62,15 +64,17 @@ fun MainNav(onLogout: () -> Unit = {}) {
                             launchSingleTop = true
                         }
                     },
-                    onHelpClick = {
-                        showHelpDialog = true
-                    }
+                    onStreakClick = { showStreakDialog = true }, // ⭐ Ouvre le dialog
+                    onHelpClick = { showHelpDialog = true }
                 )
             }
         },
         bottomBar = {
             if (showBars) {
-                BottomNavigationBar(navController)
+                BottomNavigationBar(
+                    navController = navController,
+                    photoUrl = photoUrl
+                )
             }
         }
     ) { paddingValues ->
@@ -92,21 +96,18 @@ fun MainNav(onLogout: () -> Unit = {}) {
             composable("settings") {
                 SettingsScreen(
                     authViewModel = viewModel(),
-                    onAccountDeleted = {
-                        onLogout()
-                    }
+                    onAccountDeleted = { onLogout() }
                 )
             }
 
-            // --- PROFIL (accessible via BottomBar) ---
+            // --- PROFIL ---
             composable("profile") {
                 ProfileScreen(
                     onLogout = onLogout,
-                    onEditClick = {
-                        navController.navigate("profile_editor")
-                    },
+                    onEditClick = { navController.navigate("profile_editor") },
                     onNavigateToSettings = { navController.navigate("settings") },
-                    onNavigateToAssociation = { navController.navigate("association") }
+                    onNavigateToAssociation = { navController.navigate("association") },
+                    viewModel = userViewModel
                 )
             }
 
@@ -114,7 +115,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 ProfileEditorScreen(onNavigateBack = { navController.popBackStack() })
             }
 
-            // --- BIBLIOTHÈQUE ---
+            // --- BIBLIOTHÈQUE ET LECTEURS ---
             composable("library") {
                 LibraryScreen(onCourseClick = { id -> navController.navigate("course/$id") })
             }
@@ -132,7 +133,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- CONTENU DU CHAPITRE ---
             composable(
                 route = "chapter/{courseId}/{chapterId}",
                 arguments = listOf(
@@ -165,7 +165,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- LECTEUR VIDÉO ---
             composable(
                 route = "video/{videoUrl}",
                 arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })
@@ -174,11 +173,10 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 YouTubePlayer(
                     videoUrl = videoUrl,
                     modifier = Modifier.fillMaxSize(),
-                    onVideoEnd = { /* Optionnel */ }
+                    onVideoEnd = { /* ... */ }
                 )
             }
 
-            // --- LECTEUR PDF ---
             composable(
                 route = "pdf/{courseId}/{chapterId}/{type}",
                 arguments = listOf(
@@ -200,7 +198,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- QUIZ (RÉVISIONS OU CLASSIQUE) ---
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
@@ -226,57 +223,35 @@ fun MainNav(onLogout: () -> Unit = {}) {
         }
     }
 
+    // --- DIALOGS ---
 
-    // DIALOGS D'AIDE
+    // ⭐ Dialog Winstreak
+    if (showStreakDialog) {
+        val currentMultiplier = when {
+            currentStreak >= 30 -> 2.0
+            currentStreak >= 15 -> 1.5
+            currentStreak >= 7 -> 1.2
+            currentStreak >= 3 -> 1.1
+            else -> 1.0
+        }
+        StreakHelpDialog(
+            currentStreak = currentStreak,
+            multiplier = currentMultiplier,
+            onDismiss = { showStreakDialog = false }
+        )
+    }
 
-    // Dialog principal (menu d'aide)
     if (showHelpDialog) {
         HomeScreenHelpDialog(
-            onQuizDuJourClick = {
-                showHelpDialog = false
-                showQuizDuJourDialog = true
-            },
-            onDetteClick = {
-                showHelpDialog = false
-                showDetteDialog = true
-            },
-            onUnityPointsClick = {
-                showHelpDialog = false
-                showUnityPointsDialog = true
-            },
-            onTypesQuizClick = {
-                showHelpDialog = false
-                showTypesQuizDialog = true
-            },
+            onQuizDuJourClick = { showHelpDialog = false; showQuizDuJourDialog = true },
+            onDetteClick = { showHelpDialog = false; showDetteDialog = true },
+            onUnityPointsClick = { showHelpDialog = false; showUnityPointsDialog = true },
+            onTypesQuizClick = { showHelpDialog = false; showTypesQuizDialog = true },
             onDismiss = { showHelpDialog = false }
         )
     }
-
-    // Dialog Quiz du Jour
-    if (showQuizDuJourDialog) {
-        QuizDuJourHelpDialog(
-            onDismiss = { showQuizDuJourDialog = false }
-        )
-    }
-
-    // Dialog Dette Virtuelle
-    if (showDetteDialog) {
-        DetteVirtuelleHelpDialog(
-            onDismiss = { showDetteDialog = false }
-        )
-    }
-
-    // Dialog Unity Points
-    if (showUnityPointsDialog) {
-        UnityPointsHelpDialog(
-            onDismiss = { showUnityPointsDialog = false }
-        )
-    }
-
-    // Dialog Types de Quiz
-    if (showTypesQuizDialog) {
-        TypesQuizHelpDialog(
-            onDismiss = { showTypesQuizDialog = false }
-        )
-    }
+    if (showQuizDuJourDialog) QuizDuJourHelpDialog(onDismiss = { showQuizDuJourDialog = false })
+    if (showDetteDialog) DetteVirtuelleHelpDialog(onDismiss = { showDetteDialog = false })
+    if (showUnityPointsDialog) UnityPointsHelpDialog(onDismiss = { showUnityPointsDialog = false })
+    if (showTypesQuizDialog) TypesQuizHelpDialog(onDismiss = { showTypesQuizDialog = false })
 }

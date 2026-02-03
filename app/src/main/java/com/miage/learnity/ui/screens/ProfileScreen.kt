@@ -241,7 +241,7 @@ private fun ProfileContent(
                     dimensions = dimensions
                 )
 
-                MenuItemRow("Mon Association", R.drawable.ic_asso, onClick = onNavigateToAssociation, dimensions = dimensions)
+                //MenuItemRow("Mon Association", R.drawable.ic_asso, onClick = onNavigateToAssociation, dimensions = dimensions)
                 MenuItemRow("Réglages", R.drawable.ic_settings_1, onClick = onNavigateToSettings, dimensions = dimensions)
 
                 HorizontalDivider(modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f), color = MaterialTheme.colorScheme.outlineVariant)
