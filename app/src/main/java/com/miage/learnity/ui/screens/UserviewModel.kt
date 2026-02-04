@@ -28,7 +28,8 @@ data class UserUiState(
     val readChaptersCount: Int = 0,
     val totalChaptersCount: Int = 0,
     val dailyScore: Pair<Int, Int>? = null,    // ⭐ Ajouté
-    val weeklyProgress: Pair<Int, Int>? = null // ⭐ Ajouté
+    val weeklyProgress: Pair<Int, Int>? = null, // ⭐ Ajouté
+    val penaltyMessage: String? = null
 )
 
 class UserViewModel(
@@ -48,6 +49,7 @@ class UserViewModel(
         observeProfile()
         checkAndApplyAttendancePenalty()
         refreshProgressionStats()
+        refreshDailyStats()
         firestore.clearPersistence()
         // ⭐ Chargement immédiat des associations
         fetchAssociations()
@@ -229,24 +231,71 @@ fun refreshDailyStats() {
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
+            // 1. Récupération du profil actuel
             val profile = repository.getUserProfile().getOrNull() ?: return@launch
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val todayStr = sdf.format(Date())
+            val lastDateStr = profile.lastDailyQuizDate ?: return@launch
 
-            if (profile.lastDailyQuizDate == null || profile.lastDailyQuizDate == todayStr) return@launch
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
             try {
-                val lastDate = sdf.parse(profile.lastDailyQuizDate)
-                val diffMillis = Date().time - lastDate!!.time
-                val daysDiff = TimeUnit.DAYS.convert(diffMillis, TimeUnit.MILLISECONDS).toInt()
+                // 2. Normalisation de la date du jour (Minuit) pour API 24
+                val today = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.time
 
+                val lastDate = sdf.parse(lastDateStr) ?: return@launch
+
+                // Calcul de la différence brute en jours
+                val diffMillis = today.time - lastDate.time
+                val daysDiff = (diffMillis / (1000 * 60 * 60 * 24)).toInt()
+
+                // 3. Détection d'absence (si plus de 1 jour d'écart)
                 if (daysDiff > 1) {
-                    val missedDays = (daysDiff - 1).toDouble()
-                    val totalPenalty = profile.redevanceSoutienUnitaire * missedDays
-                    repository.applyAbsenteeismPenalty(totalPenalty)
+                    val missedDays = daysDiff - 1
+                    val redevance = profile.redevanceSoutienUnitaire ?: 1.0
+
+                    android.util.Log.d("Learnity_Debug", "🕵️ Absence détectée : $missedDays jours.")
+
+                    // 4. Appel du Repository qui gère le bouclier et nous renvoie le bilan
+                    repository.applyAbsenteeismPenalty(missedDays, redevance)
+                        .onSuccess { messageBilan ->
+                            android.util.Log.d("Learnity_Debug", "✅ Pénalité traitée : $messageBilan")
+
+                            // ⭐ MISE À JOUR DE L'UI : On stocke le message pour la PopUp
+                            _uiState.update { it.copy(
+                                penaltyMessage = messageBilan
+                            ) }
+
+                            // Rafraîchissement pour voir les points déduits sur l'écran
+                            refreshProfile()
+                        }
+                        .onFailure { e ->
+                            android.util.Log.e("Learnity_Debug", "❌ Échec pénalité : ${e.message}")
+                        }
+                } else {
+                    android.util.Log.d("Learnity_Debug", "✅ Assiduité OK (Écart : $daysDiff j).")
                 }
             } catch (e: Exception) {
-                Log.e("LearnityDebug", "Erreur assiduité : ${e.message}")
+                android.util.Log.e("Learnity_Debug", "❌ Erreur calcul assiduité : ${e.message}")
+            }
+        }
+    }
+    fun dismissPenaltyPopup() {
+        _uiState.update { it.copy(penaltyMessage = null) }
+    }
+
+    fun refreshProfile() {
+        viewModelScope.launch {
+            // On demande au repository de reprendre le profil actuel
+            repository.getUserProfile().onSuccess { profile ->
+                // On met à jour le StateFlow de l'UI
+                _uiState.update { it.copy(profile = profile) }
+                Log.d("UserViewModel", "Profil synchronisé après pénalité")
+            }.onFailure { e ->
+                Log.e("UserViewModel", "Erreur lors du refresh : ${e.message}")
             }
         }
     }

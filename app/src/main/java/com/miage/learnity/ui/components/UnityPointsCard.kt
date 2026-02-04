@@ -8,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -18,26 +17,17 @@ import com.miage.learnity.ui.utils.ResponsiveDimensions
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
- * ═══════════════════════════════════════════════════════════════
- * ✨ UNITY POINTS CARD - VERSION GRADIENTS VIBRANTS (HOMEPAGE)
- * ═══════════════════════════════════════════════════════════════
- *
- * Card Unity Points avec GRADIENTS VIBRANTS FORCÉS
- * ✅ Gradient bleu vibrant même en dark mode
- * ✅ Garde l'énergie visuelle de la HomePage
+ * ✨ UNITY POINTS CARD - VERSION ÉPURÉE
+ * ✅ Supprimé : Jauge circulaire, barre de progression et "Mon impact"
+ * ✅ Conservé : Gradient vibrant bleu et affichage clair du solde
  */
 @Composable
 fun UnityPointsCard(
     currentPoints: Int,
-    nextDonationGoal: Int = 2000,
-    onViewImpactClick: () -> Unit,
     dimensions: ResponsiveDimensions,
     modifier: Modifier = Modifier
 ) {
-    val progress = (currentPoints.toFloat() / nextDonationGoal.toFloat()).coerceIn(0f, 1f)
-    val pointsRemaining = (nextDonationGoal - currentPoints).coerceAtLeast(0)
-
-    // ✅ GRADIENT VIBRANT FORCÉ (même en dark mode)
+    // GRADIENT VIBRANT BLEU
     val gradient = Brush.verticalGradient(
         colors = listOf(
             Color(0xFF4A90E2),  // Bleu clair vibrant
@@ -45,7 +35,6 @@ fun UnityPointsCard(
         )
     )
 
-    // ✅ Texte blanc pour contraste
     val textColor = Color.White
     val overlayColor = Color.White.copy(alpha = 0.25f)
 
@@ -75,32 +64,23 @@ fun UnityPointsCard(
                             color = textColor
                         )
                         Text(
-                            text = "Tes points accumulés",
+                            text = "Bouclier d'assiduité actif",
                             fontSize = dimensions.bodySmall,
                             color = textColor.copy(alpha = 0.9f)
                         )
                     }
 
-                    // Indicateur circulaire
-                    Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.size(dimensions.iconSizeLarge + 4.dp),
-                            color = textColor,
-                            trackColor = textColor.copy(alpha = 0.3f),
-                            strokeWidth = 5.dp
-                        )
-                        Surface(
-                            modifier = Modifier.size(dimensions.iconSizeLarge - 8.dp),
-                            shape = CircleShape,
-                            color = overlayColor
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "✨",
-                                    fontSize = dimensions.titleMedium
-                                )
-                            }
+                    // Icône simple sans jauge
+                    Surface(
+                        modifier = Modifier.size(dimensions.iconSizeLarge),
+                        shape = CircleShape,
+                        color = overlayColor
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "✨",
+                                fontSize = dimensions.titleMedium
+                            )
                         }
                     }
                 }
@@ -110,123 +90,46 @@ fun UnityPointsCard(
                 // Points actuels
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = "$currentPoints",
-                            fontSize = dimensions.displayLarge,
-                            fontWeight = FontWeight.Black,
-                            color = textColor
-                        )
-                        Text(
-                            text = " pts",
-                            fontSize = dimensions.titleLarge,
-                            color = textColor,
-                            modifier = Modifier.offset(y = (-6).dp)
-                        )
-                    }
-
-                    TextButton(
-                        onClick = onViewImpactClick,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = textColor
-                        )
-                    ) {
-                        Text(
-                            text = "Mon impact →",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = dimensions.bodyMedium
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
-
-                // Progression vers prochain don
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Prochain don",
-                            fontSize = dimensions.bodySmall,
-                            color = textColor.copy(alpha = 0.9f)
-                        )
-                        Text(
-                            text = if (pointsRemaining > 0)
-                                "Plus que $pointsRemaining pts"
-                            else
-                                "Objectif atteint !",
-                            fontSize = dimensions.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = textColor,
-                        trackColor = textColor.copy(alpha = 0.3f),
+                    Text(
+                        text = "$currentPoints",
+                        fontSize = dimensions.displayLarge,
+                        fontWeight = FontWeight.Black,
+                        color = textColor
                     )
-
-                    if (progress >= 1f) {
-                        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 2)
-                        ) {
-                            Text(
-                                text = "🎉",
-                                fontSize = dimensions.titleMedium
-                            )
-                            Text(
-                                text = "Tu peux effectuer un don !",
-                                fontSize = dimensions.bodyMedium,
-                                color = textColor,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                    Text(
+                        text = " pts",
+                        fontSize = dimensions.titleLarge,
+                        color = textColor,
+                        modifier = Modifier.offset(y = (-6).dp, x = 4.dp)
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
+
+                // Petit texte informatif sur l'usage des points
+                Text(
+                    text = "Utilise tes points pour protéger ta cagnotte.",
+                    fontSize = dimensions.bodySmall,
+                    color = textColor.copy(alpha = 0.8f)
+                )
             }
         }
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 📱 PREVIEWS
-// ═══════════════════════════════════════════════════════════════
-
-@Preview(name = "Moyen (360dp)", widthDp = 360)
+@Preview(name = "Preview Points", widthDp = 360)
 @Composable
-fun UnityPointsCardVibrantPreview() {
+fun UnityPointsCardPreview() {
     MaterialTheme {
         Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // En progression
             UnityPointsCard(
                 currentPoints = 1540,
-                nextDonationGoal = 2000,
-                onViewImpactClick = {},
-                dimensions = rememberResponsiveDimensions()
-            )
-
-            // Objectif atteint
-            UnityPointsCard(
-                currentPoints = 2150,
-                nextDonationGoal = 2000,
-                onViewImpactClick = {},
                 dimensions = rememberResponsiveDimensions()
             )
         }
