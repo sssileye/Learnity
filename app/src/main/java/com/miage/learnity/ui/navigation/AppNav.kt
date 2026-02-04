@@ -47,7 +47,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
         composable(Screen.Inscription.route) {
             Inscription(
                 onBackClick = { nav.popBackStack() },
-                onInscriptionSuccess = { email, password, firstName, lastName ->  // ✅ AJOUT
+                onInscriptionSuccess = { email, password, firstName, lastName ->
                     vm.signUp(email, password, firstName, lastName)
                 },
                 isLoading = state.isLoading,
@@ -69,7 +69,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             SignInScreen(
                 onBackClick = { nav.popBackStack() },
                 onSignIn = { email, password -> vm.signIn(email, password) },
-                onForgotPassword = {  // ✅ CONNECTÉ
+                onForgotPassword = {
                     nav.navigate(Screen.ResetPassword.route)
                 },
                 onNavigateToSignUp = { nav.navigate(Screen.Inscription.route) },
@@ -81,7 +81,6 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             }
         }
 
-        // ✅ NOUVELLE ROUTE - Reset Password
         composable(Screen.ResetPassword.route) {
             ResetPasswordScreen(
                 onBackClick = { nav.popBackStack() },

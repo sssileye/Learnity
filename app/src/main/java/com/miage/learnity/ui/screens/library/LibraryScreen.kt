@@ -110,8 +110,8 @@ private fun CoursesList(
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(
-                start = dimensions.screenPaddingHorizontal, // Remplace horizontal
-                end = dimensions.screenPaddingHorizontal,   // Remplace horizontal
+                start = dimensions.screenPaddingHorizontal,
+                end = dimensions.screenPaddingHorizontal,
                 top = 4.dp,
                 bottom = 100.dp
             ),
@@ -128,7 +128,7 @@ private fun CoursesList(
                     Text(
                         text = "Bibliothèque",
                         fontSize = dimensions.titleLarge,
-                        fontWeight = FontWeight.Black, // Plus d'impact visuel
+                        fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
@@ -176,7 +176,6 @@ fun CourseLibraryCard(
                 .padding(dimensions.cardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // --- ICÔNE FIXE (Icons.Default.School) ---
             Surface(
                 modifier = Modifier.size(dimensions.iconSizeMedium * 1.4f),
                 shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
@@ -184,7 +183,7 @@ fun CourseLibraryCard(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.School, // ✅ Utilisation de l'icône Material imposée
+                        imageVector = Icons.Default.School,
                         contentDescription = null,
                         modifier = Modifier.size(dimensions.iconSizeMedium),
                         tint = MaterialTheme.colorScheme.primary
@@ -194,21 +193,16 @@ fun CourseLibraryCard(
 
             Spacer(modifier = Modifier.width(dimensions.itemSpacing))
 
-            // --- TITRE OPTIMISÉ (Responsive & Taille réduite) ---
             Text(
                 text = course.title,
-                // Taille réduite à 85% de la taille de base pour éviter les coupures
                 fontSize = (dimensions.titleMedium.value * 0.85).sp,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
-                // Interlignage compact
                 lineHeight = (dimensions.titleMedium.value * 1.0).sp,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-
-            // --- BOUTON FAVORIS ---
             IconButton(
                 onClick = onFavoriteToggle,
                 modifier = Modifier.size(dimensions.iconSizeMedium * 1.2f)

@@ -27,7 +27,6 @@ class QuizViewModel(
     private val progressRepository: UserProgressRepository = UserProgressRepository()
 ) : ViewModel() {
 
-    // --- États du Quiz ---
     private val _quiz = MutableStateFlow<Quiz?>(null)
     val quiz: StateFlow<Quiz?> = _quiz.asStateFlow()
 
@@ -58,7 +57,6 @@ class QuizViewModel(
     private val _userAnswers = MutableStateFlow<Map<Int, Int>>(emptyMap())
     val userAnswers: StateFlow<Map<Int, Int>> = _userAnswers.asStateFlow()
 
-    // --- États d'Affichage & Résultats ---
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -74,7 +72,6 @@ class QuizViewModel(
     private val _score = MutableStateFlow(0)
     val score: StateFlow<Int> = _score.asStateFlow()
 
-    // ⭐ NOUVEAUX ÉTATS POUR L'AFFICHAGE DU BILAN
     private val _sessionPointsGained = MutableStateFlow(0)
     val sessionPointsGained: StateFlow<Int> = _sessionPointsGained.asStateFlow()
 
@@ -90,9 +87,6 @@ class QuizViewModel(
     private val _isCurrentAnswerRevealed = MutableStateFlow(false)
     val isCurrentAnswerRevealed: StateFlow<Boolean> = _isCurrentAnswerRevealed.asStateFlow()
 
-    // ============================================
-    // ⭐ GESTION DU CONTEXTE (TITRES)
-    // ============================================
 
     private suspend fun fetchContextTitles(courseId: String, chapterId: String?) {
         try {
@@ -109,10 +103,6 @@ class QuizViewModel(
             }
         } catch (e: Exception) { Log.e("QuizVM", "Erreur fetchContextTitles: ${e.message}") }
     }
-
-    // ============================================
-    // CHARGEMENT DES MODES
-    // ============================================
 
     fun loadQuiz(courseId: String, chapterId: String) {
         isResultSaved = false
@@ -169,10 +159,6 @@ class QuizViewModel(
         }
     }
 
-    // ============================================
-    // ⭐ LOGIQUE DE FINALISATION (CORRIGÉE)
-    // ============================================
-
     fun processFinalResults(
         quizType: PointsManager.QuizType,
         userViewModel: UserViewModel,
@@ -188,15 +174,12 @@ class QuizViewModel(
         val finalScore = _score.value
         val totalQuestions = _questions.value.size
 
-        // 1. Détection du premier essai (via la date du profil)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val isDailyQuiz = (chapterId == "REVIEW" || chapterId == "DISCOVERY")
 
-        // On considère que c'est le premier essai si la date Firestore est différente d'aujourd'hui
         val firstAttemptToday = if (isDailyQuiz) profile.lastDailyQuizDate != todayStr else true
         _isFirstAttempt.value = firstAttemptToday
 
-        // 2. Calcul via PointsManager
         val calculation = PointsManager.calculateResults(
             type = quizType,
             score = finalScore,
@@ -204,15 +187,13 @@ class QuizViewModel(
             oldBestScore = _oldBestScore.value,
             profile = profile,
             wasAlreadyPerfect = _wasAlreadyCompleted.value,
-            isFirstAttemptToday = firstAttemptToday // ⭐ Nouveau paramètre
+            isFirstAttemptToday = firstAttemptToday
         )
 
-        // 3. Mise à jour des états pour l'UI de résultat
         _sessionPointsGained.value = calculation.progressionPoints + calculation.bonusGained
         _sessionDebtAdded.value = calculation.debtAdded
         _multiplierUsed.value = calculation.multiplierUsed
 
-        // 4. Analytics
         if (isDailyQuiz && firstAttemptToday) {
             Firebase.analytics.logEvent("qdj_completed_today") {
                 param("score", finalScore.toLong())
@@ -231,10 +212,8 @@ class QuizViewModel(
                     timestamp = System.currentTimeMillis()
                 )
 
-                // Sauvegarde historique
                 repository.saveQuizHistory(courseId, chapterId, historyEntry, _userAnswers.value)
 
-                // 5. Sauvegarde Firestore uniquement si c'est un gain réel (1er essai ou Record)
                 if (firstAttemptToday || (!isDailyQuiz && finalScore > _oldBestScore.value)) {
                     userViewModel.repository.updateStatsWithHighscore(
                         courseId = courseId,
@@ -254,11 +233,6 @@ class QuizViewModel(
             } catch (e: Exception) { Log.e("QuizVM", "Erreur sauvegarde: ${e.message}") }
         }
     }
-
-    // ============================================
-    // LOGIQUE DU JEU & NAVIGATION
-    // ============================================
-
     fun selectAnswer(selectedIndex: Int) {
         if (!_isCurrentAnswerRevealed.value && _currentQuestionIndex.value >= _maxIndexReached.value) {
             _userAnswers.value = _userAnswers.value + (_currentQuestionIndex.value to selectedIndex)

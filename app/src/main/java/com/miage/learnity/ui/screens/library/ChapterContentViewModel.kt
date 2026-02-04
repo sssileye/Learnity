@@ -44,11 +44,9 @@ class ChapterContentViewModel(
             _isLoading.value = true
             _error.value = null
 
-            // 1. Charger les données du chapitre
             courseRepository.getChapter(courseId, chapterId, auth.currentUser?.uid)
                 .onSuccess { chapter ->
                     startProgressListener(courseId, chapterId, chapter)
-                    // 2. Charger l'historique pour le tableau
                     loadQuizHistory(courseId, chapterId)
                 }
                 .onFailure {
@@ -103,8 +101,6 @@ class ChapterContentViewModel(
                         isQuizCompleted = progress.isQuizCompleted,
                         isQuizUnlocked = canUnlock
                     )
-
-                    // ✅ Optionnel : Recharger l'historique si un nouveau quiz est complété
                     if (progress.isQuizCompleted) {
                         loadQuizHistory(courseId, chapterId)
                     }

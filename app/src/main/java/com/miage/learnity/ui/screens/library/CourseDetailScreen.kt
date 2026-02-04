@@ -46,11 +46,8 @@ fun CourseDetailScreen(
 ) {
     val dimensions = rememberResponsiveDimensions()
     val course by viewModel.course.collectAsState()
-
-    // ⭐ On utilise sortedChapters (flux trié) au lieu de chapters
     val chapters by viewModel.sortedChapters.collectAsState()
     val currentSortOrder by viewModel.sortOrder.collectAsState()
-
     val isExamUnlocked by viewModel.isExamUnlocked.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -122,7 +119,6 @@ private fun CourseContent(
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
         item {
-            // ✅ Le paramètre onToggleCourseFav a été retiré pour simplifier l'en-tête
             CourseHeader(
                 course = course,
                 progress = progress,
@@ -202,8 +198,6 @@ private fun CourseContent(
                 }
             }
         }
-
-        // ⭐ NOUVEAU : BARRE DE TRI DES CHAPITRES
         item {
             Column {
                 Text(
@@ -268,15 +262,12 @@ private fun CourseHeader(
         Column(
             modifier = Modifier.padding(dimensions.cardPadding * 1.2f)
         ) {
-            // ✅ TITRE ADAPTATIF : On réduit la taille pour favoriser l'affichage complet
             Text(
                 text = course.title,
-                // On utilise une taille légèrement plus petite (ratio 0.8) pour assurer l'affichage complet
                 fontSize = (dimensions.titleLarge.value * 0.8).sp,
-                lineHeight = (dimensions.titleLarge.value * 0.9).sp, // Interlignage serré pour gagner de la place
+                lineHeight = (dimensions.titleLarge.value * 0.9).sp,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                // On retire maxLines pour laisser le titre s'écrire en entier sur 3 lignes si besoin
                 softWrap = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -293,7 +284,6 @@ private fun CourseHeader(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // --- SECTION PROGRESSION ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -353,8 +343,6 @@ private fun ChapterCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = "CHAPITRE ${chapter.order + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Text(text = chapter.title, fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 2)
-
-                // ✅ ChapterInfo Restauré et sécurisé
                 if (!chapter.isQuizCompleted) {
                     ChapterInfo(chapter, dimensions)
                 }

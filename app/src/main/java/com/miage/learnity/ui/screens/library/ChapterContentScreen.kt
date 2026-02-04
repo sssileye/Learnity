@@ -66,7 +66,6 @@ fun ChapterContentScreen(
             val currentChapter = chapter // Smart-cast local pour la sécurité
 
             when {
-                // ✅ On affiche le contenu en priorité dès que 'chapter' n'est plus null
                 currentChapter != null -> ChapterContentLayout(
                     chapter = currentChapter,
                     history = history,
@@ -76,11 +75,8 @@ fun ChapterContentScreen(
                     onStartQuiz = onStartQuiz,
                     dimensions = dimensions
                 )
-                // ✅ On ne montre le loader que si on n'a vraiment aucune donnée
                 isLoading -> LoadingState(dimensions)
-                // ✅ Gestion de l'erreur
                 error != null -> ErrorState(error!!, { viewModel.refresh() }, dimensions)
-                // ✅ Fallback sécurité
                 else -> LoadingState(dimensions)
             }
         }
@@ -106,12 +102,11 @@ private fun ChapterContentLayout(
             .padding(
                 start = dimensions.screenPaddingHorizontal,
                 end = dimensions.screenPaddingHorizontal,
-                top = 16.dp, // Un peu plus d'espace en haut
+                top = 16.dp,
                 bottom = 32.dp
             ),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
-        // ✅ LE NOM DU CHAPITRE S'AFFICHE ICI (EN ENTIER)
         Text(
             text = chapter.title,
             fontSize = (dimensions.titleLarge.value * 0.85).sp,
@@ -156,7 +151,6 @@ private fun ChapterContentLayout(
             LockedQuizSection(dimensions)
         }
 
-        // --- ⭐ SECTION HISTORIQUE DÉPLIABLE ---
         if (history.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             ExpandableHistorySection(
@@ -241,9 +235,9 @@ private fun QuizSection(
         if (chapter.isQuizCompleted) {
             Text(
                 text = if (isPerfect)
-                    "🏆 Score maximum atteint ! Tu as déjà récolté tous les Unity Points de ce chapitre."
+                    "Score maximum atteint ! Tu as déjà récolté tous les Unity Points de ce chapitre."
                 else
-                    "✅ Quiz déjà validé. Améliore ton score pour gagner des UP supplémentaires !",
+                    "Quiz déjà validé. Améliore ton score pour gagner des UP supplémentaires !",
                 fontSize = 12.sp,
                 color = Color(0xFF2E7D32),
                 textAlign = TextAlign.Center,
@@ -380,16 +374,16 @@ private fun LockedQuizSection(dimensions: ResponsiveDimensions) {
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth() // ✅ Indispensable pour que la colonne occupe toute la largeur
+                .fillMaxWidth()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, // ✅ Centre les éléments horizontalement
-            verticalArrangement = Arrangement.Center // ✅ Centre verticalement si une hauteur est définie
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = null,
                 tint = Color.Gray,
-                modifier = Modifier.size(dimensions.iconSizeMedium) // Utilise tes dimensions
+                modifier = Modifier.size(dimensions.iconSizeMedium)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -397,7 +391,7 @@ private fun LockedQuizSection(dimensions: ResponsiveDimensions) {
             Text(
                 text = "Quiz Verrouillé",
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center, // ✅ Centre le texte lui-même
+                textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -405,7 +399,7 @@ private fun LockedQuizSection(dimensions: ResponsiveDimensions) {
                 text = "Lisez le cours pour débloquer",
                 fontSize = 12.sp,
                 color = Color.Gray,
-                textAlign = TextAlign.Center, // ✅ Centre le texte lui-même
+                textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
         }

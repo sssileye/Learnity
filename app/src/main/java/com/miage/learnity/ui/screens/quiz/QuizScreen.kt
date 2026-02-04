@@ -5,7 +5,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -22,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -53,8 +51,6 @@ fun QuizScreen(
 ) {
     val dimensions = rememberResponsiveDimensions()
     var showExitDialog by remember { mutableStateOf(false) }
-
-    // Observation des états du ViewModel
     val courseTitle by viewModel.courseTitle.collectAsState()
     val chapterTitle by viewModel.chapterTitle.collectAsState()
     val questions by viewModel.questions.collectAsState()
@@ -66,8 +62,6 @@ fun QuizScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
     val userUiState by userViewModel.uiState.collectAsState()
-
-    // ⭐ Nouveaux états synchronisés pour le bilan final
     val sessionPoints by viewModel.sessionPointsGained.collectAsState()
     val sessionDebt by viewModel.sessionDebtAdded.collectAsState()
     val multiplier by viewModel.multiplierUsed.collectAsState()
@@ -195,7 +189,6 @@ private fun QuizContent(
             .padding(dimensions.screenPaddingHorizontal)
             .verticalScroll(rememberScrollState())
     ) {
-        // --- 1. EN-TÊTE HIÉRARCHIQUE (SOBRE) ---
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
             Text(
                 text = currentQuestion.courseTitle ?: courseTitle,
@@ -219,7 +212,6 @@ private fun QuizContent(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // --- 2. BARRE DE PROGRESSION ---
         LinearProgressIndicator(
             progress = { (currentIndex + 1).toFloat() / totalQuestions },
             modifier = Modifier
@@ -232,7 +224,6 @@ private fun QuizContent(
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.2f))
 
-        // --- 3. CARTE DE LA QUESTION ---
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
@@ -259,7 +250,6 @@ private fun QuizContent(
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
 
-        // --- 4. OPTIONS DE RÉPONSE ---
         val chunks = currentQuestion.options.chunked(2)
         chunks.forEachIndexed { rowIndex, pair ->
             Row(
@@ -287,7 +277,6 @@ private fun QuizContent(
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
         }
 
-        // --- 5. EXPLICATION (SANS EMOJI) ---
         if (isAnswerRevealed) {
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
             Card(
@@ -320,7 +309,6 @@ private fun QuizContent(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // --- 6. BOUTONS DE NAVIGATION (MAJUSCULES) ---
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)) {
                 OutlinedButton(
@@ -491,7 +479,6 @@ private fun FinalResultContent(
                 }
             }
 
-            // ⭐ SECTION RÉCOMPENSE : Alignée, Sobre, sans Emojis
             item {
                 if (isFirstAttempt && !isReviewMode) {
                     QuizRewardCard(
@@ -559,9 +546,9 @@ private fun FinalResultContent(
 
 @Composable
 fun QuizRewardCard(
-    points: Int,      // Reçu du ViewModel (déjà multiplié)
-    debt: Double,     // Reçu du ViewModel
-    multiplier: Double, // Reçu du ViewModel
+    points: Int,
+    debt: Double,
+    multiplier: Double,
     dimensions: ResponsiveDimensions
 ) {
     Card(
@@ -573,7 +560,6 @@ fun QuizRewardCard(
         Column(
             modifier = Modifier.padding(dimensions.cardPadding)
         ) {
-            // --- TITRE DE SECTION ---
             Text(
                 text = "BILAN DE LA SESSION",
                 fontSize = dimensions.bodySmall,
@@ -584,7 +570,6 @@ fun QuizRewardCard(
 
             Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
 
-            // --- LIGNE DE SÉPARATION SOBRE ---
             HorizontalDivider(
                 thickness = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -592,7 +577,6 @@ fun QuizRewardCard(
 
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-            // --- LIGNE UNITY POINTS ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -623,7 +607,6 @@ fun QuizRewardCard(
 
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-            // --- LIGNE DETTE VIRTUELLE ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

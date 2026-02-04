@@ -25,27 +25,20 @@ import java.nio.charset.StandardCharsets
 @Composable
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
-
-    // Source de vérité globale pour le profil
     val userViewModel: UserViewModel = viewModel()
     val userUiState by userViewModel.uiState.collectAsState()
-
-    // Données extraites
     val profile = userUiState.profile
     val currentStreak = profile?.currentStreak ?: 0
     val photoUrl = profile?.photoUrl
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Gestion de l'affichage des barres
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf") &&
             !currentRoute.contains("video") &&
             currentRoute != "profile_editor"
 
-    // États pour les dialogs d'aide
     var showHelpDialog by remember { mutableStateOf(false) }
     var showStreakDialog by remember { mutableStateOf(false) } // ⭐ État pour le Winstreak
     var showQuizDuJourDialog by remember { mutableStateOf(false) }
@@ -222,10 +215,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
             }
         }
     }
-
-    // --- DIALOGS ---
-
-    // ⭐ Dialog Winstreak
+    // Dialog Winstreak
     if (showStreakDialog) {
         val currentMultiplier = when {
             currentStreak >= 30 -> 2.0
