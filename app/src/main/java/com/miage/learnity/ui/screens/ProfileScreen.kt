@@ -40,7 +40,7 @@ fun ProfileScreen(
 ) {
     LaunchedEffect(Unit) {
         viewModel.refreshProgressionStats()
-        viewModel.refreshDailyStats() // Crucial pour savoir si un quiz est déjÃ  fait
+        viewModel.refreshDailyStats()
     }
 
     val dimensions = rememberResponsiveDimensions()
@@ -50,11 +50,10 @@ fun ProfileScreen(
     val isDiscoveryMode = currentQuizMode == "DISCOVERY"
     val isReviewUnlocked = uiState.readChaptersCount >= 5
 
-    // â­ Détermine si le mode doit être verrouillé (Quiz déjÃ  fait aujourd'hui)
     val isAlreadyDoneToday = uiState.dailyScore != null
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background // ✅ Adaptatif dark/light
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -119,77 +118,138 @@ private fun ProfileContent(
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background) // ✅ Adaptatif
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = dimensions.screenPaddingHorizontal),
+        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)
     ) {
-        Box(contentAlignment = Alignment.BottomEnd) {
-            Surface(
-                shape = CircleShape,
-                shadowElevation = dimensions.cardElevation * 6,
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.size(dimensions.profilePictureSize * 1.15f)
-            ) {
-                Image(
-                    painter = painterResource(id = avatarResId),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+
+        // ========================================
+        // CARTE PROFIL (Avatar + Nom + Email)
+        // ========================================
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
+            color = MaterialTheme.colorScheme.surface, // ✅ Adaptatif
+            shadowElevation = 8.dp,
+            tonalElevation = 0.dp
+        ) {
+            Box {
+                Row(
                     modifier = Modifier
-                        .clip(CircleShape)
-                        .padding(dimensions.itemSpacing / 3)
-                )
-            }
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .size(dimensions.iconSizeMedium * 1.42f)
-                    .clickable { onEditClick() }
-                    .offset(x = (-4).dp, y = (-4).dp),
-                shadowElevation = dimensions.cardElevation * 3
-            ) {
-                Icon(
-                    Icons.Default.Edit, null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.padding(dimensions.itemSpacing / 1.5f)
-                )
+                        .fillMaxWidth()
+                        .padding(dimensions.cardPadding),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // AVATAR (à gauche)
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant, // ✅ Adaptatif
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.size(dimensions.profilePictureSize * 0.75f)
+                    ) {
+                        Image(
+                            painter = painterResource(id = avatarResId),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(3.dp)
+                                .clip(CircleShape)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(dimensions.itemSpacing * 1.5f))
+
+                    // NOM + EMAIL (à droite de la photo)
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "${profile.firstName} ${profile.lastName}",
+                            fontSize = dimensions.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface // ✅ Adaptatif
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = profile.email,
+                            fontSize = dimensions.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant // ✅ Adaptatif
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(dimensions.itemSpacing))
+                }
+
+                // BOUTON EDIT (en haut à droite de la carte)
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(dimensions.itemSpacing)
+                        .size(dimensions.iconSizeMedium * 1.3f)
+                        .clickable { onEditClick() },
+                    shadowElevation = 4.dp
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Modifier",
+                        tint = MaterialTheme.colorScheme.onPrimary, // ✅ Adaptatif
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
         }
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
-        Text("${profile.firstName} ${profile.lastName}", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground, fontSize = dimensions.titleMedium * 1.1f)
-        Text(profile.email, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = dimensions.bodyMedium)
-    }
-
-    Spacer(Modifier.height(dimensions.itemSpacing * 2))
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(topStart = dimensions.cornerRadiusLarge * 3f, topEnd = dimensions.cornerRadiusLarge * 3f)
-            )
-            .padding(horizontal = dimensions.screenPaddingHorizontal, vertical = dimensions.itemSpacing * 2),
-        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)
-    ) {
-        // --- TABLEAU DE BORD ---
+        // ========================================
+        // TABLEAU DE BORD
+        // ========================================
         Surface(
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surface, // ✅ Adaptatif
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
-            shadowElevation = dimensions.cardElevation
+            shadowElevation = 8.dp,
+            tonalElevation = 0.dp
         ) {
             Column(modifier = Modifier.padding(dimensions.cardPadding)) {
-                Text("TABLEAU DE BORD", fontSize = dimensions.bodySmall * 0.92f, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "TABLEAU DE BORD",
+                    fontSize = dimensions.bodySmall * 0.92f,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // ✅ Adaptatif
+                )
                 Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
 
                 ProgressionSection(readCount, totalCount, dimensions)
 
                 Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)) {
-                    StatsCard("Points", "${profile.unityPoints}", null, R.drawable.ic_settings_1, Brush.verticalGradient(listOf(Color(0xFF4A90E2), Color(0xFF357ABD))), Modifier.weight(1f), dimensions)
-                    StatsCard("Winstreak", "${profile.currentStreak}", profile.bestStreak.toString(), R.drawable.ic_settings_1, Brush.verticalGradient(listOf(Color(0xFF667EEA), Color(0xFFF093FB))), Modifier.weight(1f), dimensions)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
+                ) {
+                    StatsCard(
+                        "Points",
+                        "${profile.unityPoints}",
+                        null,
+                        R.drawable.ic_settings_1,
+                        Brush.verticalGradient(listOf(Color(0xFF4A90E2), Color(0xFF357ABD))),
+                        Modifier.weight(1f),
+                        dimensions
+                    )
+                    StatsCard(
+                        "Winstreak",
+                        "${profile.currentStreak}",
+                        profile.bestStreak.toString(),
+                        R.drawable.ic_settings_1,
+                        Brush.verticalGradient(listOf(Color(0xFF667EEA), Color(0xFFF093FB))),
+                        Modifier.weight(1f),
+                        dimensions
+                    )
                 }
                 Spacer(Modifier.height(dimensions.itemSpacing))
 
@@ -197,59 +257,122 @@ private fun ProfileContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
-                        .background(Brush.verticalGradient(listOf(Color(0xFFFF9A56), Color(0xFFFF6B6B))))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xFFFF9A56), Color(0xFFFF6B6B))
+                            )
+                        )
                         .padding(dimensions.itemSpacing)
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Dette Virtuelle", color = Color.White, fontSize = dimensions.bodySmall, fontWeight = FontWeight.Bold)
-                        Text(String.format("%.2f €", profile.detteCumulee), color = Color.White, fontSize = dimensions.titleMedium * 1.2f, fontWeight = FontWeight.ExtraBold)
-                        Text("(Redevance: ${profile.redevanceSoutienUnitaire}€)", color = Color.White.copy(alpha = 0.8f), fontSize = dimensions.bodySmall * 0.83f)
+                        Text(
+                            "Dette Virtuelle",
+                            color = Color.White,
+                            fontSize = dimensions.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            String.format("%.2f €", profile.detteCumulee),
+                            color = Color.White,
+                            fontSize = dimensions.titleMedium * 1.2f,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            "(Redevance: ${profile.redevanceSoutienUnitaire}€)",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = dimensions.bodySmall * 0.83f
+                        )
                     }
                 }
             }
         }
 
-        // --- PARAMÃˆTRES ---
+        // ========================================
+        // PARAMETRES
+        // ========================================
         Surface(
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surface, // ✅ Adaptatif
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
-            shadowElevation = dimensions.cardElevation
+            shadowElevation = 8.dp,
+            tonalElevation = 0.dp
         ) {
             Column(modifier = Modifier.padding(vertical = dimensions.itemSpacing / 1.5f)) {
-                Text("PARAMÃˆTRES", fontSize = dimensions.bodySmall * 0.92f, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f))
+                Text(
+                    "PARAMÈTRES",
+                    fontSize = dimensions.bodySmall * 0.92f,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, // ✅ Adaptatif
+                    modifier = Modifier.padding(
+                        horizontal = dimensions.cardPadding,
+                        vertical = dimensions.itemSpacing / 1.5f
+                    )
+                )
 
                 QuizModeToggleRow(
                     isDiscoveryMode = isDiscoveryMode,
                     isLocked = !isReviewUnlocked,
-                    isAlreadyDoneToday = isAlreadyDoneToday, // Passé ici
+                    isAlreadyDoneToday = isAlreadyDoneToday,
                     readCount = readCount,
                     onToggle = { onModeChange(!isDiscoveryMode) },
                     dimensions = dimensions
                 )
 
-                MenuItemRow("Mon Association", R.drawable.ic_asso, onClick = onNavigateToAssociation, dimensions = dimensions)
-                MenuItemRow("Réglages", R.drawable.ic_settings_1, onClick = onNavigateToSettings, dimensions = dimensions)
+                MenuItemRow(
+                    "Mon Association",
+                    R.drawable.ic_asso,
+                    onClick = onNavigateToAssociation,
+                    dimensions = dimensions
+                )
+                MenuItemRow(
+                    "Réglages",
+                    R.drawable.ic_settings_1,
+                    onClick = onNavigateToSettings,
+                    dimensions = dimensions
+                )
 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f), color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(
+                    modifier = Modifier.padding(
+                        horizontal = dimensions.cardPadding,
+                        vertical = dimensions.itemSpacing / 1.5f
+                    ),
+                    color = MaterialTheme.colorScheme.outlineVariant // ✅ Adaptatif
+                )
 
-                MenuItemRow("Déconnexion", R.drawable.btn_6, onClick = onLogout, dimensions = dimensions)
+                MenuItemRow(
+                    "Déconnexion",
+                    R.drawable.btn_6,
+                    onClick = onLogout,
+                    dimensions = dimensions
+                )
             }
         }
+
         Spacer(modifier = Modifier.height(dimensions.bottomNavHeight * 1.56f))
     }
 }
+
 @Composable
 private fun ProgressionSection(readCount: Int, totalCount: Int, dimensions: ResponsiveDimensions) {
     val progress = if (totalCount > 0) readCount.toFloat() / totalCount else 0f
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Ma progression", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyMedium)
+            Text(
+                "Ma progression",
+                fontWeight = FontWeight.Bold,
+                fontSize = dimensions.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface // ✅ Adaptatif
+            )
             Spacer(Modifier.weight(1f))
-            Text("$readCount / $totalCount chapitres", fontSize = dimensions.bodySmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(
+                "$readCount / $totalCount chapitres",
+                fontSize = dimensions.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
         }
         Spacer(Modifier.height(8.dp))
         LinearProgressIndicator(
@@ -259,10 +382,11 @@ private fun ProgressionSection(readCount: Int, totalCount: Int, dimensions: Resp
                 .height(8.dp)
                 .clip(CircleShape),
             color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.outlineVariant
+            trackColor = MaterialTheme.colorScheme.outlineVariant // ✅ Adaptatif
         )
     }
 }
+
 @Composable
 private fun QuizModeToggleRow(
     isDiscoveryMode: Boolean,
@@ -272,7 +396,6 @@ private fun QuizModeToggleRow(
     onToggle: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
-    // â­ Le switch est désactivé si l'un des deux verrous est actif
     val isDisabled = isLocked || isAlreadyDoneToday
 
     Column {
@@ -285,7 +408,10 @@ private fun QuizModeToggleRow(
         ) {
             Surface(
                 shape = CircleShape,
-                color = if (!isDisabled && !isDiscoveryMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                color = if (!isDisabled && !isDiscoveryMode)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.surfaceVariant, // ✅ Adaptatif
                 modifier = Modifier
                     .size(dimensions.iconSizeLarge * 0.83f)
                     .alpha(if (isDisabled) 0.5f else 1f)
@@ -294,7 +420,10 @@ private fun QuizModeToggleRow(
                     Icon(
                         painter = painterResource(R.drawable.ic_settings_1),
                         contentDescription = null,
-                        tint = if (!isDisabled && !isDiscoveryMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (!isDisabled && !isDiscoveryMode)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant, // ✅ Adaptatif
                         modifier = Modifier.size(dimensions.iconSizeSmall)
                     )
                 }
@@ -308,11 +437,19 @@ private fun QuizModeToggleRow(
                     .alpha(if (isDisabled) 0.5f else 1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Mode Quiz", fontSize = dimensions.bodyLarge * 0.94f, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Mode Quiz",
+                    fontSize = dimensions.bodyLarge * 0.94f,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface // ✅ Adaptatif
+                )
                 Text(
                     " : ${if (isDiscoveryMode) "Découverte" else "Révision"}",
                     fontSize = dimensions.bodyLarge * 0.94f,
-                    color = if (isDiscoveryMode) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                    color = if (isDiscoveryMode)
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    else
+                        MaterialTheme.colorScheme.primary,
                     fontWeight = if (isDiscoveryMode) FontWeight.Normal else FontWeight.Bold
                 )
             }
@@ -325,7 +462,6 @@ private fun QuizModeToggleRow(
             )
         }
 
-        // --- TEXTES D'INFORMATION ---
         if (isLocked) {
             Text(
                 "Débloquez les révisions après 5 chapitres lus ($readCount/5)",
@@ -337,7 +473,7 @@ private fun QuizModeToggleRow(
             )
         } else if (isAlreadyDoneToday) {
             Text(
-                "Mode verrouillé jusqu'Ã  demain (Quiz déjÃ  effectué)",
+                "Mode verrouillé jusqu'à demain (Quiz déjà effectué)",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = dimensions.bodySmall * 0.85f,
                 fontWeight = FontWeight.Bold,
@@ -349,10 +485,13 @@ private fun QuizModeToggleRow(
     }
 }
 
-// ... (Les autres sous-composants MenuItemRow, StatsCard, etc. restent identiques)
-
 @Composable
-private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit, dimensions: ResponsiveDimensions) {
+private fun MenuItemRow(
+    title: String,
+    iconRes: Int,
+    onClick: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -362,7 +501,7 @@ private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit, dimens
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surfaceVariant, // ✅ Adaptatif
             modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -374,40 +513,103 @@ private fun MenuItemRow(title: String, iconRes: Int, onClick: () -> Unit, dimens
             }
         }
         Spacer(Modifier.width(dimensions.itemSpacing * 1.5f))
-        Text(title, fontSize = dimensions.bodyLarge * 0.94f, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Text(
+            title,
+            fontSize = dimensions.bodyLarge * 0.94f,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface, // ✅ Adaptatif
+            modifier = Modifier.weight(1f)
+        )
         Icon(
             painter = painterResource(R.drawable.arrow),
             null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.outline, // ✅ Adaptatif
             modifier = Modifier.size(dimensions.iconSizeMedium * 0.6f)
         )
     }
 }
 
 @Composable
-private fun StatsCard(title: String, value: String, subtitle: String? = null, icon: Int, gradient: Brush, modifier: Modifier = Modifier, dimensions: ResponsiveDimensions) {
-    Box(modifier = modifier.aspectRatio(1.3f).clip(RoundedCornerShape(dimensions.cornerRadiusMedium)).background(gradient).padding(dimensions.itemSpacing / 1.5f)) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
-            Icon(painterResource(icon), null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(dimensions.iconSizeSmall))
+private fun StatsCard(
+    title: String,
+    value: String,
+    subtitle: String? = null,
+    icon: Int,
+    gradient: Brush,
+    modifier: Modifier = Modifier,
+    dimensions: ResponsiveDimensions
+) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1.3f)
+            .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
+            .background(gradient)
+            .padding(dimensions.itemSpacing / 1.5f)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Icon(
+                painterResource(icon),
+                null,
+                tint = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(dimensions.iconSizeSmall)
+            )
             Spacer(Modifier.height(dimensions.itemSpacing / 3))
-            Text(title, color = Color.White.copy(alpha = 0.9f), fontSize = dimensions.bodySmall * 0.92f)
-            Text(value, color = Color.White, fontSize = dimensions.bodyLarge * 1.13f, fontWeight = FontWeight.ExtraBold)
-            if (subtitle != null) Text("Record : $subtitle", color = Color.White.copy(alpha = 0.7f), fontSize = dimensions.bodySmall * 0.75f)
+            Text(
+                title,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = dimensions.bodySmall * 0.92f
+            )
+            Text(
+                value,
+                color = Color.White,
+                fontSize = dimensions.bodyLarge * 1.13f,
+                fontWeight = FontWeight.ExtraBold
+            )
+            if (subtitle != null) {
+                Text(
+                    "Record : $subtitle",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = dimensions.bodySmall * 0.75f
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun LoadingProfileState(dimensions: ResponsiveDimensions) {
-    Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(dimensions.iconSizeLarge)) }
+    Box(Modifier.fillMaxSize(), Alignment.Center) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(dimensions.iconSizeLarge)
+        )
+    }
 }
 
 @Composable
-private fun ErrorProfileState(message: String, onRetry: () -> Unit, dimensions: ResponsiveDimensions) {
-    Column(Modifier.fillMaxSize(), Arrangement.Center, Alignment.CenterHorizontally) {
-        Text(message, fontSize = dimensions.bodyLarge, color = MaterialTheme.colorScheme.error)
+private fun ErrorProfileState(
+    message: String,
+    onRetry: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
+    Column(
+        Modifier.fillMaxSize(),
+        Arrangement.Center,
+        Alignment.CenterHorizontally
+    ) {
+        Text(
+            message,
+            fontSize = dimensions.bodyLarge,
+            color = MaterialTheme.colorScheme.error
+        )
         Spacer(Modifier.height(dimensions.itemSpacing))
-        Button(onClick = onRetry) { Text("Réessayer") }
+        Button(onClick = onRetry) {
+            Text("Réessayer")
+        }
     }
 }
 
