@@ -36,7 +36,8 @@ data class Course(
     val id: String = "",
     val title: String = "",
     val description: String = "",
-    val iconRes: Int? = null
+    val iconRes: Int? = null,
+    val isFavorite: Boolean = false
 )
 
 // ============================================
@@ -46,6 +47,7 @@ data class Chapter(
     val chapterId: String = "",
     val title: String = "",
     val order: Int = 0,
+    val isFavorite: Boolean = false,
 
     // === CONTENU PÉDAGOGIQUE ===
     val coursUrl: String? = null,

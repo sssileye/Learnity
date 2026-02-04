@@ -2,10 +2,11 @@ package com.miage.learnity.ui.screens.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.miage.learnity.data.Chapter
-import com.miage.learnity.data.QuizHistory // ✅ Import de ta DataClass
+import com.miage.learnity.data.QuizHistory
 import com.miage.learnity.repository.CourseRepository
-import com.miage.learnity.repository.QuizRepository // ✅ Nouveau Repository
+import com.miage.learnity.repository.QuizRepository
 import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,13 +16,14 @@ import kotlinx.coroutines.launch
 class ChapterContentViewModel(
     private val courseRepository: CourseRepository = CourseRepository(),
     private val progressRepository: UserProgressRepository = UserProgressRepository(),
-    private val quizRepository: QuizRepository = QuizRepository() // ✅ Ajouté
+    private val quizRepository: QuizRepository = QuizRepository()
 ) : ViewModel() {
+
+    private val auth = FirebaseAuth.getInstance()
 
     private val _chapter = MutableStateFlow<Chapter?>(null)
     val chapter: StateFlow<Chapter?> = _chapter.asStateFlow()
 
-    // ⭐ NOUVEAU : État pour l'historique du tableau
     private val _history = MutableStateFlow<List<QuizHistory>>(emptyList())
     val history: StateFlow<List<QuizHistory>> = _history.asStateFlow()
 
@@ -37,16 +39,18 @@ class ChapterContentViewModel(
     fun loadChapter(courseId: String, chapterId: String) {
         currentCourseId = courseId
         currentChapterId = chapterId
+        val userId = auth.currentUser?.uid // ⭐ Récupération du userId pour les favoris
 
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
-            // 1. Charger les données du chapitre
+            // 1. Charger les données du chapitre (avec userId pour le favori)
             courseRepository.getChapter(courseId, chapterId)
-                .onSuccess { chapter ->
-                    startProgressListener(courseId, chapterId, chapter)
-                    // 2. Charger l'historique pour le tableau
+                .onSuccess { baseChapter ->
+                    // 2. Lancer l'écouteur de progression temps réel
+                    startProgressListener(courseId, chapterId, baseChapter)
+                    // 3. Charger l'historique des scores
                     loadQuizHistory(courseId, chapterId)
                 }
                 .onFailure {
@@ -57,7 +61,6 @@ class ChapterContentViewModel(
         }
     }
 
-    // ⭐ FONCTION POUR CHARGER L'HISTORIQUE
     private fun loadQuizHistory(courseId: String, chapterId: String) {
         viewModelScope.launch {
             quizRepository.getQuizHistory(courseId, chapterId)
@@ -70,6 +73,21 @@ class ChapterContentViewModel(
         }
     }
 
+    /**
+     * Alterne le favori du chapitre actuel
+     */
+    fun toggleFavorite() {
+        val currentChapter = _chapter.value ?: return
+        val nextState = !currentChapter.isFavorite
+
+        viewModelScope.launch {
+            progressRepository.toggleChapterFavorite(currentCourseId, currentChapterId, nextState)
+                .onSuccess {
+                    _chapter.value = currentChapter.copy(isFavorite = nextState)
+                }
+        }
+    }
+
     private fun startProgressListener(
         courseId: String,
         chapterId: String,
@@ -78,6 +96,7 @@ class ChapterContentViewModel(
         viewModelScope.launch {
             progressRepository.observeChapterProgress(courseId, chapterId)
                 .collect { progress ->
+                    // Un quiz est débloqué si le cours OU la FDR est lu
                     val canUnlock = progress.isCoursRead || progress.isFdrRead
 
                     _chapter.value = baseChapter.copy(
@@ -85,10 +104,12 @@ class ChapterContentViewModel(
                         isFdrRead = progress.isFdrRead,
                         isVideoWatched = progress.isVideoWatched,
                         isQuizCompleted = progress.isQuizCompleted,
+                        bestScore = progress.bestScore,
+                        isFavorite = progress.isFavorite, // ⭐ On récupère le favori du listener
                         isQuizUnlocked = canUnlock
                     )
 
-                    // ✅ Optionnel : Recharger l'historique si un nouveau quiz est complété
+                    // Recharger l'historique automatiquement si le score change
                     if (progress.isQuizCompleted) {
                         loadQuizHistory(courseId, chapterId)
                     }
