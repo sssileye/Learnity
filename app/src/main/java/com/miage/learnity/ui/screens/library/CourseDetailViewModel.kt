@@ -91,8 +91,16 @@ class CourseDetailViewModel(
         val nextState = !currentCourse.isFavorite
 
         viewModelScope.launch {
-            progressRepository.toggleCourseFavorite(currentCourse.id, nextState).onSuccess {
+            // ✅ On passe l'objet 'currentCourse' complet au lieu de juste l'ID
+            progressRepository.toggleCourseFavorite(
+                course = currentCourse,
+                isFavorite = nextState
+            ).onSuccess {
+                // Mise à jour de l'UI locale pour que le cœur change instantanément
                 _course.value = currentCourse.copy(isFavorite = nextState)
+                println("✅ Matière mise à jour dans les favoris : ${currentCourse.title}")
+            }.onFailure { e ->
+                println("❌ Erreur toggle matière : ${e.message}")
             }
         }
     }
@@ -103,8 +111,16 @@ class CourseDetailViewModel(
     fun toggleChapterFavorite(chapterId: String, nextState: Boolean) {
         val courseId = _course.value?.id ?: return
 
+        // ⭐ On récupère l'objet chapitre complet avant de lancer le launch
+        val chapterToUpdate = _chapters.value.find { it.chapterId == chapterId } ?: return
+
         viewModelScope.launch {
-            progressRepository.toggleChapterFavorite(courseId, chapterId, nextState).onSuccess {
+            // ✅ On passe maintenant l'objet chapitre complet au repository
+            progressRepository.toggleChapterFavorite(
+                courseId = courseId,
+                chapter = chapterToUpdate,
+                isFavorite = nextState
+            ).onSuccess {
                 // Mise à jour de la liste locale pour l'UI
                 _chapters.value = _chapters.value.map {
                     if (it.chapterId == chapterId) it.copy(isFavorite = nextState) else it
@@ -113,8 +129,12 @@ class CourseDetailViewModel(
                 baseChapters = baseChapters.map {
                     if (it.chapterId == chapterId) it.copy(isFavorite = nextState) else it
                 }
+                println("✅ Chapitre '${chapterToUpdate.title}' mis à jour dans les favoris")
+            }.onFailure { e ->
+                println("❌ Erreur lors du toggle favori : ${e.message}")
             }
         }
+
     }
 
     // ============================================

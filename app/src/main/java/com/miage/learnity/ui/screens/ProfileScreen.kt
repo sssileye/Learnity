@@ -35,7 +35,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onEditClick: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToAssociation: () -> Unit,
+    onNavigateToLibrary : () -> Unit,
     viewModel: UserViewModel = viewModel()
 ) {
     LaunchedEffect(Unit) {
@@ -79,7 +79,7 @@ fun ProfileScreen(
                         onLogout = onLogout,
                         onEditClick = onEditClick,
                         onNavigateToSettings = onNavigateToSettings,
-                        onNavigateToAssociation = onNavigateToAssociation,
+                        onNavigateToAssociation = onNavigateToLibrary,
                         dimensions = dimensions
                     )
                 }
@@ -321,8 +321,8 @@ private fun ProfileContent(
                 )
 
                 MenuItemRow(
-                    "Mon Association",
-                    R.drawable.ic_asso,
+                    "Ma Bibliothèque",
+                    R.drawable.ic_fav,
                     onClick = onNavigateToAssociation,
                     dimensions = dimensions
                 )

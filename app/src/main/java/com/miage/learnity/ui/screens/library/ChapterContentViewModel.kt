@@ -79,10 +79,18 @@ class ChapterContentViewModel(
         val nextState = !currentChapter.isFavorite
 
         viewModelScope.launch {
-            progressRepository.toggleChapterFavorite(currentCourseId, currentChapterId, nextState)
-                .onSuccess {
-                    _chapter.value = currentChapter.copy(isFavorite = nextState)
-                }
+            // ✅ On passe maintenant l'objet 'currentChapter' entier
+            progressRepository.toggleChapterFavorite(
+                courseId = currentCourseId,
+                chapter = currentChapter,
+                isFavorite = nextState
+            ).onSuccess {
+                // Mise à jour de l'UI locale (le petit cœur change de couleur)
+                _chapter.value = currentChapter.copy(isFavorite = nextState)
+                println("✅ Favori mis à jour : ${currentChapter.title} -> $nextState")
+            }.onFailure { e ->
+                println("❌ Erreur toggle favori : ${e.message}")
+            }
         }
     }
 

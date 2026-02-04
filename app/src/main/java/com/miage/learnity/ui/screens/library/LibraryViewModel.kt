@@ -1,5 +1,6 @@
 package com.miage.learnity.ui.screens.library
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -87,13 +88,23 @@ class LibraryViewModel(
      * Gère l'action de mettre en favori depuis la liste
      */
     fun toggleFavorite(courseId: String, currentIsFavorite: Boolean) {
+        // ⭐ On récupère d'abord l'objet Course complet dans la liste actuelle
+        val courseToUpdate = _rawCourses.value.find { it.id == courseId } ?: return
+        val nextState = !currentIsFavorite
+
         viewModelScope.launch {
-            val nextState = !currentIsFavorite
-            progressRepository.toggleCourseFavorite(courseId, nextState).onSuccess {
+            // ✅ On envoie l'objet entier au repository pour copier le titre
+            progressRepository.toggleCourseFavorite(
+                course = courseToUpdate,
+                isFavorite = nextState
+            ).onSuccess {
                 // Mise à jour locale immédiate pour une UI réactive
                 _rawCourses.value = _rawCourses.value.map {
                     if (it.id == courseId) it.copy(isFavorite = nextState) else it
                 }
+                Log.d("DEBUG_FAV", "Matière '${courseToUpdate.title}' basculée vers: $nextState")
+            }.onFailure { e ->
+                Log.e("DEBUG_FAV", "Erreur toggle favori : ${e.message}")
             }
         }
     }
