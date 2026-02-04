@@ -1,11 +1,16 @@
 package com.miage.learnity.ui.screens.library
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import com.miage.learnity.R
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
@@ -14,13 +19,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.miage.learnity.R
 import com.miage.learnity.data.Course
 import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
@@ -30,81 +37,120 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = viewModel(),
     onCourseClick: (String) -> Unit
 ) {
-    // ✅ DIMENSIONS RESPONSIVES
     val dimensions = rememberResponsiveDimensions()
 
     val courses by viewModel.courses.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val currentSortOrder by viewModel.sortOrder.collectAsState()
 
-    // ✅ PAS DE SCAFFOLD - Utilise le TopNavigationBar global
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             isLoading -> LoadingState(dimensions)
             error != null -> ErrorState(error ?: "Erreur inconnue", { viewModel.refresh() }, dimensions)
-            courses.isEmpty() -> EmptyState(dimensions)
-            else -> CoursesList(courses, onCourseClick, viewModel::refresh, dimensions)
+            courses.isEmpty() && !isLoading -> EmptyState(dimensions)
+            else -> CoursesList(
+                courses = courses,
+                currentSortOrder = currentSortOrder,
+                viewModel = viewModel,
+                onCourseClick = onCourseClick,
+                onRefresh = { viewModel.refresh() },
+                dimensions = dimensions
+            )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CoursesList(
     courses: List<Course>,
+    currentSortOrder: CourseSortOrder,
+    viewModel: LibraryViewModel,
     onCourseClick: (String) -> Unit,
     onRefresh: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = dimensions.screenPaddingHorizontal,
-            end = dimensions.screenPaddingHorizontal,
-            top = 4.dp,  // ✅ ESPACE MINIMAL pour coller à la TopBar
-            bottom = dimensions.screenPaddingHorizontal
-        ),
-        verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
-    ) {
-        // ✅ HEADER avec titre et bouton refresh
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp),  // ✅ RÉDUIT pour moins d'espace
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Bibliothèque de Cours",
-                    fontSize = dimensions.titleLarge,  // ✅ 28.ssp()
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+    Column(modifier = Modifier.fillMaxSize()) {
 
-                IconButton(onClick = onRefresh) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Actualiser",
-                        modifier = Modifier.size(dimensions.iconSizeMedium),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+        // --- BARRE DE TRI RESPONSIVE ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = dimensions.screenPaddingHorizontal, vertical = dimensions.itemSpacing / 2)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CourseSortOrder.entries.forEach { order ->
+                FilterChip(
+                    selected = currentSortOrder == order,
+                    onClick = { viewModel.updateSortOrder(order) },
+                    label = {
+                        Text(
+                            text = when(order) {
+                                CourseSortOrder.ALPHABETICAL -> "A-Z"
+                                CourseSortOrder.FAVORITES -> "Favoris"
+                                CourseSortOrder.PROGRESSION -> "Progression"
+                            },
+                            fontSize = dimensions.bodySmall,
+                            fontWeight = if (currentSortOrder == order) FontWeight.ExtraBold else FontWeight.Medium
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+                )
             }
         }
 
-        items(courses) { course ->
-            CourseLibraryCard(
-                course = course,
-                onClick = {
-                    println("📕 Clic sur cours - ID : '${course.id}'")
-                    onCourseClick(course.id)
-                },
-                dimensions = dimensions
-            )
-        }
+        // --- LISTE DES COURS ---
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(
+                start = dimensions.screenPaddingHorizontal, // Remplace horizontal
+                end = dimensions.screenPaddingHorizontal,   // Remplace horizontal
+                top = 4.dp,
+                bottom = 100.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = dimensions.itemSpacing / 2),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Bibliothèque",
+                        fontSize = dimensions.titleLarge,
+                        fontWeight = FontWeight.Black, // Plus d'impact visuel
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-        item {
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing * 5))  // ✅ Responsive
+                    IconButton(onClick = onRefresh) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Actualiser",
+                            modifier = Modifier.size(dimensions.iconSizeMedium),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            items(courses, key = { it.id }) { course ->
+                CourseLibraryCard(
+                    course = course,
+                    onFavoriteToggle = { viewModel.toggleFavorite(course.id, course.isFavorite) },
+                    onClick = { onCourseClick(course.id) },
+                    dimensions = dimensions
+                )
+            }
         }
     }
 }
@@ -112,6 +158,7 @@ private fun CoursesList(
 @Composable
 fun CourseLibraryCard(
     course: Course,
+    onFavoriteToggle: () -> Unit,
     onClick: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
@@ -119,80 +166,58 @@ fun CourseLibraryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // ✅ 12.dp
-        elevation = CardDefaults.cardElevation(defaultElevation = dimensions.cardElevation),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(dimensions.cardPadding),  // ✅ Responsive
+                .padding(dimensions.cardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // --- ICÔNE FIXE (Icons.Default.School) ---
             Surface(
-                modifier = Modifier.size(dimensions.iconSizeLarge * 1.2f),  // ✅ 56.sdp()
+                modifier = Modifier.size(dimensions.iconSizeMedium * 1.4f),
                 shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
-                color = MaterialTheme.colorScheme.primaryContainer
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    if (course.iconRes != null && course.iconRes != 0) {
-                        Icon(
-                            painter = painterResource(id = course.iconRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(dimensions.iconSizeLarge),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.School,
-                            contentDescription = null,
-                            modifier = Modifier.size(dimensions.iconSizeLarge),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.School, // ✅ Utilisation de l'icône Material imposée
+                        contentDescription = null,
+                        modifier = Modifier.size(dimensions.iconSizeMedium),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.width(dimensions.itemSpacing))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = course.title,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = dimensions.titleMedium
-                    ),
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            // --- TITRE OPTIMISÉ (Responsive & Taille réduite) ---
+            Text(
+                text = course.title,
+                // Taille réduite à 85% de la taille de base pour éviter les coupures
+                fontSize = (dimensions.titleMedium.value * 0.85).sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                // Interlignage compact
+                lineHeight = (dimensions.titleMedium.value * 1.0).sp,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
 
-                Spacer(modifier = Modifier.height(dimensions.itemSpacing / 4))
-
-                if (course.description.isNotEmpty()) {
-                    Text(
-                        text = course.description,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = dimensions.bodyMedium
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-
-                Text(
-                    text = "Commencer le cours →",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontSize = dimensions.bodyLarge
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
+            // --- BOUTON FAVORIS ---
+            IconButton(
+                onClick = onFavoriteToggle,
+                modifier = Modifier.size(dimensions.iconSizeMedium * 1.2f)
+            ) {
+                Icon(
+                    imageVector = if (course.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Favori",
+                    tint = if (course.isFavorite) Color(0xFFF06292) else MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(dimensions.iconSizeMedium)
                 )
             }
         }
@@ -201,77 +226,60 @@ fun CourseLibraryCard(
 
 @Composable
 private fun LoadingState(dimensions: ResponsiveDimensions) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            CircularProgressIndicator(modifier = Modifier.size(dimensions.iconSizeLarge))
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(dimensions.iconSizeLarge),
+                strokeWidth = 3.dp
+            )
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
             Text(
-                text = "Chargement des cours...",
+                text = "Chargement...",
                 fontSize = dimensions.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontWeight = FontWeight.Medium
             )
         }
     }
 }
 
 @Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit,
-    dimensions: ResponsiveDimensions
-) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+private fun ErrorState(message: String, onRetry: () -> Unit, dimensions: ResponsiveDimensions) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(dimensions.screenPaddingHorizontal),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(dimensions.screenPaddingHorizontal * 2)
+        Text(text = "⚠️", fontSize = dimensions.displayLarge)
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+        Text(
+            text = message,
+            fontSize = dimensions.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+        Button(
+            onClick = onRetry,
+            shape = RoundedCornerShape(dimensions.cornerRadiusSmall)
         ) {
-            Text(text = "❌", fontSize = dimensions.displayLarge)
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-            Text(text = "Erreur", fontSize = dimensions.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-            Text(text = message, fontSize = dimensions.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
-            Button(onClick = onRetry, modifier = Modifier.height(dimensions.buttonHeightSmall)) {
-                Text("Réessayer", fontSize = dimensions.bodyLarge)
-            }
+            Text("RÉESSAYER", fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
 private fun EmptyState(dimensions: ResponsiveDimensions) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(dimensions.screenPaddingHorizontal * 2)
-        ) {
-            Text(text = "📚", fontSize = dimensions.displayLarge)
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-            Text(text = "Aucun cours disponible", fontSize = dimensions.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-            Text(text = "Les cours seront bientôt disponibles", fontSize = dimensions.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
-@Composable
-fun LibraryScreenPreview() {
-    LearnityTheme {
-        LibraryScreen(onCourseClick = {})
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "📚", fontSize = dimensions.displayLarge)
+        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+        Text(
+            text = "Aucun cours ici",
+            fontSize = dimensions.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

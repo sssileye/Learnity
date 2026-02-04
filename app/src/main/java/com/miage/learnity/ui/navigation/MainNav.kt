@@ -153,7 +153,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     onCoursClick = { navController.navigate("pdf/$courseId/$chapterId/cours") },
                     onFdrClick = { navController.navigate("pdf/$courseId/$chapterId/fdr") },
                     onVideoClick = {
-                        chapterState?.videoUrl?.let { url ->
+                        chapterState?.video?.let { url ->
                             if (url.isNotBlank()) {
                                 val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
                                 navController.navigate("video/$encodedUrl")

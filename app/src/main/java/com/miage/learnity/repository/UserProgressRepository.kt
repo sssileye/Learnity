@@ -13,16 +13,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Repository pour gérer la progression des utilisateurs et leurs records
+ * Repository gérant la progression, les records et les FAVORIS
  */
 class UserProgressRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    // ============================================
-    // ENUM pour types de contenu
-    // ============================================
     enum class ContentType(val fieldName: String) {
         COURS("isCoursRead"),
         FDR("isFdrRead"),
@@ -31,13 +28,53 @@ class UserProgressRepository {
     }
 
     // ============================================
-    // ÉCRITURE
+    // ⭐ GESTION DES FAVORIS
     // ============================================
 
     /**
-     * Marque un contenu comme terminé.
-     * Note : Pour le QUIZ, les points et scores sont gérés par le UserRepository.updateStatsWithHighscore
+     * Alterne l'état favori d'un cours (UE)
+     * Stocké dans : user_progress/{userId}/courses/{courseId}
      */
+    suspend fun toggleCourseFavorite(courseId: String, isFavorite: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            firestore.collection("user_progress")
+                .document(userId)
+                .collection("courses")
+                .document(courseId)
+                .set(mapOf("isFavorite" to isFavorite), SetOptions.merge())
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Alterne l'état favori d'un chapitre
+     * Stocké dans : user_progress/{userId}/courses/{courseId}/chapters/{chapterId}
+     */
+    suspend fun toggleChapterFavorite(courseId: String, chapterId: String, isFavorite: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            firestore.collection("user_progress")
+                .document(userId)
+                .collection("courses")
+                .document(courseId)
+                .collection("chapters")
+                .document(chapterId)
+                .set(mapOf("isFavorite" to isFavorite), SetOptions.merge())
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ============================================
+    // ÉCRITURE PROGRESSION
+    // ============================================
+
     suspend fun markContentAsCompleted(
         courseId: String,
         chapterId: String,
@@ -67,41 +104,12 @@ class UserProgressRepository {
     }
 
     // ============================================
-    // 🔥 LISTENERS TEMPS RÉEL (Sécurisés)
+    // 🔥 LISTENERS TEMPS RÉEL (FLUX)
     // ============================================
 
-    fun observeChapterProgress(
-        courseId: String,
-        chapterId: String
-    ): Flow<ChapterProgressData> = callbackFlow {
-        val userId = auth.currentUser?.uid ?: run {
-            trySend(ChapterProgressData())
-            return@callbackFlow
-        }
-
-        val docRef = firestore.collection("user_progress")
-            .document(userId)
-            .collection("courses")
-            .document(courseId)
-            .collection("chapters")
-            .document(chapterId)
-
-        val listener = docRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
-                close(error)
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null && snapshot.exists()) {
-                trySend(mapSnapshotToProgress(snapshot))
-            } else {
-                trySend(ChapterProgressData())
-            }
-        }
-        awaitClose { listener.remove() }
-    }
-
+    /**
+     * Observe tous les chapitres d'un cours spécifique
+     */
     fun observeCourseProgress(
         courseId: String
     ): Flow<Map<String, ChapterProgressData>> = callbackFlow {
@@ -128,18 +136,69 @@ class UserProgressRepository {
                     doc.id to mapSnapshotToProgress(doc)
                 }
                 trySend(progressMap)
+            } else {
+                trySend(emptyMap())
             }
         }
         awaitClose { listener.remove() }
     }
 
-    // ============================================
-    // LECTURE SIMPLE
-    // ============================================
+    /**
+     * Observe un seul chapitre
+     */
+    fun observeChapterProgress(
+        courseId: String,
+        chapterId: String
+    ): Flow<ChapterProgressData> = callbackFlow {
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(ChapterProgressData())
+            return@callbackFlow
+        }
+
+        val docRef = firestore.collection("user_progress")
+            .document(userId)
+            .collection("courses")
+            .document(courseId)
+            .collection("chapters")
+            .document(chapterId)
+
+        val listener = docRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
+                close(error)
+                return@addSnapshotListener
+            }
+            val data = if (snapshot != null && snapshot.exists()) mapSnapshotToProgress(snapshot) else ChapterProgressData()
+            trySend(data)
+        }
+        awaitClose { listener.remove() }
+    }
 
     /**
-     * ✅ CORRIGÉ : Retourne un Result pour être compatible avec QuizViewModel.onSuccess
+     * Observe si une UE (Course) est en favori
      */
+    fun observeCourseFavorite(courseId: String): Flow<Boolean> = callbackFlow {
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(false)
+            return@callbackFlow
+        }
+
+        val docRef = firestore.collection("user_progress")
+            .document(userId)
+            .collection("courses")
+            .document(courseId)
+
+        val listener = docRef.addSnapshotListener { snapshot, _ ->
+            val isFav = snapshot?.getBoolean("isFavorite") ?: false
+            trySend(isFav)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    // ============================================
+    // LECTURE SIMPLE (SUSPEND)
+    // ============================================
+
     suspend fun getChapterProgress(courseId: String, chapterId: String): Result<ChapterProgressData> = withContext(Dispatchers.IO) {
         val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
         try {
@@ -152,38 +211,35 @@ class UserProgressRepository {
                 .get()
                 .await()
 
-            if (snapshot.exists()) {
-                Result.success(mapSnapshotToProgress(snapshot))
-            } else {
-                Result.success(ChapterProgressData())
-            }
+            Result.success(if (snapshot.exists()) mapSnapshotToProgress(snapshot) else ChapterProgressData())
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    // --- HELPER ---
+    // --- HELPER MAPPING ---
     private fun mapSnapshotToProgress(doc: com.google.firebase.firestore.DocumentSnapshot): ChapterProgressData {
         return ChapterProgressData(
             isCoursRead = doc.getBoolean("isCoursRead") ?: false,
             isFdrRead = doc.getBoolean("isFdrRead") ?: false,
             isVideoWatched = doc.getBoolean("isVideoWatched") ?: false,
             isQuizCompleted = doc.getBoolean("isQuizCompleted") ?: false,
-            // ✅ Ajout des nouveaux champs indispensables
             bestScore = doc.getLong("bestScore")?.toInt() ?: 0,
-            isPerfectCompleted = doc.getBoolean("isPerfectCompleted") ?: false
+            isPerfectCompleted = doc.getBoolean("isPerfectCompleted") ?: false,
+            isFavorite = doc.getBoolean("isFavorite") ?: false
         )
     }
 }
 
 /**
- * Data class enrichie pour la progression d'un chapitre
+ * Data class enrichie pour la progression et le statut favori d'un chapitre
  */
 data class ChapterProgressData(
     val isCoursRead: Boolean = false,
     val isFdrRead: Boolean = false,
     val isVideoWatched: Boolean = false,
     val isQuizCompleted: Boolean = false,
-    val bestScore: Int = 0, // ✅ Record de l'utilisateur
-    val isPerfectCompleted: Boolean = false // ✅ Flag pour le bonus unique
+    val bestScore: Int = 0,
+    val isPerfectCompleted: Boolean = false,
+    val isFavorite: Boolean = false
 )

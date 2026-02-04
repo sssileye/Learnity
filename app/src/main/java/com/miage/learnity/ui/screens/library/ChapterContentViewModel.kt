@@ -2,10 +2,11 @@ package com.miage.learnity.ui.screens.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.miage.learnity.data.Chapter
-import com.miage.learnity.data.QuizHistory // ✅ Import de ta DataClass
+import com.miage.learnity.data.QuizHistory
 import com.miage.learnity.repository.CourseRepository
-import com.miage.learnity.repository.QuizRepository // ✅ Nouveau Repository
+import com.miage.learnity.repository.QuizRepository
 import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,13 +16,14 @@ import kotlinx.coroutines.launch
 class ChapterContentViewModel(
     private val courseRepository: CourseRepository = CourseRepository(),
     private val progressRepository: UserProgressRepository = UserProgressRepository(),
-    private val quizRepository: QuizRepository = QuizRepository() // ✅ Ajouté
+    private val quizRepository: QuizRepository = QuizRepository()
 ) : ViewModel() {
+
+    private val auth = FirebaseAuth.getInstance()
 
     private val _chapter = MutableStateFlow<Chapter?>(null)
     val chapter: StateFlow<Chapter?> = _chapter.asStateFlow()
 
-    // ⭐ NOUVEAU : État pour l'historique du tableau
     private val _history = MutableStateFlow<List<QuizHistory>>(emptyList())
     val history: StateFlow<List<QuizHistory>> = _history.asStateFlow()
 
@@ -43,7 +45,7 @@ class ChapterContentViewModel(
             _error.value = null
 
             // 1. Charger les données du chapitre
-            courseRepository.getChapter(courseId, chapterId)
+            courseRepository.getChapter(courseId, chapterId, auth.currentUser?.uid)
                 .onSuccess { chapter ->
                     startProgressListener(courseId, chapterId, chapter)
                     // 2. Charger l'historique pour le tableau
@@ -57,7 +59,6 @@ class ChapterContentViewModel(
         }
     }
 
-    // ⭐ FONCTION POUR CHARGER L'HISTORIQUE
     private fun loadQuizHistory(courseId: String, chapterId: String) {
         viewModelScope.launch {
             quizRepository.getQuizHistory(courseId, chapterId)
@@ -66,6 +67,21 @@ class ChapterContentViewModel(
                 }
                 .onFailure {
                     println("❌ Erreur chargement historique: ${it.message}")
+                }
+        }
+    }
+
+    /**
+     * Alterne le favori du chapitre actuel
+     */
+    fun toggleFavorite() {
+        val currentChapter = _chapter.value ?: return
+        val nextState = !currentChapter.isFavorite
+
+        viewModelScope.launch {
+            progressRepository.toggleChapterFavorite(currentCourseId, currentChapterId, nextState)
+                .onSuccess {
+                    _chapter.value = currentChapter.copy(isFavorite = nextState)
                 }
         }
     }
