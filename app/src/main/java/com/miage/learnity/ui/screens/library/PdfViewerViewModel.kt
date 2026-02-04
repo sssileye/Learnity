@@ -52,9 +52,9 @@ class PdfViewerViewModel(
                 .onSuccess { chapter ->
                     _chapter.value = chapter
                     _contentUrl.value = if (type == UserProgressRepository.ContentType.FDR) {
-                        chapter.fdrUrl
+                        chapter.fdr
                     } else {
-                        chapter.coursUrl
+                        chapter.cours
                     }
 
                     // 2. ✅ CORRECTION : Déballer le Result de la progression

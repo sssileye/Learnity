@@ -241,6 +241,16 @@ private fun ProfileContent(
                     dimensions = dimensions
                 )
 
+//                // ⭐ NOUVEAU BOUTON : MES FAVORIS (Placé juste avant Réglages)
+//                MenuItemRow(
+//                    title = "Mes Favoris",
+//                    // Tu peux utiliser une icône de cœur personnalisée ou Icons.Default.Favorite
+//                    iconRes = R.drawable.ic_heart, // Assure-toi d'avoir cette ressource ou utilise le composant Icon
+//                    iconColor = Color(0xFFF06292), // Rose pour les favoris
+//                    onClick = { /* onNavigateToFavorites() - À ajouter aux paramètres de la fonction */ },
+//                    dimensions = dimensions
+//                )
+
                 //MenuItemRow("Mon Association", R.drawable.ic_asso, onClick = onNavigateToAssociation, dimensions = dimensions)
                 MenuItemRow("Réglages", R.drawable.ic_settings_1, onClick = onNavigateToSettings, dimensions = dimensions)
 

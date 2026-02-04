@@ -266,21 +266,23 @@ private fun CourseHeader(
         color = MaterialTheme.colorScheme.primaryContainer
     ) {
         Column(
-            modifier = Modifier.padding(dimensions.cardPadding * 1.2f) // On augmente un peu le padding interne
+            modifier = Modifier.padding(dimensions.cardPadding * 1.2f)
         ) {
-            // ✅ TITRE ÉPURÉ (SANS CŒUR ET MIEUX ESPACÉ)
+            // ✅ TITRE ADAPTATIF : On réduit la taille pour favoriser l'affichage complet
             Text(
                 text = course.title,
-                fontSize = dimensions.titleLarge,
-                lineHeight = (dimensions.titleLarge.value * 1.2).sp, // On donne de l'air au titre
+                // On utilise une taille légèrement plus petite (ratio 0.8) pour assurer l'affichage complet
+                fontSize = (dimensions.titleLarge.value * 0.8).sp,
+                lineHeight = (dimensions.titleLarge.value * 0.9).sp, // Interlignage serré pour gagner de la place
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                maxLines = 2,
+                // On retire maxLines pour laisser le titre s'écrire en entier sur 3 lignes si besoin
+                softWrap = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
             if (course.description.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp)) // Espacement corrigé
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = course.description,
                     fontSize = dimensions.bodyMedium,
@@ -289,7 +291,7 @@ private fun CourseHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp)) // Grand espace avant la progression pour plus de clarté
+            Spacer(modifier = Modifier.height(20.dp))
 
             // --- SECTION PROGRESSION ---
             Row(
@@ -318,7 +320,7 @@ private fun CourseHeader(
                 progress = { progress.percentage },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp) // Barre un peu plus épaisse pour le style
+                    .height(10.dp)
                     .clip(CircleShape),
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)

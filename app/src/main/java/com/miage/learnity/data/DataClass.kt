@@ -1,5 +1,6 @@
 package com.miage.learnity.data
 
+import com.google.firebase.firestore.PropertyName
 import com.google.gson.annotations.SerializedName
 
 // ============================================
@@ -49,10 +50,16 @@ data class Chapter(
     val order: Int = 0,
     val isFavorite: Boolean = false,
 
-    // === CONTENU PÉDAGOGIQUE ===
-    val coursUrl: String? = null,
-    val fdrUrl: String? = null,
-    val videoUrl: String? = null,
+    // On force Firestore à mapper "cours" sur ta variable "cours"
+    @get:PropertyName("cours") @set:PropertyName("cours")
+    var cours: String? = null,
+
+    // On force Firestore à mapper "fdr" sur ta variable "fdr"
+    @get:PropertyName("fdr") @set:PropertyName("fdr")
+    var fdr: String? = null,
+
+    @get:PropertyName("video") @set:PropertyName("video")
+    var video: String? = null,
 
     // === MÉTADONNÉES ===
     val pageCount: Int = 0,
@@ -101,9 +108,9 @@ data class Chapter(
     val isContentCompleted: Boolean get() = isCoursRead
 
     // Helpers rapides
-    val hasVideo: Boolean get() = videoUrl != null
-    val hasCours: Boolean get() = coursUrl != null
-    val hasFdr: Boolean get() = fdrUrl != null
+    val hasVideo: Boolean get() = video != null
+    val hasCours: Boolean get() = cours != null
+    val hasFdr: Boolean get() = fdr != null
 }
 
 // ============================================

@@ -39,18 +39,16 @@ class ChapterContentViewModel(
     fun loadChapter(courseId: String, chapterId: String) {
         currentCourseId = courseId
         currentChapterId = chapterId
-        val userId = auth.currentUser?.uid // ⭐ Récupération du userId pour les favoris
 
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
-            // 1. Charger les données du chapitre (avec userId pour le favori)
-            courseRepository.getChapter(courseId, chapterId)
-                .onSuccess { baseChapter ->
-                    // 2. Lancer l'écouteur de progression temps réel
-                    startProgressListener(courseId, chapterId, baseChapter)
-                    // 3. Charger l'historique des scores
+            // 1. Charger les données du chapitre
+            courseRepository.getChapter(courseId, chapterId, auth.currentUser?.uid)
+                .onSuccess { chapter ->
+                    startProgressListener(courseId, chapterId, chapter)
+                    // 2. Charger l'historique pour le tableau
                     loadQuizHistory(courseId, chapterId)
                 }
                 .onFailure {
@@ -96,7 +94,6 @@ class ChapterContentViewModel(
         viewModelScope.launch {
             progressRepository.observeChapterProgress(courseId, chapterId)
                 .collect { progress ->
-                    // Un quiz est débloqué si le cours OU la FDR est lu
                     val canUnlock = progress.isCoursRead || progress.isFdrRead
 
                     _chapter.value = baseChapter.copy(
@@ -104,12 +101,10 @@ class ChapterContentViewModel(
                         isFdrRead = progress.isFdrRead,
                         isVideoWatched = progress.isVideoWatched,
                         isQuizCompleted = progress.isQuizCompleted,
-                        bestScore = progress.bestScore,
-                        isFavorite = progress.isFavorite, // ⭐ On récupère le favori du listener
                         isQuizUnlocked = canUnlock
                     )
 
-                    // Recharger l'historique automatiquement si le score change
+                    // ✅ Optionnel : Recharger l'historique si un nouveau quiz est complété
                     if (progress.isQuizCompleted) {
                         loadQuizHistory(courseId, chapterId)
                     }
