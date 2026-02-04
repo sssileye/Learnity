@@ -4,6 +4,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.SetOptions
+import com.miage.learnity.data.Chapter
+import com.miage.learnity.data.Course
 import com.miage.learnity.model.PointsManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +16,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Repository gérant la progression, les records et les FAVORIS
+ * Centralise les données utilisateur dans la collection "user_progress"
  */
 class UserProgressRepository {
 
@@ -28,21 +31,27 @@ class UserProgressRepository {
     }
 
     // ============================================
-    // ⭐ GESTION DES FAVORIS
+    // ⭐ GESTION DES FAVORIS (Dénormalisée)
     // ============================================
 
     /**
      * Alterne l'état favori d'un cours (UE)
-     * Stocké dans : user_progress/{userId}/courses/{courseId}
+     * On duplique le titre pour que la bibliothèque soit autonome
      */
-    suspend fun toggleCourseFavorite(courseId: String, isFavorite: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun toggleCourseFavorite(course: Course, isFavorite: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
         try {
+            val data = mapOf(
+                "isFavorite" to isFavorite,
+                "title" to course.title,
+                "description" to course.description
+            )
+
             firestore.collection("user_progress")
                 .document(userId)
                 .collection("courses")
-                .document(courseId)
-                .set(mapOf("isFavorite" to isFavorite), SetOptions.merge())
+                .document(course.id)
+                .set(data, SetOptions.merge())
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -52,19 +61,34 @@ class UserProgressRepository {
 
     /**
      * Alterne l'état favori d'un chapitre
-     * Stocké dans : user_progress/{userId}/courses/{courseId}/chapters/{chapterId}
+     * On duplique toutes les infos pour éviter les "Sans titre" dans la bibliothèque
      */
-    suspend fun toggleChapterFavorite(courseId: String, chapterId: String, isFavorite: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
-        val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
+    suspend fun toggleChapterFavorite(
+        courseId: String,
+        chapter: Chapter,
+        isFavorite: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("User non connecté"))
         try {
+            // ✅ Enregistrement complet pour la requête CollectionGroup de la bibliothèque
+            val data = mapOf(
+                "isFavorite" to isFavorite,
+                "title" to chapter.title,
+                "cours" to chapter.cours,
+                "fdr" to chapter.fdr,
+                "video" to chapter.video,
+                "courseId" to courseId
+            )
+
             firestore.collection("user_progress")
                 .document(userId)
                 .collection("courses")
                 .document(courseId)
                 .collection("chapters")
-                .document(chapterId)
-                .set(mapOf("isFavorite" to isFavorite), SetOptions.merge())
+                .document(chapter.chapterId)
+                .set(data, SetOptions.merge())
                 .await()
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -79,7 +103,7 @@ class UserProgressRepository {
         courseId: String,
         chapterId: String,
         contentType: ContentType,
-        quizType: PointsManager.QuizType? = null
+        quizType: PointsManager.QuizType? = null // Conservé pour compatibilité
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val userId = auth.currentUser?.uid
@@ -107,91 +131,65 @@ class UserProgressRepository {
     // 🔥 LISTENERS TEMPS RÉEL (FLUX)
     // ============================================
 
-    /**
-     * Observe tous les chapitres d'un cours spécifique
-     */
-    fun observeCourseProgress(
-        courseId: String
-    ): Flow<Map<String, ChapterProgressData>> = callbackFlow {
+    fun observeCourseProgress(courseId: String): Flow<Map<String, ChapterProgressData>> = callbackFlow {
         val userId = auth.currentUser?.uid ?: run {
             trySend(emptyMap())
             return@callbackFlow
         }
 
-        val collectionRef = firestore.collection("user_progress")
+        val listener = firestore.collection("user_progress")
             .document(userId)
             .collection("courses")
             .document(courseId)
             .collection("chapters")
-
-        val listener = collectionRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
-                close(error)
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null) {
-                val progressMap = snapshot.documents.associate { doc ->
-                    doc.id to mapSnapshotToProgress(doc)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
+                    close(error)
+                    return@addSnapshotListener
                 }
+
+                val progressMap = snapshot?.documents?.associate { doc ->
+                    doc.id to mapSnapshotToProgress(doc)
+                } ?: emptyMap()
                 trySend(progressMap)
-            } else {
-                trySend(emptyMap())
             }
-        }
         awaitClose { listener.remove() }
     }
 
-    /**
-     * Observe un seul chapitre
-     */
-    fun observeChapterProgress(
-        courseId: String,
-        chapterId: String
-    ): Flow<ChapterProgressData> = callbackFlow {
+    fun observeChapterProgress(courseId: String, chapterId: String): Flow<ChapterProgressData> = callbackFlow {
         val userId = auth.currentUser?.uid ?: run {
             trySend(ChapterProgressData())
             return@callbackFlow
         }
 
-        val docRef = firestore.collection("user_progress")
+        val listener = firestore.collection("user_progress")
             .document(userId)
             .collection("courses")
             .document(courseId)
             .collection("chapters")
             .document(chapterId)
-
-        val listener = docRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) return@addSnapshotListener
-                close(error)
-                return@addSnapshotListener
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                val data = if (snapshot != null && snapshot.exists()) mapSnapshotToProgress(snapshot) else ChapterProgressData()
+                trySend(data)
             }
-            val data = if (snapshot != null && snapshot.exists()) mapSnapshotToProgress(snapshot) else ChapterProgressData()
-            trySend(data)
-        }
         awaitClose { listener.remove() }
     }
 
-    /**
-     * Observe si une UE (Course) est en favori
-     */
     fun observeCourseFavorite(courseId: String): Flow<Boolean> = callbackFlow {
         val userId = auth.currentUser?.uid ?: run {
             trySend(false)
             return@callbackFlow
         }
 
-        val docRef = firestore.collection("user_progress")
+        val listener = firestore.collection("user_progress")
             .document(userId)
             .collection("courses")
             .document(courseId)
-
-        val listener = docRef.addSnapshotListener { snapshot, _ ->
-            val isFav = snapshot?.getBoolean("isFavorite") ?: false
-            trySend(isFav)
-        }
+            .addSnapshotListener { snapshot, _ ->
+                trySend(snapshot?.getBoolean("isFavorite") ?: false)
+            }
         awaitClose { listener.remove() }
     }
 

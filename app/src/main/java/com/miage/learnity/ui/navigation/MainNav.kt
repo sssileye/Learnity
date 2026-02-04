@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
 import com.miage.learnity.ui.components.*
 import com.miage.learnity.ui.screens.*
 import com.miage.learnity.ui.screens.library.*
@@ -25,22 +26,32 @@ import java.nio.charset.StandardCharsets
 @Composable
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
+    // ⭐ Initialisation de Firebase Auth pour l'accès au UID
+    val auth = remember { FirebaseAuth.getInstance() }
+
+    // Source de vérité globale pour le profil
     val userViewModel: UserViewModel = viewModel()
     val userUiState by userViewModel.uiState.collectAsState()
+
+    // Données extraites
     val profile = userUiState.profile
     val currentStreak = profile?.currentStreak ?: 0
     val photoUrl = profile?.photoUrl
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // Gestion de l'affichage des barres
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf") &&
             !currentRoute.contains("video") &&
-            currentRoute != "profile_editor"
+            currentRoute != "profile_editor" &&
+            currentRoute != "favorites" // On cache souvent les barres sur les sous-pages
 
+    // États pour les dialogs d'aide
     var showHelpDialog by remember { mutableStateOf(false) }
-    var showStreakDialog by remember { mutableStateOf(false) } // ⭐ État pour le Winstreak
+    var showStreakDialog by remember { mutableStateOf(false) }
     var showQuizDuJourDialog by remember { mutableStateOf(false) }
     var showDetteDialog by remember { mutableStateOf(false) }
     var showUnityPointsDialog by remember { mutableStateOf(false) }
@@ -57,7 +68,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                             launchSingleTop = true
                         }
                     },
-                    onStreakClick = { showStreakDialog = true }, // ⭐ Ouvre le dialog
+                    onStreakClick = { showStreakDialog = true },
                     onHelpClick = { showHelpDialog = true }
                 )
             }
@@ -78,10 +89,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
         ) {
             // --- ACCUEIL ---
             composable("home") {
-                HomeScreen(
-                    navController = navController,
-                    userViewModel = userViewModel
-                )
+                HomeScreen(navController = navController, userViewModel = userViewModel)
             }
 
             composable("association") { AssociationScreen() }
@@ -93,14 +101,36 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- PROFIL ---
+            // --- PROFIL & FAVORIS ---
             composable("profile") {
                 ProfileScreen(
                     onLogout = onLogout,
                     onEditClick = { navController.navigate("profile_editor") },
                     onNavigateToSettings = { navController.navigate("settings") },
-                    onNavigateToAssociation = { navController.navigate("association") },
+                    onNavigateToLibrary = { navController.navigate("favorites") },
                     viewModel = userViewModel
+                )
+            }
+
+            composable("favorites") {
+                val favViewModel: LibraryFavoritesViewModel = viewModel()
+
+                // ✅ Déclenchement automatique du chargement des favoris
+                LaunchedEffect(Unit) {
+                    auth.currentUser?.uid?.let { uid ->
+                        favViewModel.loadFavorites(uid)
+                    }
+                }
+
+                LibraryFavoritesScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToChapter = { cId, chapId ->
+                        navController.navigate("chapter/$cId/$chapId")
+                    },
+                    onNavigateToCourse = { courseId ->
+                        navController.navigate("course/$courseId")
+                    },
+                    viewModel = favViewModel
                 )
             }
 
@@ -108,7 +138,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 ProfileEditorScreen(onNavigateBack = { navController.popBackStack() })
             }
 
-            // --- BIBLIOTHÈQUE ET LECTEURS ---
+            // --- BIBLIOTHÈQUE CLASSIQUE ET LECTEURS ---
             composable("library") {
                 LibraryScreen(onCourseClick = { id -> navController.navigate("course/$id") })
             }
@@ -158,6 +188,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
+            // --- LECTEURS MÉDIAS ---
             composable(
                 route = "video/{videoUrl}",
                 arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })
@@ -191,6 +222,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
+            // --- QUIZ ---
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
@@ -215,7 +247,8 @@ fun MainNav(onLogout: () -> Unit = {}) {
             }
         }
     }
-    // Dialog Winstreak
+
+    // --- LOGIQUE DES DIALOGS (Identique à ton code original) ---
     if (showStreakDialog) {
         val currentMultiplier = when {
             currentStreak >= 30 -> 2.0

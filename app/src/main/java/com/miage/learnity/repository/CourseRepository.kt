@@ -142,7 +142,100 @@ class CourseRepository {
             }
         }
 
+    // ═══════════════════════════════════════════════════════════════
+    // 🎯 MODULE 1 : RÉCUPÉRATION DES CHAPITRES FAVORIS
+    // ═══════════════════════════════════════════════════════════════
+    suspend fun getFavoriteChapters(userId: String): Result<List<Chapter>> = withContext(Dispatchers.IO) {
+        try {
+            println("🔍 [DEBUG_FAV] Lancement de la requête CollectionGroup pour les CHAPITRES...")
 
+            // 1. On récupère tous les chapitres favoris de la DB (Nécessite l'index actif)
+            val snapshot = firestore.collectionGroup("chapters")
+                .whereEqualTo("isFavorite", true)
+                .get()
+                .await()
+
+            println("🔍 [DEBUG_FAV] Snapshot brut : ${snapshot.size()} documents trouvés au total dans la DB.")
+
+            // 2. Filtrage et extraction du courseId
+            val favorites = snapshot.documents.filter { doc ->
+                doc.reference.path.contains("user_progress/$userId")
+            }.mapNotNull { doc ->
+                // ⭐ LOGIQUE DE RÉCUPÉRATION DU COURSEID
+                // Le path est : user_progress/{userId}/courses/{courseId}/chapters/{chapterId}
+                // Index des segments : 0:user_progress, 1:{userId}, 2:courses, 3:{courseId}
+                val pathSegments = doc.reference.path.split("/")
+                val extractedCourseId = pathSegments.getOrNull(3) ?: ""
+
+                // Extraction sécurisée des données
+                val title = doc.getString("title") ?: "Sans titre (${doc.id.take(4)})"
+                val cours = doc.getString("cours") ?: doc.getString("coursUrl")
+                val fdr = doc.getString("fdr") ?: doc.getString("fdrUrl")
+                val video = doc.getString("video") ?: doc.getString("videoUrl")
+
+                if (extractedCourseId.isEmpty()) {
+                    println("⚠️ [DEBUG_FAV] Impossible d'extraire le courseId pour le document ${doc.id}")
+                }
+
+                Chapter(
+                    chapterId = doc.id,
+                    courseId = extractedCourseId, // ✅ On remplit le champ courseId ici !
+                    title = title,
+                    cours = cours,
+                    fdr = fdr,
+                    video = video,
+                    isFavorite = true
+                )
+            }
+
+            println("✅ [DEBUG_FAV] Succès : ${favorites.size} chapitres filtrés pour l'user : $userId")
+            Result.success(favorites)
+
+        } catch (e: Exception) {
+            println("❌ [DEBUG_FAV] Erreur lors de la récupération des chapitres : ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🎯 MODULE 2 : RÉCUPÉRATION DES COURS (MATIÈRES) FAVORIS
+    // ═══════════════════════════════════════════════════════════════
+    suspend fun getFavoriteCourses(userId: String): Result<List<Course>> = withContext(Dispatchers.IO) {
+        try {
+            println("🔍 [DEBUG_FAV] Lancement de la requête pour les COURS (Matières)...")
+
+            // Ici, on cherche dans la collection 'courses' au sein du profil de l'utilisateur
+            // Structure : user_progress/{userId}/courses
+            val snapshot = firestore.collection("user_progress")
+                .document(userId)
+                .collection("courses")
+                .whereEqualTo("isFavorite", true)
+                .get()
+                .await()
+
+            println("🔍 [DEBUG_FAV] Snapshot cours : ${snapshot.size()} documents trouvés.")
+
+            val favoriteCourses = snapshot.documents.mapNotNull { doc ->
+                // On récupère le titre de la matière
+                val title = doc.getString("title") ?: "Matière sans titre"
+                val description = doc.getString("description") ?: ""
+
+                Course(
+                    id = doc.id,
+                    title = title,
+                    description = description,
+                    // Ajoute ici d'autres champs si ton data class Course en a besoin
+                )
+            }
+
+            println("✅ [DEBUG_FAV] Succès : ${favoriteCourses.size} matières filtrées pour $userId")
+            Result.success(favoriteCourses)
+
+        } catch (e: Exception) {
+            println("❌ [DEBUG_FAV] Erreur lors de la récupération des cours : ${e.message}")
+            Result.failure(e)
+        }
+    }
     /**
      * Récupère un chapitre spécifique avec son contenu et son statut favori
      * @param courseId ID de l'UE

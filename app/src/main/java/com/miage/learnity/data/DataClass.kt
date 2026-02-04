@@ -46,6 +46,7 @@ data class Course(
 // ============================================
 data class Chapter(
     val chapterId: String = "",
+    val courseId: String = "",
     val title: String = "",
     val order: Int = 0,
     val isFavorite: Boolean = false,
