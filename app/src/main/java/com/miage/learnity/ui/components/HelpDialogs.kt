@@ -522,9 +522,9 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Les Unity Points vont récompenser tes efforts !\n\n" +
-                                    "Au bout d'un certain nombre de points, tu pourras débloquer des récompenses (pour toi ou pour une association)\n" +
-                                    "Débloque la possibilité de faire un don à ton association",
+                            text = "Les UP servent de bouclier : 10 UP = 1 jour d'absence effacé.\n\n" +
+                                    "Exemple : Avec 25 UP pour 3 jours d'absence, 20 UP couvrent 2 jours. Seul le 3ème génère une pénalité.\n\n" +
+                                    "Ton impact social (Dette Virtuelle) reste lié à tes quiz.",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
