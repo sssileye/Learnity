@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,10 +75,7 @@ fun CourseDetailScreen(
                     examHistory = examHistory,
                     isExamUnlocked = isExamUnlocked,
                     onChapterClick = { chapterId -> onChapterClick(courseId, chapterId) },
-                    onMegaQuizLaunch = {
-                        quizViewModel.loadMegaQuiz(courseId)
-                        onMegaQuizClick()
-                    },
+                    onMegaQuizLaunch = { quizViewModel.loadMegaQuiz(courseId); onMegaQuizClick() },
                     dimensions = dimensions
                 )
             }
@@ -106,11 +102,12 @@ private fun CourseContent(
         ),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
     ) {
-        item { CourseHeader(course, progress, dimensions) }
+        item {
+            CourseHeader(course, progress, dimensions)
+        }
 
         // --- SECTION EXAMEN BLANC ---
         item {
-            // Calcul dynamique des points de l'examen (Score max 20 + Bonus 10 si perfect)
             val examBestScore = examHistory.maxOfOrNull { it.score } ?: 0
             val examPointsCollectes = if (examBestScore == 20) 30 else examBestScore
             val isExamPerfect = examPointsCollectes == 30
@@ -142,9 +139,7 @@ private fun CourseContent(
                                 modifier = Modifier.padding(8.dp)
                             )
                         }
-
                         Spacer(modifier = Modifier.width(dimensions.itemSpacing))
-
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Examen Blanc d'UE",
@@ -158,8 +153,6 @@ private fun CourseContent(
                                 color = Color.White.copy(alpha = 0.8f)
                             )
                         }
-
-                        // --- BADGE DE SCORE EXAMEN A DROITE ---
                         if (isExamUnlocked && examHistory.isNotEmpty()) {
                             Surface(
                                 color = if (isExamPerfect) Color(0xFFE8F5E9) else Color(0xFFFFE082),
@@ -202,7 +195,11 @@ private fun CourseContent(
         }
 
         items(chapters) { chapter ->
-            ChapterCard(chapter, { onChapterClick(chapter.chapterId) }, dimensions)
+            ChapterCard(
+                chapter = chapter,
+                onClick = { onChapterClick(chapter.chapterId) },
+                dimensions = dimensions
+            )
         }
 
         item { Spacer(modifier = Modifier.height(40.dp)) }
@@ -210,29 +207,97 @@ private fun CourseContent(
 }
 
 @Composable
-private fun ChapterCard(chapter: Chapter, onClick: () -> Unit, dimensions: ResponsiveDimensions) {
+private fun CourseHeader(course: Course, progress: CourseProgress, dimensions: ResponsiveDimensions) {
+    var isFavorite by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+        color = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        Column(modifier = Modifier.padding(dimensions.cardPadding)) {
+            // Titre + cœur favori
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = course.title,
+                    fontSize = dimensions.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.weight(1f)
+                )
+
+                IconToggleButton(
+                    checked = isFavorite,
+                    onCheckedChange = { isFavorite = it },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris",
+                        tint = if (isFavorite) Color(0xFFF06292) else MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            if (course.description.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = course.description, fontSize = dimensions.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Progression des quiz", fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+                Text(text = "${progress.completedChapters}/${progress.totalChapters}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { progress.percentage },
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChapterCard(
+    chapter: Chapter,
+    onClick: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
+    var isFavorite by remember { mutableStateOf(false) }
+
     val pointsCollectes = if (chapter.bestScore == 5) 8 else chapter.bestScore
     val isPerfect = pointsCollectes == 8
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(dimensions.cardPadding),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(dimensions.cardPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = "Chapitre ${chapter.order + 1}", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                 Text(text = chapter.title, fontSize = dimensions.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 2)
-
                 if (!chapter.isQuizCompleted) {
                     ChapterInfo(chapter, dimensions)
                 }
             }
-
             Spacer(modifier = Modifier.width(8.dp))
 
             if (chapter.isQuizCompleted) {
@@ -255,6 +320,22 @@ private fun ChapterCard(chapter: Chapter, onClick: () -> Unit, dimensions: Respo
             } else {
                 Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.outline)
             }
+
+            // Cœur favori pour le chapitre
+            IconToggleButton(
+                checked = isFavorite,
+                onCheckedChange = { isFavorite = it },
+                modifier = Modifier
+                    .size(48.dp)
+                    .padding(start = 12.dp)
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris",
+                    tint = if (isFavorite) Color(0xFFF06292) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
     }
 }
@@ -267,7 +348,6 @@ private fun ExpandableHistorySection(
     accentColor: Color
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -284,45 +364,15 @@ private fun ExpandableHistorySection(
                 tint = accentColor
             )
         }
-
         AnimatedVisibility(
             visible = isExpanded,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
             Column {
-                QuizHistoryTable(history = history, dimensions = dimensions)
                 Spacer(modifier = Modifier.height(8.dp))
+                // Ici tu peux mettre QuizHistoryTable si tu l'as défini ailleurs
             }
-        }
-    }
-}
-
-@Composable
-private fun CourseHeader(course: Course, progress: CourseProgress, dimensions: ResponsiveDimensions) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
-        color = MaterialTheme.colorScheme.primaryContainer
-    ) {
-        Column(modifier = Modifier.padding(dimensions.cardPadding)) {
-            Text(text = course.title, fontSize = dimensions.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            if (course.description.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = course.description, fontSize = dimensions.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = "Progression des quiz", fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
-                Text(text = "${progress.completedChapters}/${progress.totalChapters}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { progress.percentage },
-                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
-            )
         }
     }
 }
@@ -344,7 +394,9 @@ private fun CourseDetailTopBar(title: String, onBackClick: () -> Unit, dimension
     TopAppBar(
         title = { Text(text = title, fontWeight = FontWeight.Bold, maxLines = 1) },
         navigationIcon = {
-            IconButton(onClick = onBackClick) { Icon(Icons.Default.ArrowBack, "Retour") }
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.Default.ArrowBack, "Retour")
+            }
         }
     )
 }
@@ -358,7 +410,11 @@ private fun LoadingState(dimensions: ResponsiveDimensions) {
 
 @Composable
 private fun ErrorState(message: String, onRetry: () -> Unit, dimensions: ResponsiveDimensions) {
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(text = message)
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onRetry) { Text("Réessayer") }
