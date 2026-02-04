@@ -40,7 +40,7 @@ fun ProfileScreen(
 ) {
     LaunchedEffect(Unit) {
         viewModel.refreshProgressionStats()
-        viewModel.refreshDailyStats() // Crucial pour savoir si un quiz est déjà fait
+        viewModel.refreshDailyStats() // Crucial pour savoir si un quiz est déjÃ  fait
     }
 
     val dimensions = rememberResponsiveDimensions()
@@ -50,56 +50,45 @@ fun ProfileScreen(
     val isDiscoveryMode = currentQuizMode == "DISCOVERY"
     val isReviewUnlocked = uiState.readChaptersCount >= 5
 
-    // ⭐ Détermine si le mode doit être verrouillé (Quiz déjà fait aujourd'hui)
+    // â­ Détermine si le mode doit être verrouillé (Quiz déjÃ  fait aujourd'hui)
     val isAlreadyDoneToday = uiState.dailyScore != null
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.arc_pic),
-                contentDescription = null,
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(dimensions.profilePictureSize * 2.7f)
-            )
+            Spacer(modifier = Modifier.height(dimensions.screenPaddingVertical))
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.height(dimensions.profilePictureSize * 0.83f))
-
-                when {
-                    uiState.isLoading && uiState.profile == null -> LoadingProfileState(dimensions)
-                    uiState.profile != null -> {
-                        ProfileContent(
-                            profile = uiState.profile!!,
-                            isDiscoveryMode = isDiscoveryMode,
-                            isAlreadyDoneToday = isAlreadyDoneToday, // Passé au contenu
-                            readCount = uiState.readChaptersCount,
-                            totalCount = uiState.totalChaptersCount,
-                            isReviewUnlocked = isReviewUnlocked,
-                            onModeChange = { isDiscovery ->
-                                val newMode = if (isDiscovery) "DISCOVERY" else "REVIEW"
-                                viewModel.updateQuizMode(newMode)
-                            },
-                            onLogout = onLogout,
-                            onEditClick = onEditClick,
-                            onNavigateToSettings = onNavigateToSettings,
-                            onNavigateToAssociation = onNavigateToAssociation,
-                            dimensions = dimensions
-                        )
-                    }
-                    uiState.error != null -> ErrorProfileState(
-                        uiState.error!!,
-                        { viewModel.refreshProgressionStats() },
-                        dimensions
+            when {
+                uiState.isLoading && uiState.profile == null -> LoadingProfileState(dimensions)
+                uiState.profile != null -> {
+                    ProfileContent(
+                        profile = uiState.profile!!,
+                        isDiscoveryMode = isDiscoveryMode,
+                        isAlreadyDoneToday = isAlreadyDoneToday,
+                        readCount = uiState.readChaptersCount,
+                        totalCount = uiState.totalChaptersCount,
+                        isReviewUnlocked = isReviewUnlocked,
+                        onModeChange = { isDiscovery ->
+                            val newMode = if (isDiscovery) "DISCOVERY" else "REVIEW"
+                            viewModel.updateQuizMode(newMode)
+                        },
+                        onLogout = onLogout,
+                        onEditClick = onEditClick,
+                        onNavigateToSettings = onNavigateToSettings,
+                        onNavigateToAssociation = onNavigateToAssociation,
+                        dimensions = dimensions
                     )
                 }
+                uiState.error != null -> ErrorProfileState(
+                    uiState.error!!,
+                    { viewModel.refreshProgressionStats() },
+                    dimensions
+                )
             }
         }
     }
@@ -136,7 +125,7 @@ private fun ProfileContent(
         Box(contentAlignment = Alignment.BottomEnd) {
             Surface(
                 shape = CircleShape,
-                shadowElevation = dimensions.cardElevation * 4,
+                shadowElevation = dimensions.cardElevation * 6,
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.size(dimensions.profilePictureSize * 1.15f)
             ) {
@@ -156,7 +145,7 @@ private fun ProfileContent(
                     .size(dimensions.iconSizeMedium * 1.42f)
                     .clickable { onEditClick() }
                     .offset(x = (-4).dp, y = (-4).dp),
-                shadowElevation = dimensions.cardElevation * 2
+                shadowElevation = dimensions.cardElevation * 3
             ) {
                 Icon(
                     Icons.Default.Edit, null,
@@ -167,8 +156,8 @@ private fun ProfileContent(
         }
 
         Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
-        Text("${profile.firstName} ${profile.lastName}", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = dimensions.titleMedium * 1.1f)
-        Text(profile.email, color = Color.White.copy(alpha = 0.9f), fontSize = dimensions.bodyMedium)
+        Text("${profile.firstName} ${profile.lastName}", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground, fontSize = dimensions.titleMedium * 1.1f)
+        Text(profile.email, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = dimensions.bodyMedium)
     }
 
     Spacer(Modifier.height(dimensions.itemSpacing * 2))
@@ -179,7 +168,7 @@ private fun ProfileContent(
             .verticalScroll(rememberScrollState())
             .background(
                 MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(topStart = dimensions.cornerRadiusLarge * 2.5f, topEnd = dimensions.cornerRadiusLarge * 2.5f)
+                RoundedCornerShape(topStart = dimensions.cornerRadiusLarge * 3f, topEnd = dimensions.cornerRadiusLarge * 3f)
             )
             .padding(horizontal = dimensions.screenPaddingHorizontal, vertical = dimensions.itemSpacing * 2),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)
@@ -199,8 +188,8 @@ private fun ProfileContent(
                 Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)) {
-                    StatsCard("Points", "${profile.unityPoints}", null, R.drawable.ic_settings_1, Brush.linearGradient(listOf(Color(0xFF66BB6A), Color(0xFF00897B))), Modifier.weight(1f), dimensions)
-                    StatsCard("Winstreak", "${profile.currentStreak}", profile.bestStreak.toString(), R.drawable.ic_settings_1, Brush.linearGradient(listOf(Color(0xFFFFB74D), Color(0xFFE65100))), Modifier.weight(1f), dimensions)
+                    StatsCard("Points", "${profile.unityPoints}", null, R.drawable.ic_settings_1, Brush.verticalGradient(listOf(Color(0xFF4A90E2), Color(0xFF357ABD))), Modifier.weight(1f), dimensions)
+                    StatsCard("Winstreak", "${profile.currentStreak}", profile.bestStreak.toString(), R.drawable.ic_settings_1, Brush.verticalGradient(listOf(Color(0xFF667EEA), Color(0xFFF093FB))), Modifier.weight(1f), dimensions)
                 }
                 Spacer(Modifier.height(dimensions.itemSpacing))
 
@@ -208,7 +197,7 @@ private fun ProfileContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(dimensions.cornerRadiusMedium))
-                        .background(Brush.linearGradient(listOf(Color(0xFFFF9966), Color(0xFFFF5E62))))
+                        .background(Brush.verticalGradient(listOf(Color(0xFFFF9A56), Color(0xFFFF6B6B))))
                         .padding(dimensions.itemSpacing)
                 ) {
                     Column(
@@ -223,14 +212,14 @@ private fun ProfileContent(
             }
         }
 
-        // --- PARAMÈTRES ---
+        // --- PARAMÃˆTRES ---
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
             shadowElevation = dimensions.cardElevation
         ) {
             Column(modifier = Modifier.padding(vertical = dimensions.itemSpacing / 1.5f)) {
-                Text("PARAMÈTRES", fontSize = dimensions.bodySmall * 0.92f, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f))
+                Text("PARAMÃˆTRES", fontSize = dimensions.bodySmall * 0.92f, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f))
 
                 QuizModeToggleRow(
                     isDiscoveryMode = isDiscoveryMode,
@@ -241,7 +230,7 @@ private fun ProfileContent(
                     dimensions = dimensions
                 )
 
-                //MenuItemRow("Mon Association", R.drawable.ic_asso, onClick = onNavigateToAssociation, dimensions = dimensions)
+                MenuItemRow("Mon Association", R.drawable.ic_asso, onClick = onNavigateToAssociation, dimensions = dimensions)
                 MenuItemRow("Réglages", R.drawable.ic_settings_1, onClick = onNavigateToSettings, dimensions = dimensions)
 
                 HorizontalDivider(modifier = Modifier.padding(horizontal = dimensions.cardPadding, vertical = dimensions.itemSpacing / 1.5f), color = MaterialTheme.colorScheme.outlineVariant)
@@ -283,7 +272,7 @@ private fun QuizModeToggleRow(
     onToggle: () -> Unit,
     dimensions: ResponsiveDimensions
 ) {
-    // ⭐ Le switch est désactivé si l'un des deux verrous est actif
+    // â­ Le switch est désactivé si l'un des deux verrous est actif
     val isDisabled = isLocked || isAlreadyDoneToday
 
     Column {
@@ -348,7 +337,7 @@ private fun QuizModeToggleRow(
             )
         } else if (isAlreadyDoneToday) {
             Text(
-                "Mode verrouillé jusqu'à demain (Quiz déjà effectué)",
+                "Mode verrouillé jusqu'Ã  demain (Quiz déjÃ  effectué)",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = dimensions.bodySmall * 0.85f,
                 fontWeight = FontWeight.Bold,
