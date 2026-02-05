@@ -43,10 +43,6 @@ class AuthViewModel : ViewModel() {
     private val _state = MutableStateFlow(AuthUiState())
     val state: StateFlow<AuthUiState> = _state
 
-    // ============================================
-    // CONNEXION
-    // ============================================
-
     fun signIn(email: String, password: String) {
         setLoading()
         auth.signInWithEmailAndPassword(email, password)
@@ -58,11 +54,6 @@ class AuthViewModel : ViewModel() {
                 }
             }
     }
-
-    // ============================================
-    // INSCRIPTION + CRÉATION PROFIL
-    // ============================================
-
     fun signUp(email: String, password: String, firstName: String, lastName: String) {
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
@@ -101,7 +92,7 @@ class AuthViewModel : ViewModel() {
             bestStreak = 0
         )
 
-        // ⭐ Utilisation du scope du ViewModel pour la coroutine
+        // Utilisation du scope du ViewModel pour la coroutine
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.saveUserProfile(newProfile)
                 .onSuccess {
@@ -112,10 +103,6 @@ class AuthViewModel : ViewModel() {
                 }
         }
     }
-
-    // ============================================
-    // RÉINITIALISATION MOT DE PASSE
-    // ============================================
 
     fun resetPassword(email: String) {
         setLoading()
@@ -138,25 +125,11 @@ class AuthViewModel : ViewModel() {
         _state.value = _state.value.copy(resetPasswordSuccess = false)
     }
 
-    // ============================================
-    // DÉCONNEXION
-    // ============================================
-
     fun signOut() {
         auth.signOut()
         _state.value = _state.value.copy(user = null)
     }
 
-    // ============================================
-    // ✅ NOUVEAU : SUPPRESSION DE COMPTE
-    // ============================================
-
-    /**
-     * Supprime complètement le compte utilisateur et toutes ses données
-     * 1. Supprime les données Firestore (profil + progression)
-     * 2. Supprime le compte Firebase Auth
-     * 3. Déconnecte l'utilisateur
-     */
     fun deleteAccount() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -173,7 +146,6 @@ class AuthViewModel : ViewModel() {
                 val uid = currentUser.uid
                 println("🗑️ Début de la suppression du compte : $uid")
 
-                // 1. Supprimer le document utilisateur dans users/{uid}
                 firestore.collection("users")
                     .document(uid)
                     .delete()
