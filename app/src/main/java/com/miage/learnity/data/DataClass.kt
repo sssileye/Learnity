@@ -20,6 +20,8 @@ data class UserProfile(
     val photoUrl: String = "avatar_b1",
     val createdAt: Long = System.currentTimeMillis(),
     val redevanceSoutienUnitaire: Double = 1.0,
+    @field:JvmField
+    val isFirstLogin: Boolean = false,
     val detteCumulee: Double = 0.0,
     val unityPoints: Int = 0,
     val currentStreak: Int = 0,

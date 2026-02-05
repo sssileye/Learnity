@@ -17,9 +17,13 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
     val nav = rememberNavController()
     val state by vm.state.collectAsState()
 
+    // ✅ ÉTAPE 1 : Déterminer la destination de départ dynamiquement
+    // Si state.user n'est pas nul au lancement, on va directement à la Homepage
+    val startDest = if (state.user != null) Screen.Homepage.route else Screen.Authentication.route
+
     NavHost(
         navController = nav,
-        startDestination = Screen.Authentication.route
+        startDestination = startDest // ✅ Applique la destination dynamique
     ) {
         composable(Screen.Authentication.route) {
             AuthScreen(
@@ -31,9 +35,8 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
         composable(Screen.Inscription.route) {
             Inscription(
                 onBackClick = { nav.popBackStack() },
-                onInscriptionSuccess = { email, password, firstName, lastName, redevance ->
-                    // ✅ CORRIGÉ : 5 paramètres (email, password, firstName, lastName, redevance)
-                    vm.signUp(email, password, firstName, lastName, redevance)
+                onInscriptionSuccess = { email, password, firstName, lastName ->
+                    vm.signUp(email, password, firstName, lastName, 1.0)
                 },
                 isLoading = state.isLoading,
                 error = state.error
@@ -41,10 +44,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
 
             LaunchedEffect(state.user) {
                 if (state.user != null) {
-                    nav.navigate(Screen.Homepage.route) {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    goToHomepage(nav)
                 }
             }
         }
@@ -53,7 +53,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             SignInScreen(
                 onBackClick = { nav.popBackStack() },
                 onSignIn = { email, password -> vm.signIn(email, password) },
-                onForgotPassword = { /* TODO: Implémenter mot de passe oublié */ },
+                onForgotPassword = { /* TODO */ },
                 onNavigateToSignUp = { nav.navigate(Screen.Inscription.route) },
                 isLoading = state.isLoading,
                 error = state.error
@@ -79,6 +79,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
 
 private fun goToHomepage(nav: NavHostController) {
     nav.navigate(Screen.Homepage.route) {
+        // ✅ On nettoie TOUTE la pile pour éviter que le bouton "Retour" ne ramène au Login
         popUpTo(0) { inclusive = true }
         launchSingleTop = true
     }

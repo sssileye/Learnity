@@ -51,7 +51,6 @@ class UserViewModel(
         refreshProgressionStats()
         refreshDailyStats()
         firestore.clearPersistence()
-        // ⭐ Chargement immédiat des associations
         fetchAssociations()
 
     }
@@ -109,7 +108,32 @@ class UserViewModel(
             }
         }
     }
+    // ✅ FONCTION COMPLÈTE POUR L'ONBOARDING
+    fun completeOnboarding(redevance: Double) {
+        val uid = repository.getCurrentUserId() ?: return // ⭐ Corrigé ici
+        viewModelScope.launch {
+            try {
+                // 1. Mise à jour Firestore : isFirstLogin -> false
+                repository.updateUserFields(uid, mapOf( // ⭐ Corrigé ici (repository)
+                    "redevanceSoutienUnitaire" to redevance,
+                    "isFirstLogin" to false
+                ))
 
+                // 2. Mise à jour locale immédiate pour fermer le diapo sans attendre le retour réseau
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        profile = currentState.profile?.copy(
+                            redevanceSoutienUnitaire = redevance,
+                            isFirstLogin = false
+                        )
+                    )
+                }
+                Log.d("Learnity_Onboarding", "✅ Onboarding terminé pour $uid")
+            } catch (e: Exception) {
+                Log.e("Learnity_Onboarding", "❌ Erreur finalisation onboarding : ${e.message}")
+            }
+        }
+    }
     /**
      * Calcule le nombre de chapitres lus par l'utilisateur (via CollectionGroup)
      */

@@ -215,7 +215,17 @@ class UserRepository {
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
-
+    suspend fun updateUserFields(uid: String, updates: Map<String, Any>): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            firestore.collection("users").document(uid)
+                .update(updates)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("UserRepository", "❌ Erreur updateFields : ${e.message}")
+            Result.failure(e)
+        }
+    }
     suspend fun deductFromDebt(amount: Double): Result<Unit> = withContext(Dispatchers.IO) {
         val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Non connecté"))
         val userRef = firestore.collection("users").document(userId)

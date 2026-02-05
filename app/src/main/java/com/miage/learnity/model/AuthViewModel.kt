@@ -36,7 +36,6 @@ class AuthViewModel : ViewModel() {
     }
 
     private val firestore = FirebaseFirestore.getInstance()
-
     private val userRepository = UserRepository()
 
     private val _state = MutableStateFlow(AuthUiState())
@@ -62,6 +61,10 @@ class AuthViewModel : ViewModel() {
     // INSCRIPTION + CRÉATION PROFIL
     // ============================================
 
+    /**
+     * Inscription simplifiée : La redevance est fixée par défaut (ex: 1.0).
+     * Le flag isFirstLogin est mis à TRUE pour déclencher l'onboarding en Home.
+     */
     fun signUp(email: String, password: String, firstName: String, lastName: String, redevance: Double = 1.0) {
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
@@ -69,8 +72,8 @@ class AuthViewModel : ViewModel() {
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null) {
-                        // ✅ Appel de la fonction de création de profil avec redevance
-                        createUserProfile(user.uid, email, firstName, lastName, redevance)
+                        // ✅ Création du profil avec le flag isFirstLogin à true
+                        createUserProfile(user.uid, email, firstName, lastName, redevance, isFirstLogin = true)
                     }
                     ok()
                 } else {
@@ -84,9 +87,9 @@ class AuthViewModel : ViewModel() {
         email: String,
         firstName: String,
         lastName: String,
-        redevance: Double
+        redevance: Double,
+        isFirstLogin: Boolean
     ) {
-        // ⭐ Création de l'objet avec l'avatar par défaut "avatar_b1" et la redevance choisie
         val newProfile = UserProfile(
             uid = uid,
             email = email,
@@ -94,7 +97,8 @@ class AuthViewModel : ViewModel() {
             lastName = lastName,
             photoUrl = "avatar_b1",
             createdAt = System.currentTimeMillis(),
-            redevanceSoutienUnitaire = redevance, // ✅ Valeur choisie par l'utilisateur
+            redevanceSoutienUnitaire = redevance,
+            isFirstLogin = isFirstLogin, // ✅ Nouveau flag pour l'onboarding
             detteCumulee = 0.0,
             unityPoints = 0,
             currentStreak = 0,
@@ -104,7 +108,7 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.saveUserProfile(newProfile)
                 .onSuccess {
-                    println("✅ AuthViewModel - Profil Firestore créé avec succès")
+                    println("✅ AuthViewModel - Profil créé (First Login: $isFirstLogin)")
                 }
                 .onFailure { e ->
                     println("❌ AuthViewModel - Échec création profil : ${e.message}")
@@ -126,7 +130,6 @@ class AuthViewModel : ViewModel() {
                         error = null,
                         resetPasswordSuccess = true
                     )
-                    println("✅ Email de réinitialisation envoyé à : $email")
                 } else {
                     fail(task.exception)
                 }
@@ -151,11 +154,8 @@ class AuthViewModel : ViewModel() {
     // ============================================
 
     fun deleteAccount() {
-        val currentUser = auth.currentUser
-        if (currentUser == null) {
-            _state.value = _state.value.copy(
-                error = "Aucun utilisateur connecté"
-            )
+        val currentUser = auth.currentUser ?: run {
+            _state.value = _state.value.copy(error = "Aucun utilisateur connecté")
             return
         }
 
@@ -164,19 +164,14 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val uid = currentUser.uid
-                println("🗑️ Début de la suppression du compte : $uid")
 
-                // 1. Supprimer le document utilisateur dans users/{uid}
-                firestore.collection("users")
-                    .document(uid)
-                    .delete()
-                    .await()
-                println("✅ Document utilisateur supprimé")
+                // 1. Supprimer le document utilisateur
+                firestore.collection("users").document(uid).delete().await()
 
-                // 2. Supprimer toute la progression dans user_progress/{uid}
+                // 2. Supprimer la progression (courses + chapters)
                 val userProgressRef = firestore.collection("user_progress").document(uid)
-
                 val coursesSnapshot = userProgressRef.collection("courses").get().await()
+
                 for (courseDoc in coursesSnapshot.documents) {
                     val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
                     for (chapterDoc in chaptersSnapshot.documents) {
@@ -184,25 +179,18 @@ class AuthViewModel : ViewModel() {
                     }
                     courseDoc.reference.delete().await()
                 }
-
                 userProgressRef.delete().await()
-                println("✅ Progression utilisateur supprimée")
 
-                // 3. Supprimer le compte Firebase Auth
+                // 3. Supprimer Firebase Auth
                 currentUser.delete().await()
-                println("✅ Compte Firebase Auth supprimé")
 
-                // 4. Mettre à jour l'état
                 _state.value = _state.value.copy(
                     isLoading = false,
                     user = null,
                     accountDeleteSuccess = true,
                     error = null
                 )
-                println("✅ Suppression du compte terminée avec succès")
-
             } catch (e: Exception) {
-                println("❌ Erreur lors de la suppression : ${e.message}")
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Échec de la suppression : ${e.localizedMessage}"
@@ -216,7 +204,7 @@ class AuthViewModel : ViewModel() {
     }
 
     // ============================================
-    // GESTION ERREURS
+    // GESTION ÉTATS & ERREURS
     // ============================================
 
     fun clearError() {
@@ -243,49 +231,13 @@ class AuthViewModel : ViewModel() {
     }
 
     private fun mapError(ex: Exception?): String {
-        val e = ex ?: return "Échec de l'authentification. Veuillez réessayer."
-
+        val e = ex ?: return "Échec de l'authentification."
         return when (e) {
-            is FirebaseAuthUserCollisionException ->
-                "Cet email est déjà enregistré. Essayez de vous connecter ou de réinitialiser votre mot de passe."
-
-            is FirebaseAuthInvalidCredentialsException ->
-                when (e.errorCode) {
-                    "ERROR_INVALID_EMAIL" -> "L'adresse email est mal formatée."
-                    "ERROR_WRONG_PASSWORD" -> "Mot de passe incorrect. Veuillez réessayer."
-                    else -> "Identifiants invalides. Vérifiez votre email et mot de passe."
-                }
-
-            is FirebaseAuthInvalidUserException ->
-                when (e.errorCode) {
-                    "ERROR_USER_NOT_FOUND" -> "Aucun compte trouvé avec cet email."
-                    "ERROR_USER_DISABLED" -> "Votre compte a été désactivé."
-                    else -> "Ce compte n'est pas valide."
-                }
-
-            is FirebaseNetworkException ->
-                "Pas de connexion internet. Vérifiez votre réseau et réessayez."
-
-            else -> {
-                val code = (e as? FirebaseAuthException)?.errorCode
-                when (code) {
-                    "ERROR_EMAIL_ALREADY_IN_USE" ->
-                        "Cet email est déjà enregistré. Essayez de vous connecter ou de réinitialiser votre mot de passe."
-
-                    "ERROR_WEAK_PASSWORD" ->
-                        "Mot de passe trop faible. Utilisez au moins 6 caractères."
-
-                    "ERROR_OPERATION_NOT_ALLOWED" ->
-                        "La connexion email/mot de passe est désactivée pour ce projet."
-
-                    "ERROR_TOO_MANY_REQUESTS" ->
-                        "Trop de tentatives. Veuillez réessayer plus tard."
-
-                    else ->
-                        e.localizedMessage?.substringBefore('\n')
-                            ?: "Échec de l'authentification. Veuillez réessayer."
-                }
-            }
+            is FirebaseAuthUserCollisionException -> "Email déjà enregistré."
+            is FirebaseAuthInvalidCredentialsException -> "Identifiants invalides."
+            is FirebaseAuthInvalidUserException -> "Aucun compte trouvé."
+            is FirebaseNetworkException -> "Pas de connexion internet."
+            else -> e.localizedMessage ?: "Une erreur est survenue."
         }
     }
 }
