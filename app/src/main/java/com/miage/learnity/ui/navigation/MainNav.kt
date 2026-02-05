@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
 import com.miage.learnity.ui.components.*
 import com.miage.learnity.ui.screens.*
 import com.miage.learnity.ui.screens.library.*
@@ -25,27 +26,32 @@ import java.nio.charset.StandardCharsets
 @Composable
 fun MainNav(onLogout: () -> Unit = {}) {
     val navController = rememberNavController()
+    // ⭐ Initialisation de Firebase Auth pour l'accès au UID
+    val auth = remember { FirebaseAuth.getInstance() }
 
-    // Utilisation du UserViewModel comme source de vérité globale
+    // Source de vérité globale pour le profil
     val userViewModel: UserViewModel = viewModel()
     val userUiState by userViewModel.uiState.collectAsState()
 
-    // Récupération des données du profil
-    val currentStreak = userUiState.profile?.currentStreak ?: 0
-    val quizMode = userUiState.profile?.quizMode ?: "DISCOVERY"
+    // Données extraites
+    val profile = userUiState.profile
+    val currentStreak = profile?.currentStreak ?: 0
+    val photoUrl = profile?.photoUrl
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // On cache les barres pour les écrans immersifs
+    // Gestion de l'affichage des barres
     val showBars = currentRoute != null &&
             !currentRoute.contains("quiz") &&
             !currentRoute.contains("pdf") &&
             !currentRoute.contains("video") &&
-            currentRoute != "profile_editor"
+            currentRoute != "profile_editor" &&
+            currentRoute != "favorites" // On cache souvent les barres sur les sous-pages
 
-    //  États pour gérer les dialogs d'aide
+    // États pour les dialogs d'aide
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showStreakDialog by remember { mutableStateOf(false) }
     var showQuizDuJourDialog by remember { mutableStateOf(false) }
     var showDetteDialog by remember { mutableStateOf(false) }
     var showUnityPointsDialog by remember { mutableStateOf(false) }
@@ -62,15 +68,17 @@ fun MainNav(onLogout: () -> Unit = {}) {
                             launchSingleTop = true
                         }
                     },
-                    onHelpClick = {
-                        showHelpDialog = true
-                    }
+                    onStreakClick = { showStreakDialog = true },
+                    onHelpClick = { showHelpDialog = true }
                 )
             }
         },
         bottomBar = {
             if (showBars) {
-                BottomNavigationBar(navController)
+                BottomNavigationBar(
+                    navController = navController,
+                    photoUrl = photoUrl
+                )
             }
         }
     ) { paddingValues ->
@@ -81,10 +89,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
         ) {
             // --- ACCUEIL ---
             composable("home") {
-                HomeScreen(
-                    navController = navController,
-                    userViewModel = userViewModel
-                )
+                HomeScreen(navController = navController, userViewModel = userViewModel)
             }
 
             composable("association") { AssociationScreen() }
@@ -92,21 +97,40 @@ fun MainNav(onLogout: () -> Unit = {}) {
             composable("settings") {
                 SettingsScreen(
                     authViewModel = viewModel(),
-                    onAccountDeleted = {
-                        onLogout()
-                    }
+                    onAccountDeleted = { onLogout() }
                 )
             }
 
-            // --- PROFIL (accessible via BottomBar) ---
+            // --- PROFIL & FAVORIS ---
             composable("profile") {
                 ProfileScreen(
                     onLogout = onLogout,
-                    onEditClick = {
-                        navController.navigate("profile_editor")
-                    },
+                    onEditClick = { navController.navigate("profile_editor") },
                     onNavigateToSettings = { navController.navigate("settings") },
-                    onNavigateToAssociation = { navController.navigate("association") }
+                    onNavigateToLibrary = { navController.navigate("favorites") },
+                    viewModel = userViewModel
+                )
+            }
+
+            composable("favorites") {
+                val favViewModel: LibraryFavoritesViewModel = viewModel()
+
+                // ✅ Déclenchement automatique du chargement des favoris
+                LaunchedEffect(Unit) {
+                    auth.currentUser?.uid?.let { uid ->
+                        favViewModel.loadFavorites(uid)
+                    }
+                }
+
+                LibraryFavoritesScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToChapter = { cId, chapId ->
+                        navController.navigate("chapter/$cId/$chapId")
+                    },
+                    onNavigateToCourse = { courseId ->
+                        navController.navigate("course/$courseId")
+                    },
+                    viewModel = favViewModel
                 )
             }
 
@@ -114,7 +138,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 ProfileEditorScreen(onNavigateBack = { navController.popBackStack() })
             }
 
-            // --- BIBLIOTHÈQUE ---
+            // --- BIBLIOTHÈQUE CLASSIQUE ET LECTEURS ---
             composable("library") {
                 LibraryScreen(onCourseClick = { id -> navController.navigate("course/$id") })
             }
@@ -132,7 +156,6 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- CONTENU DU CHAPITRE ---
             composable(
                 route = "chapter/{courseId}/{chapterId}",
                 arguments = listOf(
@@ -153,7 +176,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                     onCoursClick = { navController.navigate("pdf/$courseId/$chapterId/cours") },
                     onFdrClick = { navController.navigate("pdf/$courseId/$chapterId/fdr") },
                     onVideoClick = {
-                        chapterState?.videoUrl?.let { url ->
+                        chapterState?.video?.let { url ->
                             if (url.isNotBlank()) {
                                 val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
                                 navController.navigate("video/$encodedUrl")
@@ -165,7 +188,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- LECTEUR VIDÉO ---
+            // --- LECTEURS MÉDIAS ---
             composable(
                 route = "video/{videoUrl}",
                 arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })
@@ -174,11 +197,10 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 YouTubePlayer(
                     videoUrl = videoUrl,
                     modifier = Modifier.fillMaxSize(),
-                    onVideoEnd = { /* Optionnel */ }
+                    onVideoEnd = { /* ... */ }
                 )
             }
 
-            // --- LECTEUR PDF ---
             composable(
                 route = "pdf/{courseId}/{chapterId}/{type}",
                 arguments = listOf(
@@ -200,7 +222,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
                 )
             }
 
-            // --- QUIZ (RÉVISIONS OU CLASSIQUE) ---
+            // --- QUIZ ---
             composable(
                 route = "quiz/{courseId}/{chapterId}?isReviewMode={isReviewMode}",
                 arguments = listOf(
@@ -226,57 +248,27 @@ fun MainNav(onLogout: () -> Unit = {}) {
         }
     }
 
+    // --- LOGIQUE DES DIALOGS (Identique à ton code original) ---
+    if (showStreakDialog) {
+        val currentMultiplier = com.miage.learnity.model.PointsManager.getStreakMultiplier(currentStreak)
+        StreakHelpDialog(
+            currentStreak = currentStreak,
+            multiplier = currentMultiplier,
+            onDismiss = { showStreakDialog = false }
+        )
+    }
 
-    // DIALOGS D'AIDE
-
-    // Dialog principal (menu d'aide)
     if (showHelpDialog) {
         HomeScreenHelpDialog(
-            onQuizDuJourClick = {
-                showHelpDialog = false
-                showQuizDuJourDialog = true
-            },
-            onDetteClick = {
-                showHelpDialog = false
-                showDetteDialog = true
-            },
-            onUnityPointsClick = {
-                showHelpDialog = false
-                showUnityPointsDialog = true
-            },
-            onTypesQuizClick = {
-                showHelpDialog = false
-                showTypesQuizDialog = true
-            },
+            onQuizDuJourClick = { showHelpDialog = false; showQuizDuJourDialog = true },
+            onDetteClick = { showHelpDialog = false; showDetteDialog = true },
+            onUnityPointsClick = { showHelpDialog = false; showUnityPointsDialog = true },
+            onTypesQuizClick = { showHelpDialog = false; showTypesQuizDialog = true },
             onDismiss = { showHelpDialog = false }
         )
     }
-
-    // Dialog Quiz du Jour
-    if (showQuizDuJourDialog) {
-        QuizDuJourHelpDialog(
-            onDismiss = { showQuizDuJourDialog = false }
-        )
-    }
-
-    // Dialog Dette Virtuelle
-    if (showDetteDialog) {
-        DetteVirtuelleHelpDialog(
-            onDismiss = { showDetteDialog = false }
-        )
-    }
-
-    // Dialog Unity Points
-    if (showUnityPointsDialog) {
-        UnityPointsHelpDialog(
-            onDismiss = { showUnityPointsDialog = false }
-        )
-    }
-
-    // Dialog Types de Quiz
-    if (showTypesQuizDialog) {
-        TypesQuizHelpDialog(
-            onDismiss = { showTypesQuizDialog = false }
-        )
-    }
+    if (showQuizDuJourDialog) QuizDuJourHelpDialog(onDismiss = { showQuizDuJourDialog = false })
+    if (showDetteDialog) DetteVirtuelleHelpDialog(onDismiss = { showDetteDialog = false })
+    if (showUnityPointsDialog) UnityPointsHelpDialog(onDismiss = { showUnityPointsDialog = false })
+    if (showTypesQuizDialog) TypesQuizHelpDialog(onDismiss = { showTypesQuizDialog = false })
 }

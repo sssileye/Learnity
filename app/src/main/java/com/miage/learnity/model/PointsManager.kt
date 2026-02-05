@@ -5,81 +5,75 @@ import kotlin.math.roundToInt
 
 object PointsManager {
 
-    enum class QuizType {
-        CHAPTER,
-        DAILY,
-        EXAM
-    }
+    enum class QuizType { CHAPTER, DAILY, EXAM }
 
     data class QuizResult(
         val progressionPoints: Int,
         val bonusGained: Int,
         val debtAdded: Double,
-        val isPerfect: Boolean
+        val isPerfect: Boolean,
+        val multiplierUsed: Double // ⭐ Ajouté pour l'affichage UI
     )
 
-    /**
-     * Calcule le gain RÉEL d'une session.
-     * @param oldBestScore Doit être le record ABSOLU chargé depuis Firebase.
-     */
     fun calculateResults(
         type: QuizType,
         score: Int,
         totalQuestions: Int,
         oldBestScore: Int,
         profile: UserProfile,
-        wasAlreadyPerfect: Boolean = false
+        wasAlreadyPerfect: Boolean = false,
+        isFirstAttemptToday: Boolean = true // ⭐ Nouveau paramètre
     ): QuizResult {
         val isPerfect = score == totalQuestions
-        var debt = 0.0
-        var rawBonus = 0
-
-        // 1. CALCUL DE LA PROGRESSION (Sécurité renforcée)
-        // On s'assure que même avec un bug d'entrée, on ne donne pas de points
-        // si le score actuel est inférieur ou égal au record.
-        val diff = score - oldBestScore
-        val rawProgression = if (diff > 0) diff else 0
-
-        // 2. CALCUL DU BONUS PERFECT (Usage unique)
-        if (isPerfect && !wasAlreadyPerfect) {
-            rawBonus = when (type) {
-                QuizType.CHAPTER -> 3
-                QuizType.DAILY -> 5
-                QuizType.EXAM -> 10
-            }
-        }
-
-        // 3. CALCUL DE LA DETTE (Basé sur l'essai actuel)
-        if (type == QuizType.DAILY) {
-            val errors = totalQuestions - score
-            if (errors > 0) {
-                // On utilise la redevance unitaire du profil
-                val costPerError = profile.redevanceSoutienUnitaire / totalQuestions.toDouble()
-                debt = costPerError * errors
-            }
-        }
-
-        // 4. MULTIPLICATEUR (Appliqué uniquement au Daily)
         val multiplier = if (type == QuizType.DAILY) getStreakMultiplier(profile.currentStreak) else 1.0
 
-        // Arrondi mathématique pour éviter les Unity Points à virgule
-        val finalProgression = (rawProgression * multiplier).roundToInt()
-        val finalBonus = (rawBonus * multiplier).roundToInt()
+        // --- 1. CAS DU QUIZ DU JOUR (DAILY) ---
+        if (type == QuizType.DAILY) {
+            // Si ce n'est pas le 1er essai, on ne donne rien (0 points, 0 dette)
+            if (!isFirstAttemptToday) {
+                return QuizResult(0, 0, 0.0, isPerfect, 1.0)
+            }
+
+            val progressionPoints = (score * multiplier).roundToInt()
+
+            val bonusGained = if (isPerfect) 5 else 0
+
+            val errors = totalQuestions - score
+            val costPerError = (profile.redevanceSoutienUnitaire ?: 1.0) / totalQuestions.toDouble()
+            val debt = costPerError * errors
+
+            return QuizResult(
+                progressionPoints = progressionPoints,
+                bonusGained = bonusGained,
+                debtAdded = debt,
+                isPerfect = isPerfect,
+                multiplierUsed = multiplier
+            )
+        }
+
+        // --- 2. CAS DES CHAPITRES (Logic de record) ---
+        val diff = score - oldBestScore
+        val rawProgression = if (diff > 0) diff else 0
+        var rawBonus = 0
+
+        if (isPerfect && !wasAlreadyPerfect) {
+            rawBonus = if (type == QuizType.EXAM) 10 else 3
+        }
 
         return QuizResult(
-            progressionPoints = finalProgression,
-            bonusGained = finalBonus,
-            debtAdded = debt,
-            isPerfect = isPerfect
+            progressionPoints = rawProgression,
+            bonusGained = rawBonus,
+            debtAdded = 0.0,
+            isPerfect = isPerfect,
+            multiplierUsed = 1.0
         )
     }
 
-    private fun getStreakMultiplier(streak: Int): Double {
+    fun getStreakMultiplier(streak: Int): Double {
         return when {
-            streak >= 30 -> 2.0
-            streak >= 15 -> 1.5
-            streak >= 7 -> 1.2
-            streak >= 3 -> 1.1
+            streak >= 30 -> 4.0
+            streak >= 20 -> 3.0
+            streak >= 10 -> 2.0
             else -> 1.0
         }
     }

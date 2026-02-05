@@ -21,22 +21,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.miage.learnity.R
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import com.miage.learnity.ui.utils.*
 
 /**
- * TopNavigationBar optimisé avec badge streak et logo réduit
- * Version finale pour économiser de l'espace
+ * TopNavigationBar optimisé avec badge streak cliquable et bouton aide
  */
 @Composable
 fun TopNavigationBar(
     currentStreak: Int = 0,
     onLogoClick: () -> Unit = {},
-    onStreakClick: (() -> Unit)? = null,
+    onStreakClick: (() -> Unit)? = null, // ⭐ Reçoit l'action pour ouvrir le Dialog
     onHelpClick: () -> Unit = {}
 ) {
     val dimensions = rememberResponsiveDimensions()
 
-    // Animation flamme
+    // Animation flamme (pulsation)
     val infiniteTransition = rememberInfiniteTransition(label = "streak_pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -58,13 +59,13 @@ fun TopNavigationBar(
                 .fillMaxWidth()
                 .padding(
                     horizontal = dimensions.screenPaddingHorizontal,
-                    vertical = dimensions.itemSpacing * 0.8f // ⭐ Légèrement réduit
+                    vertical = dimensions.itemSpacing * 0.8f
                 )
                 .statusBarsPadding(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Logo LEARNITY (réduit)
+            // Logo LEARNITY
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -74,23 +75,23 @@ fun TopNavigationBar(
                 Image(
                     painter = painterResource(id = R.drawable.icon_learnity),
                     contentDescription = "Logo Learnity",
-                    modifier = Modifier.size(dimensions.iconSizeLarge), // ⭐ Réduit (était iconSizeLarge)
+                    modifier = Modifier.size(dimensions.iconSizeLarge),
                     contentScale = ContentScale.Fit
                 )
-                Spacer(modifier = Modifier.width(dimensions.itemSpacing / 3)) // ⭐ Réduit
+                Spacer(modifier = Modifier.width(dimensions.itemSpacing / 3))
                 Text(
                     text = "LEARNITY",
-                    fontSize = dimensions.bodyLarge, // ⭐ Réduit (était titleMedium)
+                    fontSize = dimensions.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 0.8f), // ⭐ Espacement réduit
+                horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 0.8f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Badge Streak
+                // Badge Streak (CLIQUABLE)
                 Surface(
                     shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -119,7 +120,7 @@ fun TopNavigationBar(
                     }
                 }
 
-                // ✅ BOUTON HELP (?) - UNIQUEMENT
+                // Bouton Help
                 IconButton(
                     onClick = onHelpClick,
                     modifier = Modifier.size(dimensions.iconSizeLarge * 0.9f)
@@ -128,7 +129,7 @@ fun TopNavigationBar(
                         modifier = Modifier
                             .size(dimensions.iconSizeLarge * 0.9f)
                             .background(
-                                color = Color(0xFFE8E0FF),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -136,7 +137,7 @@ fun TopNavigationBar(
                         Icon(
                             imageVector = Icons.Default.HelpOutline,
                             contentDescription = "Aide",
-                            tint = Color(0xFF635BFF),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(dimensions.iconSizeMedium * 0.85f)
                         )
                     }
@@ -144,6 +145,83 @@ fun TopNavigationBar(
             }
         }
     }
+}
+
+/**
+ * Dialog explicatif du Winstreak et des multiplicateurs
+ */
+@Composable
+fun StreakHelpDialog(
+    currentStreak: Int,
+    multiplier: Double,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Text("🔥", fontSize = 32.sp) }, // Optionnel : icone en haut
+        title = {
+            Text(
+                text = "Série d'assiduité",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Vous avez une série de $currentStreak jours !",
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // Encart multiplicateur actuel
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Multiplicateur actuel", fontSize = 12.sp)
+                        Text(
+                            "x$multiplier",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+
+                Text("Barème des bonus (Quiz du Jour) :", fontWeight = FontWeight.Bold)
+
+                val bareme = listOf(
+                    "10 jours" to "x2.0",
+                    "20 jours" to "x3.0",
+                    "30 jours" to "x4.0"
+                )
+
+                bareme.forEach { (jours, mult) ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(jours)
+                        Text(mult, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                    }
+                }
+
+                Text(
+                    "Conseil : Ne manquez aucun jour pour ne pas perdre votre bonus !",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Compris !") }
+        }
+    )
 }
 
 @Preview(name = "Petit (320dp)", widthDp = 320)

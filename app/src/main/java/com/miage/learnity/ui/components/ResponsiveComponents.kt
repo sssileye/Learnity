@@ -11,17 +11,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.miage.learnity.ui.utils.*
 
-/**
- * 🎨 COMPOSANTS RESPONSIVES RÉUTILISABLES
- *
- * Ces composants encapsulent les bonnes pratiques responsive
- * et garantissent une cohérence visuelle dans toute l'app.
- */
-
-// ═══════════════════════════════════════════════════════════════
-// 🔘 BOUTONS RESPONSIVES
-// ═══════════════════════════════════════════════════════════════
-
 @Composable
 fun ResponsivePrimaryButton(
     text: String,
@@ -116,10 +105,6 @@ fun ResponsiveSmallButton(
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 🎴 CARDS RESPONSIVES
-// ═══════════════════════════════════════════════════════════════
-
 @Composable
 fun ResponsiveCard(
     modifier: Modifier = Modifier,
@@ -169,10 +154,6 @@ fun ResponsiveOutlinedCard(
         )
     }
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 📝 FORMULAIRES RESPONSIFS
-// ═══════════════════════════════════════════════════════════════
 
 @Composable
 fun ResponsiveTextField(
@@ -224,10 +205,6 @@ fun ResponsiveTextField(
     )
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 📊 LAYOUTS RESPONSIFS
-// ═══════════════════════════════════════════════════════════════
-
 @Composable
 fun ResponsiveColumn(
     modifier: Modifier = Modifier,
@@ -264,10 +241,6 @@ fun ResponsiveRow(
         content = content
     )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 🎭 ÉTATS RESPONSIFS
-// ═══════════════════════════════════════════════════════════════
 
 @Composable
 fun ResponsiveLoadingState(
@@ -377,9 +350,6 @@ fun ResponsiveEmptyState(
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 🎯 BADGES & CHIPS RESPONSIFS
-// ═══════════════════════════════════════════════════════════════
 
 @Composable
 fun ResponsiveBadge(
@@ -431,9 +401,6 @@ fun ResponsiveChip(
     )
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 🎨 DIVIDERS RESPONSIFS
-// ═══════════════════════════════════════════════════════════════
 
 @Composable
 fun ResponsiveDivider(
@@ -448,10 +415,6 @@ fun ResponsiveDivider(
         thickness = 1.dp
     )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 📐 SPACERS RESPONSIFS
-// ═══════════════════════════════════════════════════════════════
 
 @Composable
 fun ResponsiveSmallSpacer() {
@@ -477,13 +440,7 @@ fun ResponsiveExtraLargeSpacer() {
     Spacer(modifier = Modifier.height(dimensions.itemSpacing * 4))
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 🎯 EXEMPLES D'UTILISATION
-// ═══════════════════════════════════════════════════════════════
 
-/**
- * EXEMPLE 1 : Écran simple avec formulaire
- */
 @Composable
 fun ExampleFormScreen() {
     ResponsiveColumn(
@@ -519,9 +476,7 @@ fun ExampleFormScreen() {
     }
 }
 
-/**
- * EXEMPLE 2 : Liste avec cards
- */
+
 @Composable
 fun ExampleListScreen() {
     ResponsiveColumn {

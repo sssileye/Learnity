@@ -1,6 +1,5 @@
 package com.miage.learnity.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,20 +16,16 @@ import com.miage.learnity.ui.utils.ResponsiveDimensions
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
- * ═══════════════════════════════════════════════════════════════
- * 📝 DAILY QUIZ CARD - VERSION GRADIENTS VIBRANTS
- * ═══════════════════════════════════════════════════════════════
- *
- * Card Vibrant du Quiz du Jour avec progression hebdomadaire intégrée
- * ✅ Gradients VIBRANTS forcés (même en dark mode)
- * ✅ Structure IDENTIQUE au code original
+ * 📝 DAILY QUIZ CARD - VERSION MINIMALISTE VIBRANTE
+ * ✅ Retrait total des emojis pour un aspect plus Pro
+ * ✅ Focus sur le gradient et le score
  */
 @Composable
 fun DailyQuizCard(
     dimensions: ResponsiveDimensions,
     isDiscoveryMode: Boolean,
     lastScore: Pair<Int, Int>?,
-    weeklyProgress: Pair<Int, Int>?, // (completed, total)
+    weeklyProgress: Pair<Int, Int>?,
     onAction: (isReview: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -38,32 +33,24 @@ fun DailyQuizCard(
     val scoreValue = lastScore?.first ?: 0
     val totalQuestions = lastScore?.second ?: 10
 
-    // Message selon performance
-    val (icon, message) = when {
-        !hasDoneQuizToday -> "" to "Prêt pour le défi ?"
-        scoreValue >= 9 -> "" to "Score excellent"
-        scoreValue >= 7 -> "" to "Très bon travail"
-        else -> "📚" to "Continue tes efforts"
+    // Message sobre sans icône
+    val message = when {
+        !hasDoneQuizToday -> "Prêt pour le défi ?"
+        scoreValue >= 9 -> "Score excellent"
+        scoreValue >= 7 -> "Très bon travail"
+        else -> "Continue tes efforts !"
     }
 
-    // ✅ CHANGEMENT ICI : Gradients VIBRANTS forcés au lieu d'adaptatifs
     val gradient = if (hasDoneQuizToday) {
         Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF667EEA),  // Bleu vibrant
-                Color(0xFF764BA2)   // Violet vibrant
-            )
+            colors = listOf(Color(0xFF667EEA), Color(0xFF764BA2))
         )
     } else {
         Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF667EEA),  // Violet
-                Color(0xFFF093FB)   // Rose vibrant
-            )
+            colors = listOf(Color(0xFF667EEA), Color(0xFFF093FB))
         )
     }
 
-    // ✅ CHANGEMENT ICI : Couleurs de texte forcées au lieu d'adaptatives
     val textColor = Color.White
     val overlayColor = Color.White.copy(alpha = 0.25f)
 
@@ -82,27 +69,18 @@ fun DailyQuizCard(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // En-tête
+                    // En-tête simplifié
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 2),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = icon,
-                                fontSize = dimensions.titleMedium
-                            )
-                            Text(
-                                text = if (hasDoneQuizToday) message else "Quiz du jour",
-                                fontSize = dimensions.bodyLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor
-                            )
-                        }
+                        Text(
+                            text = if (hasDoneQuizToday) message else "Quiz du jour",
+                            fontSize = dimensions.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
 
                         // Badge mode
                         Surface(
@@ -110,9 +88,9 @@ fun DailyQuizCard(
                             color = overlayColor
                         ) {
                             Text(
-                                text = if (isDiscoveryMode) "Découverte" else "Révision",
+                                text = if (isDiscoveryMode) "DÉCOUVERTE" else "RÉVISION",
                                 fontSize = dimensions.bodySmall,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.Black, // Plus marqué pour compenser l'icône
                                 color = textColor,
                                 modifier = Modifier.padding(
                                     horizontal = dimensions.itemSpacing,
@@ -123,54 +101,48 @@ fun DailyQuizCard(
                     }
 
                     if (hasDoneQuizToday) {
-                        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
+                        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.2f))
 
-                        // Score affiché
+                        // Score centré et imposant
                         Row(
                             verticalAlignment = Alignment.Bottom,
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
                                 text = "$scoreValue",
-                                fontSize = dimensions.displayLarge * 1.5f,
+                                fontSize = dimensions.displayLarge * 1.3f,
                                 fontWeight = FontWeight.Black,
                                 color = textColor
                             )
                             Text(
                                 text = "/$totalQuestions",
                                 fontSize = dimensions.titleLarge,
-                                color = textColor.copy(alpha = 0.9f),
-                                modifier = Modifier.offset(y = (-8).dp)
+                                color = textColor.copy(alpha = 0.8f),
+                                modifier = Modifier.offset(y = (-6).dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
+                        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.2f))
 
-                        // Boutons d'action
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
+                        Button(
+                            onClick = { onAction(false) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(dimensions.buttonHeightSmall),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
                         ) {
-                            Button(
-                                onClick = { onAction(false) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(dimensions.buttonHeightSmall),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                ),
-                                shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
-                            ) {
-                                Text(
-                                    "Refaire",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = dimensions.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            Text(
+                                "REFAIRE LE TEST",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = dimensions.bodyMedium,
+                                color = Color(0xFF764BA2) // Rappel de la couleur du gradient
+                            )
                         }
                     } else {
-                        Spacer(modifier = Modifier.height(dimensions.itemSpacing))
+                        Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2f))
 
                         Button(
                             onClick = { onAction(false) },
@@ -180,87 +152,18 @@ fun DailyQuizCard(
                             shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(dimensions.buttonHeightSmall),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 4.dp
-                            )
+                                .height(dimensions.buttonHeightSmall)
                         ) {
                             Text(
-                                "Commencer maintenant",
+                                "COMMENCER",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = dimensions.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = Color(0xFF667EEA)
                             )
                         }
                     }
                 }
             }
-        }
-
-//        // WeeklyProgressCard
-//        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-//
-//        weeklyProgress?.let { (completed, total) ->
-//            WeeklyProgressCard(
-//                completedSessions = completed,
-//                totalGoal = total,
-//                dimensions = dimensions
-//            )
-//        } ?: run {
-//            // Fallback si les données ne sont pas encore chargées
-//            Row(
-//                modifier = Modifier.fillMaxWidth(),
-//                horizontalArrangement = Arrangement.SpaceBetween,
-//                verticalAlignment = Alignment.CenterVertically
-//            ) {
-//                Text(
-//                    text = "Cette semaine",
-//                    fontSize = dimensions.bodySmall,
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-//                    fontWeight = FontWeight.Medium
-//                )
-//                Text(
-//                    text = "Chargement...",
-//                    fontSize = dimensions.bodySmall,
-//                    color = MaterialTheme.colorScheme.primary,
-//                    fontWeight = FontWeight.SemiBold
-//                )
-//            }
-//        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 📱 PREVIEWS
-// ═══════════════════════════════════════════════════════════════
-
-@Preview(name = "Moyen (360dp)", widthDp = 360)
-@Composable
-fun DailyQuizCardWithProgressPreview() {
-    MaterialTheme {
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Quiz non fait
-            DailyQuizCard(
-                dimensions = rememberResponsiveDimensions(),
-                isDiscoveryMode = true,
-                lastScore = null,
-                weeklyProgress = 2 to 4,
-                onAction = {}
-            )
-
-            // Quiz fait avec bon score
-            DailyQuizCard(
-                dimensions = rememberResponsiveDimensions(),
-                isDiscoveryMode = false,
-                lastScore = 9 to 10,
-                weeklyProgress = 3 to 4,
-                onAction = {}
-            )
         }
     }
 }

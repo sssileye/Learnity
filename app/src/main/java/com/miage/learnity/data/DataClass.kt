@@ -1,5 +1,6 @@
 package com.miage.learnity.data
 
+import com.google.firebase.firestore.PropertyName
 import com.google.gson.annotations.SerializedName
 
 // ============================================
@@ -19,6 +20,8 @@ data class UserProfile(
     val photoUrl: String = "avatar_b1",
     val createdAt: Long = System.currentTimeMillis(),
     val redevanceSoutienUnitaire: Double = 1.0,
+    @field:JvmField
+    val isFirstLogin: Boolean = false,
     val detteCumulee: Double = 0.0,
     val unityPoints: Int = 0,
     val currentStreak: Int = 0,
@@ -36,7 +39,8 @@ data class Course(
     val id: String = "",
     val title: String = "",
     val description: String = "",
-    val iconRes: Int? = null
+    val iconRes: Int? = null,
+    val isFavorite: Boolean = false
 )
 
 // ============================================
@@ -44,13 +48,21 @@ data class Course(
 // ============================================
 data class Chapter(
     val chapterId: String = "",
+    val courseId: String = "",
     val title: String = "",
     val order: Int = 0,
+    val isFavorite: Boolean = false,
 
-    // === CONTENU PÉDAGOGIQUE ===
-    val coursUrl: String? = null,
-    val fdrUrl: String? = null,
-    val videoUrl: String? = null,
+    // On force Firestore à mapper "cours" sur ta variable "cours"
+    @get:PropertyName("cours") @set:PropertyName("cours")
+    var cours: String? = null,
+
+    // On force Firestore à mapper "fdr" sur ta variable "fdr"
+    @get:PropertyName("fdr") @set:PropertyName("fdr")
+    var fdr: String? = null,
+
+    @get:PropertyName("video") @set:PropertyName("video")
+    var video: String? = null,
 
     // === MÉTADONNÉES ===
     val pageCount: Int = 0,
@@ -99,9 +111,9 @@ data class Chapter(
     val isContentCompleted: Boolean get() = isCoursRead
 
     // Helpers rapides
-    val hasVideo: Boolean get() = videoUrl != null
-    val hasCours: Boolean get() = coursUrl != null
-    val hasFdr: Boolean get() = fdrUrl != null
+    val hasVideo: Boolean get() = video != null
+    val hasCours: Boolean get() = cours != null
+    val hasFdr: Boolean get() = fdr != null
 }
 
 // ============================================

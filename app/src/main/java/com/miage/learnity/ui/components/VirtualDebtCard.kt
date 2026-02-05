@@ -17,25 +17,20 @@ import com.miage.learnity.ui.utils.ResponsiveDimensions
 import com.miage.learnity.ui.utils.rememberResponsiveDimensions
 
 /**
- * ═══════════════════════════════════════════════════════════════
- * 💰 VIRTUAL DEBT CARD - VERSION GRADIENTS VIBRANTS (HOMEPAGE)
- * ═══════════════════════════════════════════════════════════════
- *
- * Card de dette virtuelle avec GRADIENTS VIBRANTS FORCÉS
- * ✅ Gradients colorés même en dark mode
- * ✅ Orange-rouge si dette, turquoise-vert si pas de dette
+ * 💰 VIRTUAL DEBT CARD - VERSION ÉPURÉE
+ * ✅ Supprimé : Barre de progression et échéance
+ * ✅ Conservé : Gradients vibrants et boutons d'action
  */
 @Composable
 fun VirtualDebtCard(
     debtAmount: Double,
-    monthsRemaining: Int,
     onPayClick: () -> Unit,
     dimensions: ResponsiveDimensions,
     modifier: Modifier = Modifier
 ) {
     val hasDebt = debtAmount > 0.01
 
-    // ✅ GRADIENTS VIBRANTS FORCÉS (même en dark mode)
+    // GRADIENTS VIBRANTS FORCÉS
     val gradient = if (hasDebt) {
         Brush.verticalGradient(
             colors = listOf(
@@ -52,7 +47,6 @@ fun VirtualDebtCard(
         )
     }
 
-    // ✅ Texte blanc pour contraste
     val textColor = Color.White
     val overlayColor = Color.White.copy(alpha = 0.25f)
 
@@ -82,7 +76,7 @@ fun VirtualDebtCard(
                             color = textColor
                         )
                         Text(
-                            text = "Ce mois-ci",
+                            text = if (hasDebt) "Soutien à régulariser" else "Compteur à jour",
                             fontSize = dimensions.bodySmall,
                             color = textColor.copy(alpha = 0.9f)
                         )
@@ -105,11 +99,11 @@ fun VirtualDebtCard(
 
                 Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
 
-                // Montant de la dette
+                // Montant de la dette et bouton d'action
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
@@ -141,89 +135,42 @@ fun VirtualDebtCard(
                                 text = "Solder",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = dimensions.bodyMedium,
-                                color = Color(0xFFFF6B6B)  // Rouge vibrant
+                                color = Color(0xFFFF6B6B)
                             )
                         }
                     }
                 }
 
-                if (hasDebt) {
-                    Spacer(modifier = Modifier.height(dimensions.itemSpacing * 1.5f))
-
-                    // Barre de progression vers échéance
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "À régler avant",
-                                fontSize = dimensions.bodySmall,
-                                color = textColor.copy(alpha = 0.9f)
-                            )
-                            Text(
-                                text = if (monthsRemaining > 1) "$monthsRemaining mois" else "$monthsRemaining mois",
-                                fontSize = dimensions.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(dimensions.itemSpacing / 2))
-                        LinearProgressIndicator(
-                            progress = { 0.6f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(5.dp),
-                            color = textColor,
-                            trackColor = textColor.copy(alpha = 0.3f),
-                        )
-                    }
-                } else {
+                // Pied de carte informatif
+                if (!hasDebt) {
                     Spacer(modifier = Modifier.height(dimensions.itemSpacing))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 2)
-                    ) {
-                        Text(
-                            text = "Aucune dette ce mois-ci !",
-                            fontSize = dimensions.bodyMedium,
-                            color = textColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = "Aucune dette ce mois-ci !",
+                        fontSize = dimensions.bodyMedium,
+                        color = textColor,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 📱 PREVIEWS
-// ═══════════════════════════════════════════════════════════════
-
-@Preview(name = "Moyen (360dp)", widthDp = 360)
+@Preview(name = "Preview Dette", widthDp = 360)
 @Composable
-fun VirtualDebtCardVibrantPreview() {
+fun VirtualDebtCardPreview() {
     MaterialTheme {
         Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Avec dette
             VirtualDebtCard(
                 debtAmount = 12.50,
-                monthsRemaining = 4,
                 onPayClick = {},
                 dimensions = rememberResponsiveDimensions()
             )
-
-            // Sans dette
             VirtualDebtCard(
                 debtAmount = 0.0,
-                monthsRemaining = 0,
                 onPayClick = {},
                 dimensions = rememberResponsiveDimensions()
             )

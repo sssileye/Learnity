@@ -1,20 +1,47 @@
 package com.miage.learnity.ui.screens.library
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.miage.learnity.data.Course
 import com.miage.learnity.repository.CourseRepository
+import com.miage.learnity.repository.UserProgressRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+
+enum class CourseSortOrder {
+    ALPHABETICAL,
+    FAVORITES,
+    PROGRESSION
+}
+
 class LibraryViewModel(
-    private val courseRepository: CourseRepository = CourseRepository()
+    private val courseRepository: CourseRepository = CourseRepository(),
+    private val progressRepository: UserProgressRepository = UserProgressRepository()
 ) : ViewModel() {
 
-    private val _courses = MutableStateFlow<List<Course>>(emptyList())
-    val courses: StateFlow<List<Course>> = _courses.asStateFlow()
+    private val auth = FirebaseAuth.getInstance()
+
+
+    private val _rawCourses = MutableStateFlow<List<Course>>(emptyList())
+
+    private val _sortOrder = MutableStateFlow(CourseSortOrder.ALPHABETICAL)
+    val sortOrder: StateFlow<CourseSortOrder> = _sortOrder.asStateFlow()
+
+    val courses: StateFlow<List<Course>> = combine(_rawCourses, _sortOrder) { rawList, order ->
+        applySort(rawList, order)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -27,13 +54,15 @@ class LibraryViewModel(
     }
 
     fun loadCourses() {
+        val userId = auth.currentUser?.uid
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
-            courseRepository.getAllCourses()
+
+            courseRepository.getAllCourses(userId)
                 .onSuccess { courses ->
-                    _courses.value = courses
+                    _rawCourses.value = courses
                 }
                 .onFailure { exception ->
                     _error.value = exception.message ?: "Erreur de chargement"
@@ -43,8 +72,45 @@ class LibraryViewModel(
         }
     }
 
+    fun updateSortOrder(newOrder: CourseSortOrder) {
+        _sortOrder.value = newOrder
+    }
+
+    fun toggleFavorite(courseId: String, currentIsFavorite: Boolean) {
+        // ⭐ On récupère d'abord l'objet Course complet dans la liste actuelle
+        val courseToUpdate = _rawCourses.value.find { it.id == courseId } ?: return
+        val nextState = !currentIsFavorite
+
+        viewModelScope.launch {
+            // ✅ On envoie l'objet entier au repository pour copier le titre
+            progressRepository.toggleCourseFavorite(
+                course = courseToUpdate,
+                isFavorite = nextState
+            ).onSuccess {
+                // Mise à jour locale immédiate pour une UI réactive
+                _rawCourses.value = _rawCourses.value.map {
+                    if (it.id == courseId) it.copy(isFavorite = nextState) else it
+                }
+                Log.d("DEBUG_FAV", "Matière '${courseToUpdate.title}' basculée vers: $nextState")
+            }.onFailure { e ->
+                Log.e("DEBUG_FAV", "Erreur toggle favori : ${e.message}")
+            }
+        }
+    }
+
+    private fun applySort(list: List<Course>, order: CourseSortOrder): List<Course> {
+        return when (order) {
+            CourseSortOrder.ALPHABETICAL -> list.sortedBy { it.title }
+            CourseSortOrder.FAVORITES -> list.sortedWith(
+                compareByDescending<Course> { it.isFavorite }.thenBy { it.title }
+            )
+            CourseSortOrder.PROGRESSION -> {
+                list.sortedBy { it.id }
+            }
+        }
+    }
+
     fun refresh() {
         loadCourses()
     }
 }
-

@@ -79,7 +79,7 @@ fun QuizDuJourHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "🔄 MODE RÉVISION",
+                            "MODE RÉVISION",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF42A5F5),
                             fontSize = 16.sp
@@ -105,14 +105,14 @@ fun QuizDuJourHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "✨ MODE DÉCOUVERTE",
+                            "MODE DÉCOUVERTE",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF7E57C2),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "• Quiz sur des chapitres que tu N'AS PAS encore consultés\n" +
+                            "• Quiz sur des chapitres ALEATOIRES (consultés ou non)\n" +
                                     "• Découvre de nouveaux concepts\n" +
                                     "• Te motive à explorer de nouveaux cours",
                             fontSize = 13.sp,
@@ -131,7 +131,7 @@ fun QuizDuJourHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "🎁 RÉCOMPENSES",
+                            "RÉCOMPENSES",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF66BB6A),
                             fontSize = 16.sp
@@ -140,8 +140,7 @@ fun QuizDuJourHelpDialog(onDismiss: () -> Unit) {
                         Text(
                             "• Max 10 Unity Points (1 par bonne réponse)\n" +
                                     "• Bonus +5 points si sans-faute (10/10)\n" +
-                                    "• Winstreak : multiplicateur de points si régulier\n" +
-                                    "• Objectif hebdomadaire : 4 QDJ/semaine",
+                                    "• Winstreak : multiplicateur de points si régulier\n",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
@@ -184,7 +183,7 @@ fun QuizDuJourHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "💡 ASTUCE",
+                            "ASTUCE",
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                             fontSize = 16.sp
@@ -256,7 +255,7 @@ fun DetteVirtuelleHelpDialog(onDismiss: () -> Unit) {
 
                 // Description
                 Text(
-                    "La Dette Virtuelle (ou \"Redevance de Soutien\") est un système qui te responsabilise dans ton apprentissage.",
+                    "La Dette Virtuelle est un système qui te responsabilise dans ton apprentissage.",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -265,7 +264,7 @@ fun DetteVirtuelleHelpDialog(onDismiss: () -> Unit) {
 
                 // Comment ça marche
                 Text(
-                    "💡 COMMENT ÇA MARCHE ?",
+                    "COMMENT ÇA MARCHE ?",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.primary
@@ -287,16 +286,16 @@ fun DetteVirtuelleHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "📈 QUAND LA DETTE AUGMENTE",
+                            "QUAND LA DETTE AUGMENTE",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFF5252),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "• Quiz du Jour non fait avant minuit : +X€\n" +
-                                    "• Chaque mauvaise réponse au QDJ : +0,10X€\n" +
-                                    "  (Ex: si X=2€, chaque erreur = +0,20€)",
+                            "Quiz du Jour non fait avant minuit : +X€\n" +
+                                    "Chaque mauvaise réponse au QDJ : +0,10X€\n" +
+                                    "-> (Ex: si X=2€, chaque erreur = +0,20€)",
                             fontSize = 13.sp,
                             lineHeight = 20.sp,
                             color = Color(0xFFFF5252)
@@ -314,19 +313,16 @@ fun DetteVirtuelleHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "✅ COMMENT SOLDER MA DETTE ?",
+                            "COMMENT SOLDER MA DETTE ?",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF66BB6A),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "1️⃣ DON RÉEL\n" +
-                                    "   → Fais un don à une association partenaire\n" +
-                                    "   → Montant = ta dette actuelle\n\n" +
-                                    "2️⃣ RACHAT PAR L'EFFORT\n" +
-                                    "   → Réussis des quiz avec sans-faute\n" +
-                                    "   → Ex: 3 sans-faute = -1€ de dette",
+                            "DON RÉEL\n" +
+                                    " Fais un don à une association partenaire\n" +
+                                    " Montant = ta dette actuelle\n\n",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
@@ -343,17 +339,17 @@ fun DetteVirtuelleHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "ℹ️ BON À SAVOIR",
+                            "BON À SAVOIR",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF42A5F5),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "• La dette est VIRTUELLE (pas d'argent réel prélevé)\n" +
-                                    "• C'est un miroir de ton engagement\n" +
-                                    "• Tu peux ajuster \"X\" dans ton profil\n" +
-                                    "• Plus tu es régulier, moins tu accumules",
+                            "La dette est VIRTUELLE (pas d'argent réel prélevé)\n" +
+                                    "C'est un miroir de ton engagement\n" +
+                                    "Tu peux ajuster \"X\" dans ton profil\n" +
+                                    "Plus tu es régulier, moins tu accumules",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
@@ -432,20 +428,20 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "📊 BARÈME DE BASE",
+                            "BARÈME DE BASE",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF42A5F5),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "• 1 bonne réponse = 1 Unity Point\n\n" +
+                            "1 bonne réponse = 1 Unity Point\n\n" +
                                     "Quiz Chapitre (5 questions)\n" +
-                                    "→ Max 5 pts\n\n" +
+                                    " -> Max 5 pts\n\n" +
                                     "Quiz du Jour (10 questions)\n" +
-                                    "→ Max 10 pts\n\n" +
+                                    " -> Max 10 pts\n\n" +
                                     "Examen Blanc (20 questions)\n" +
-                                    "→ Max 20 pts",
+                                    " -> Max 20 pts",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
@@ -462,7 +458,7 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "🎯 BONUS \"PERFECT\"",
+                            "BONUS \"PERFECT\"",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFFA726),
                             fontSize = 16.sp
@@ -470,9 +466,9 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "Sans-faute = Bonus significatif !\n\n" +
-                                    "• Quiz Chapitre (5/5) : +3 pts\n" +
-                                    "• Quiz du Jour (10/10) : +5 pts\n" +
-                                    "• Examen Blanc (20/20) : +10 pts",
+                                    "- Quiz Chapitre (5/5) : +3 pts\n" +
+                                    "- Quiz du Jour (10/10) : +5 pts\n" +
+                                    "- Examen Blanc (20/20) : +10 pts",
                             fontSize = 13.sp,
                             lineHeight = 20.sp,
                             color = Color(0xFFFFA726)
@@ -490,7 +486,7 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "🔥 WINSTREAK (QDJ uniquement)",
+                            "WINSTREAK (QDJ uniquement)",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF66BB6A),
                             fontSize = 16.sp
@@ -498,10 +494,9 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "Multiplicateur de régularité :\n\n" +
-                                    "• 3 jours consécutifs : x1.1\n" +
-                                    "• 7 jours : x1.2\n" +
-                                    "• 15 jours : x1.5\n" +
-                                    "• 30+ jours : x2.0 🔥\n\n" +
+                                    "- 10 jours consécutifs : x2.0\n" +
+                                    "- 20 jours : x3.0\n" +
+                                    "- 30+ jours : x4.0 \n\n" +
                                     "⚠️ 1 jour manqué = retour à zéro",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
@@ -519,16 +514,16 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "🎯 OBJECTIF",
+                            "OBJECTIF",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF7E57C2),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Les Unity Points remplissent une barre de progression.\n\n" +
-                                    "Seuil de don : 2000 points\n" +
-                                    "→ Débloque la possibilité de faire un don à ton association",
+                            text = "Les UP servent de bouclier : 10 UP = 1 jour d'absence effacé.\n\n" +
+                                    "Exemple : Avec 25 UP pour 3 jours d'absence, 20 UP couvrent 2 jours. Seul le 3ème génère une pénalité.\n\n" +
+                                    "Ton impact social (Dette Virtuelle) reste lié à tes quiz.",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
@@ -598,18 +593,18 @@ fun TypesQuizHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "📖 QUIZ DE CHAPITRE",
+                            "QUIZ DE CHAPITRE",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF42A5F5),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "• 5 questions sur UN chapitre spécifique\n" +
-                                    "• Accessible après avoir consulté le contenu\n" +
-                                    "• Max 5 Unity Points (+3 bonus si 5/5)\n" +
-                                    "• Pas d'impact sur la dette\n" +
-                                    "• Peut être refait autant de fois que voulu",
+                            "5 questions sur UN chapitre spécifique\n" +
+                                    "Accessible après avoir consulté le contenu\n" +
+                                    "Max 5 Unity Points (+3 bonus si 5/5)\n" +
+                                    "Pas d'impact sur la dette\n" +
+                                    "Peut être refait autant de fois que voulu",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
@@ -626,19 +621,19 @@ fun TypesQuizHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "🌟 QUIZ DU JOUR",
+                            "QUIZ DU JOUR",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF7E57C2),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "• 10 questions mélangées (différents chapitres)\n" +
-                                    "• Change chaque jour\n" +
-                                    "• Max 10 Unity Points (+5 bonus si 10/10)\n" +
-                                    "• Multiplicateur Winstreak (jusqu'à x2.0)\n" +
-                                    "• Impact sur la dette si raté ou non fait\n" +
-                                    "• Mode Révision OU Mode Découverte",
+                            "10 questions mélangées (différents chapitres)\n" +
+                                    "- Change chaque jour\n" +
+                                    "- Max 10 Unity Points (+5 bonus si 10/10)\n" +
+                                    "- Multiplicateur Winstreak (jusqu'à x2.0)\n" +
+                                    "- Impact sur la dette si raté ou non fait\n" +
+                                    "- Mode Révision OU Mode Découverte",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
@@ -655,77 +650,21 @@ fun TypesQuizHelpDialog(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "🎓 EXAMEN BLANC",
+                            "EXAMEN BLANC",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFFA726),
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "• 20 questions sur TOUT le cours\n" +
-                                    "• Simule un vrai examen\n" +
-                                    "• Max 20 Unity Points (+10 bonus si 20/20)\n" +
-                                    "• Pas d'impact sur la dette\n" +
-                                    "• Plus difficile mais plus de points",
+                            "20 questions sur TOUT le cours\n" +
+                                    "Simule un vrai examen\n" +
+                                    "Max 20 Unity Points (+10 bonus si 20/20)\n" +
+                                    "-> Pas d'impact sur la dette\n" +
+                                    "Plus difficile mais plus de points",
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Tableau comparatif
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "📊 COMPARAISON RAPIDE",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("", modifier = Modifier.weight(1f))
-                            Text("Chapitre", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("QDJ", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("Examen", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("Questions", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("5", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("10", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("20", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("Points max", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("8", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("15", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("30", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("Dette", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("Non", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("Oui", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("Non", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("Winstreak", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("Non", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("Oui", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                            Text("Non", modifier = Modifier.weight(1f), fontSize = 11.sp)
-                        }
                     }
                 }
 
@@ -779,7 +718,7 @@ fun HomeScreenHelpDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "❓ Besoin d'aide ?",
+                        "Besoin d'aide ?",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -788,14 +727,6 @@ fun HomeScreenHelpDialog(
                         Icon(Icons.Default.Close, contentDescription = "Fermer")
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    "Que veux-tu savoir ?",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 

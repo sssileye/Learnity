@@ -36,9 +36,6 @@ class PdfViewerViewModel(
     private var currentCourseId: String = ""
     private var currentChapterId: String = ""
 
-    /**
-     * Charge le contenu PDF (Cours ou FDR) et vérifie si déjà lu
-     */
     fun loadContent(courseId: String, chapterId: String, type: UserProgressRepository.ContentType) {
         currentCourseId = courseId
         currentChapterId = chapterId
@@ -47,20 +44,17 @@ class PdfViewerViewModel(
         viewModelScope.launch {
             _isLoading.value = true
 
-            // 1. Récupérer les infos du chapitre pour avoir l'URL
             courseRepository.getChapter(courseId, chapterId)
                 .onSuccess { chapter ->
                     _chapter.value = chapter
                     _contentUrl.value = if (type == UserProgressRepository.ContentType.FDR) {
-                        chapter.fdrUrl
+                        chapter.fdr
                     } else {
-                        chapter.coursUrl
+                        chapter.cours
                     }
 
-                    // 2. ✅ CORRECTION : Déballer le Result de la progression
                     val progressResult = progressRepository.getChapterProgress(courseId, chapterId)
 
-                    // On récupère les données ou un objet vide par défaut si échec
                     val progress = progressResult.getOrNull() ?: ChapterProgressData()
 
                     _isMarkedAsRead.value = when (type) {
@@ -76,9 +70,6 @@ class PdfViewerViewModel(
         }
     }
 
-    /**
-     * Marque le cours ou la FDR comme lu dans Firebase
-     */
     fun markAsReadOrWatched() {
         if (currentCourseId.isEmpty() || currentChapterId.isEmpty()) return
 

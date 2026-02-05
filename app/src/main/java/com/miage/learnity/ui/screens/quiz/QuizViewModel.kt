@@ -13,11 +13,11 @@ import com.miage.learnity.ui.screens.UserViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.ktx.analytics
 import com.google.firebase.analytics.logEvent
 import com.google.firebase.ktx.Firebase
@@ -27,18 +27,16 @@ class QuizViewModel(
     private val progressRepository: UserProgressRepository = UserProgressRepository()
 ) : ViewModel() {
 
-    // --- États du Quiz ---
     private val _quiz = MutableStateFlow<Quiz?>(null)
     val quiz: StateFlow<Quiz?> = _quiz.asStateFlow()
 
     private val _questions = MutableStateFlow<List<Question>>(emptyList())
     val questions: StateFlow<List<Question>> = _questions.asStateFlow()
 
-    // ⭐ ÉTATS POUR LES TITRES (Initialisés avec "" pour éviter les erreurs de type)
-    private val _courseTitle = MutableStateFlow<String>("")
+    private val _courseTitle = MutableStateFlow("")
     val courseTitle: StateFlow<String> = _courseTitle.asStateFlow()
 
-    private val _chapterTitle = MutableStateFlow<String>("")
+    private val _chapterTitle = MutableStateFlow("")
     val chapterTitle: StateFlow<String> = _chapterTitle.asStateFlow()
 
     private var isResultSaved = false
@@ -59,7 +57,6 @@ class QuizViewModel(
     private val _userAnswers = MutableStateFlow<Map<Int, Int>>(emptyMap())
     val userAnswers: StateFlow<Map<Int, Int>> = _userAnswers.asStateFlow()
 
-    // --- États d'Affichage & Résultats ---
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -78,45 +75,34 @@ class QuizViewModel(
     private val _sessionPointsGained = MutableStateFlow(0)
     val sessionPointsGained: StateFlow<Int> = _sessionPointsGained.asStateFlow()
 
+    private val _sessionDebtAdded = MutableStateFlow(0.0)
+    val sessionDebtAdded: StateFlow<Double> = _sessionDebtAdded.asStateFlow()
+
+    private val _multiplierUsed = MutableStateFlow(1.0)
+    val multiplierUsed: StateFlow<Double> = _multiplierUsed.asStateFlow()
+
+    private val _isFirstAttempt = MutableStateFlow(true)
+    val isFirstAttempt: StateFlow<Boolean> = _isFirstAttempt.asStateFlow()
+
     private val _isCurrentAnswerRevealed = MutableStateFlow(false)
     val isCurrentAnswerRevealed: StateFlow<Boolean> = _isCurrentAnswerRevealed.asStateFlow()
 
-    // ============================================
-    // ⭐ GESTION DU CONTEXTE (TITRES)
-    // ============================================
 
     private suspend fun fetchContextTitles(courseId: String, chapterId: String?) {
         try {
-            // 1. Cas Daily Quiz
             if (courseId == "GLOBAL" || chapterId == "DISCOVERY" || chapterId == "REVIEW") {
                 _courseTitle.value = "Quiz du Jour"
                 _chapterTitle.value = if (chapterId == "DISCOVERY") "Mode Découverte" else "Mode Révisions"
                 return
             }
-
-            // 2. Charger le titre du cours (UE)
-            repository.getCourseDetails(courseId).onSuccess { course ->
-                _courseTitle.value = course.title
-            }
-
-            // 3. Charger le titre du chapitre
+            repository.getCourseDetails(courseId).onSuccess { _courseTitle.value = it.title }
             when (chapterId) {
                 "ALL_CHAPTERS" -> _chapterTitle.value = "Synthèse de l'UE"
                 null -> _chapterTitle.value = ""
-                else -> {
-                    repository.getChapterDetails(courseId, chapterId).onSuccess { chapter ->
-                        _chapterTitle.value = chapter.title
-                    }
-                }
+                else -> repository.getChapterDetails(courseId, chapterId).onSuccess { _chapterTitle.value = it.title }
             }
-        } catch (e: Exception) {
-            Log.e("QuizVM", "Erreur fetchContextTitles: ${e.message}")
-        }
+        } catch (e: Exception) { Log.e("QuizVM", "Erreur fetchContextTitles: ${e.message}") }
     }
-
-    // ============================================
-    // CHARGEMENT DES MODES
-    // ============================================
 
     fun loadQuiz(courseId: String, chapterId: String) {
         isResultSaved = false
@@ -124,9 +110,9 @@ class QuizViewModel(
             _isLoading.value = true
             fetchContextTitles(courseId, chapterId)
             fetchUserProgress(courseId, chapterId)
-            repository.getQuizForChapter(courseId, chapterId).onSuccess { loadedQuiz ->
-                _quiz.value = loadedQuiz
-                _questions.value = loadedQuiz.questions
+            repository.getQuizForChapter(courseId, chapterId).onSuccess {
+                _quiz.value = it
+                _questions.value = it.questions
             }
             _isLoading.value = false
         }
@@ -141,9 +127,9 @@ class QuizViewModel(
                 _oldBestScore.value = progress?.bestScore ?: 0
                 _wasAlreadyCompleted.value = (progress?.bestScore ?: 0) >= 20
             }
-            repository.getMegaQuizForCourse(courseId).onSuccess { loadedQuiz ->
-                _quiz.value = loadedQuiz
-                _questions.value = loadedQuiz.questions
+            repository.getMegaQuizForCourse(courseId).onSuccess {
+                _quiz.value = it
+                _questions.value = it.questions
             }
             _isLoading.value = false
         }
@@ -151,41 +137,17 @@ class QuizViewModel(
 
     fun loadDailyQuiz(isDiscoveryMode: Boolean) {
         isResultSaved = false
-
         viewModelScope.launch {
             _isLoading.value = true
-
-            // 1. On vérifie d'abord s'il existe UN score aujourd'hui, peu importe le mode
-            // Cela permet de verrouiller la session sur le premier mode choisi
             repository.getLastDailyQuizScore().onSuccess { result ->
-                if (result != null) {
-                    _oldBestScore.value = result.first
-                    android.util.Log.d("QuizVM_Debug", "📥 DB -> Score existant trouvé (${result.first}). Mode verrouillé pour aujourd'hui.")
-                } else {
-                    _oldBestScore.value = 0
-                    android.util.Log.d("QuizVM_Debug", "📥 DB -> Aucun score. Première tentative du jour.")
-                }
-            }.onFailure { e ->
-                android.util.Log.e("QuizVM_Debug", "❌ Erreur check score: ${e.message}")
+                _oldBestScore.value = result?.first ?: 0
             }
-
-            // 2. Détermination du mode à charger
             val mode = if (isDiscoveryMode) "DISCOVERY" else "REVIEW"
-            android.util.Log.d("QuizVM_Debug", "🚀 Chargement du contenu - Mode: $mode")
-
             fetchContextTitles("GLOBAL", mode)
-
-            // 3. Chargement effectif du quiz
-            repository.getDailyQuiz(isDiscoveryMode) { progress ->
-                _loadingProgress.value = progress
-            }.onSuccess { dailyQuiz ->
-                _quiz.value = dailyQuiz
-                _questions.value = dailyQuiz.questions
-                android.util.Log.d("QuizVM_Debug", "✅ Questions chargées avec succès.")
-            }.onFailure { e ->
-                android.util.Log.e("QuizVM_Debug", "❌ Erreur chargement questions: ${e.message}")
-            }
-
+            repository.getDailyQuiz(isDiscoveryMode) { _loadingProgress.value = it }.onSuccess {
+                _quiz.value = it
+                _questions.value = it.questions
+            }.onFailure { Log.e("QuizVM", "Erreur QDJ: ${it.message}") }
             _isLoading.value = false
         }
     }
@@ -196,10 +158,6 @@ class QuizViewModel(
             _oldBestScore.value = progress?.bestScore ?: 0
         }
     }
-
-    // ============================================
-    // ⭐ LOGIQUE DE FINALISATION
-    // ============================================
 
     fun processFinalResults(
         quizType: PointsManager.QuizType,
@@ -216,40 +174,31 @@ class QuizViewModel(
         val finalScore = _score.value
         val totalQuestions = _questions.value.size
 
-        // ⭐ LOG DE DIAGNOSTIC INITIAL
-        android.util.Log.d("QuizVM_Debug", "=== FIN DE QUIZ DETECTÉE ===")
-        android.util.Log.d("QuizVM_Debug", "📍 Mode: $chapterId | Score: $finalScore/$totalQuestions")
-        android.util.Log.d("QuizVM_Debug", "🔄 Valeur de _oldBestScore en mémoire: ${_oldBestScore.value}")
-
-        // 1. Détermination du mode (Premier essai vs Entraînement)
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val isDailyQuiz = (chapterId == "REVIEW" || chapterId == "DISCOVERY")
-        val isAlreadyDone = isDailyQuiz && _oldBestScore.value > 0
 
-        if (isAlreadyDone) {
-            android.util.Log.w("QuizVM_Debug", "⚠️ VERROU ACTIVÉ : Un score de ${_oldBestScore.value} existe déjà. Mode Entraînement activé.")
-        } else {
-            android.util.Log.i("QuizVM_Debug", "✅ VERROU DÉSACTIVÉ : Premier essai détecté (ou nouveau record hors QDJ).")
-        }
+        val firstAttemptToday = if (isDailyQuiz) profile.lastDailyQuizDate != todayStr else true
+        _isFirstAttempt.value = firstAttemptToday
 
-        // 2. Calcul des résultats théoriques
         val calculation = PointsManager.calculateResults(
             type = quizType,
             score = finalScore,
             totalQuestions = totalQuestions,
             oldBestScore = _oldBestScore.value,
             profile = profile,
-            wasAlreadyPerfect = _wasAlreadyCompleted.value
+            wasAlreadyPerfect = _wasAlreadyCompleted.value,
+            isFirstAttemptToday = firstAttemptToday
         )
 
         _sessionPointsGained.value = calculation.progressionPoints + calculation.bonusGained
+        _sessionDebtAdded.value = calculation.debtAdded
+        _multiplierUsed.value = calculation.multiplierUsed
 
-        // 3. Analytics (Uniquement premier essai QDJ)
-        if (isDailyQuiz && !isAlreadyDone) {
-            com.google.firebase.ktx.Firebase.analytics.logEvent("qdj_completed_today") {
+        if (isDailyQuiz && firstAttemptToday) {
+            Firebase.analytics.logEvent("qdj_completed_today") {
                 param("score", finalScore.toLong())
                 param("mode", chapterId)
             }
-            android.util.Log.d("LearnityAnalytics", "📊 Firebase Analytics : Événement qdj_completed_today envoyé.")
         }
 
         viewModelScope.launch {
@@ -263,11 +212,9 @@ class QuizViewModel(
                     timestamp = System.currentTimeMillis()
                 )
 
-                // 4. Sauvegarde historique (le Repository gère l'unicité en DB)
                 repository.saveQuizHistory(courseId, chapterId, historyEntry, _userAnswers.value)
 
-                // 5. Mise à jour réelle du profil Firestore
-                if (!isAlreadyDone) {
+                if (firstAttemptToday || (!isDailyQuiz && finalScore > _oldBestScore.value)) {
                     userViewModel.repository.updateStatsWithHighscore(
                         courseId = courseId,
                         chapterId = chapterId,
@@ -278,27 +225,14 @@ class QuizViewModel(
                         bonusCalculated = calculation.bonusGained,
                         debtCalculated = calculation.debtAdded
                     )
-                    android.util.Log.d("QuizVM_Debug", "💰 Firestore mis à jour : +${calculation.progressionPoints} pts / Dette: ${calculation.debtAdded}€")
-                } else {
-                    android.util.Log.w("QuizVM_Debug", "🚫 Firestore IGNORE : Pas de modification de points/dette (Doublon QDJ).")
                 }
 
-                // 6. Rafraîchissement UI
                 userViewModel.refreshProgressionStats()
                 userViewModel.refreshDailyStats()
 
-                android.util.Log.d("QuizVM_Debug", "🏁 Fin du process. Homepage prête à être synchronisée.")
-
-            } catch (e: Exception) {
-                android.util.Log.e("QuizVM_Debug", "❌ ERREUR FATALE dans processFinalResults: ${e.message}")
-            }
+            } catch (e: Exception) { Log.e("QuizVM", "Erreur sauvegarde: ${e.message}") }
         }
     }
-
-    // ============================================
-    // LOGIQUE DU JEU & NAVIGATION
-    // ============================================
-
     fun selectAnswer(selectedIndex: Int) {
         if (!_isCurrentAnswerRevealed.value && _currentQuestionIndex.value >= _maxIndexReached.value) {
             _userAnswers.value = _userAnswers.value + (_currentQuestionIndex.value to selectedIndex)

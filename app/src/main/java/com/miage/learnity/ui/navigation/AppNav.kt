@@ -17,26 +17,14 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
     val nav = rememberNavController()
     val state by vm.state.collectAsState()
 
+    // ✅ ÉTAPE 1 : Déterminer la destination de départ dynamiquement
+    // Si state.user n'est pas nul au lancement, on va directement à la Homepage
+    val startDest = if (state.user != null) Screen.Homepage.route else Screen.Authentication.route
+
     NavHost(
         navController = nav,
-        startDestination = Screen.Splash.route
+        startDestination = startDest // ✅ Applique la destination dynamique
     ) {
-        composable(Screen.Splash.route) {
-            SplashScreen(
-                onSplashFinished = {
-                    if (state.user != null) {
-                        nav.navigate(Screen.Homepage.route) {
-                            popUpTo(Screen.Splash.route) { inclusive = true }
-                        }
-                    } else {
-                        nav.navigate(Screen.Authentication.route) {
-                            popUpTo(Screen.Splash.route) { inclusive = true }
-                        }
-                    }
-                }
-            )
-        }
-
         composable(Screen.Authentication.route) {
             AuthScreen(
                 onLoginClick = { nav.navigate(Screen.SignIn.route) },
@@ -47,20 +35,16 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
         composable(Screen.Inscription.route) {
             Inscription(
                 onBackClick = { nav.popBackStack() },
-                onInscriptionSuccess = { email, password, firstName, lastName ->  // ✅ AJOUT
-                    vm.signUp(email, password, firstName, lastName)
+                onInscriptionSuccess = { email, password, firstName, lastName ->
+                    vm.signUp(email, password, firstName, lastName, 1.0)
                 },
                 isLoading = state.isLoading,
                 error = state.error
             )
 
-            // Navigation automatique vers HomePage après inscription réussie
             LaunchedEffect(state.user) {
                 if (state.user != null) {
-                    nav.navigate(Screen.Homepage.route) {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    goToHomepage(nav)
                 }
             }
         }
@@ -69,9 +53,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             SignInScreen(
                 onBackClick = { nav.popBackStack() },
                 onSignIn = { email, password -> vm.signIn(email, password) },
-                onForgotPassword = {  // ✅ CONNECTÉ
-                    nav.navigate(Screen.ResetPassword.route)
-                },
+                onForgotPassword = { /* TODO */ },
                 onNavigateToSignUp = { nav.navigate(Screen.Inscription.route) },
                 isLoading = state.isLoading,
                 error = state.error
@@ -79,23 +61,6 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             LaunchedEffect(state.user) {
                 if (state.user != null) goToHomepage(nav)
             }
-        }
-
-        // ✅ NOUVELLE ROUTE - Reset Password
-        composable(Screen.ResetPassword.route) {
-            ResetPasswordScreen(
-                onBackClick = { nav.popBackStack() },
-                onResetPassword = { email ->
-                    vm.resetPassword(email)
-                },
-                onResetSuccess = {
-                    vm.clearResetPasswordSuccess()
-                    nav.popBackStack()
-                },
-                isLoading = state.isLoading,
-                error = state.error,
-                success = state.resetPasswordSuccess
-            )
         }
 
         composable(Screen.Homepage.route) {
@@ -114,6 +79,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
 
 private fun goToHomepage(nav: NavHostController) {
     nav.navigate(Screen.Homepage.route) {
+        // ✅ On nettoie TOUTE la pile pour éviter que le bouton "Retour" ne ramène au Login
         popUpTo(0) { inclusive = true }
         launchSingleTop = true
     }

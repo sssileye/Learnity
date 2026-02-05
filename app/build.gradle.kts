@@ -76,6 +76,8 @@ dependencies {
     // --- BACKGROUND TASKS ---
     // On garde une seule version de WorkManager (la plus récente via libs)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.foundation)
+    implementation(libs.androidx.compose.ui.text)
 
     // --- TESTS ---
     testImplementation(libs.junit)
