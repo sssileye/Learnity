@@ -1,20 +1,22 @@
 package com.miage.learnity.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
@@ -23,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -34,15 +37,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.R
 import com.miage.learnity.ui.utils.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileEditorScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
-    // ✅ DIMENSIONS RESPONSIVES
     val dimensions = rememberResponsiveDimensions()
-
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
@@ -62,7 +64,6 @@ fun ProfileEditorScreen(
                 )
                 onNavigateBack()
             },
-            viewModel = viewModel,
             dimensions = dimensions
         )
     }
@@ -75,98 +76,118 @@ private fun ProfileEditor(
     onSave: (String, String, Int, Double) -> Unit,
     onCancel: () -> Unit,
     isLoading: Boolean,
-    viewModel: ProfileViewModel,
     dimensions: ResponsiveDimensions
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
-    // États pour les champs
     var firstName by remember { mutableStateOf(profile.firstName) }
     var lastName by remember { mutableStateOf(profile.lastName) }
     var redevance by remember { mutableStateOf(profile.redevanceSoutienUnitaire.toString()) }
 
-    // État pour l'avatar sélectionné
-    var selectedAvatarResId by remember {
-        val currentId = context.resources.getIdentifier(
-            profile.photoUrl,
-            "drawable",
-            context.packageName
-        )
-        mutableStateOf(if (currentId != 0) currentId else R.drawable.avatar_b1)
+    val initialAvatarResId = remember {
+        val id = context.resources.getIdentifier(profile.photoUrl, "drawable", context.packageName)
+        if (id != 0) id else R.drawable.avatar_b1
     }
+    var selectedAvatarResId by remember { mutableStateOf(initialAvatarResId) }
 
-    val scrollState = rememberScrollState()
+    val pagerState = rememberPagerState(
+        initialPage = availableAvatars.indexOf(selectedAvatarResId).coerceAtLeast(0),
+        pageCount = { availableAvatars.size }
+    )
+
+    LaunchedEffect(pagerState.currentPage) {
+        selectedAvatarResId = availableAvatars[pagerState.currentPage]
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)  // ✅ DARK MODE: background adaptatif
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(horizontal = dimensions.screenPaddingHorizontal)
     ) {
-        Spacer(Modifier.height(dimensions.profilePictureSize * 0.63f))
+        Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))
 
-        // ✅ TITRE - RESPONSIVE + DARK MODE
         Text(
             text = "Modifier mon profil",
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onBackground,  // ✅ DARK MODE: texte adaptatif
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = dimensions.titleLarge * 0.86f
             )
         )
         Text(
-            text = "Choisissez votre avatar et modifiez vos infos",
+            text = "Choisissez votre avatar",
             style = MaterialTheme.typography.bodyMedium.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant,  // ✅ DARK MODE: texte secondaire adaptatif
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = dimensions.bodyMedium
             )
         )
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
+        Spacer(Modifier.height(dimensions.itemSpacing * 2f))
 
-        // ✅ TITRE SECTION AVATARS - RESPONSIVE + DARK MODE
-        Text(
-            text = "Sélectionnez un avatar",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = dimensions.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground  // ✅ DARK MODE
-            ),
-            modifier = Modifier.padding(bottom = dimensions.itemSpacing)
-        )
-
-        // ✅ GRILLE D'AVATARS - RESPONSIVE + DARK MODE
-        Box(
-            modifier = Modifier.height(dimensions.profilePictureSize * 2.92f)
+        // 🎡 CARROUSEL D'AVATARS AVEC BOUCLE INFINIE
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
-                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
-                modifier = Modifier.fillMaxSize()
+            // Flèche Gauche (Reculer avec boucle)
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        val targetPage = if (pagerState.currentPage > 0) pagerState.currentPage - 1
+                        else availableAvatars.size - 1
+                        pagerState.animateScrollToPage(targetPage)
+                    }
+                },
+                modifier = Modifier.size(48.dp)
             ) {
-                items(availableAvatars) { avatarId ->
-                    val isSelected = selectedAvatarResId == avatarId
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
+                    contentDescription = null,
+                    tint = Color(0xFF673AB7)
+                )
+            }
 
+            // Pager centré sans débordement visible des voisins
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(dimensions.profilePictureSize * 1.1f),
+                contentPadding = PaddingValues(horizontal = 0.dp), // Nettoyage du centrage
+                verticalAlignment = Alignment.CenterVertically
+            ) { page ->
+                val avatarId = availableAvatars[page]
+                val isSelected = (selectedAvatarResId == avatarId)
+
+                val scale by animateFloatAsState(if (isSelected) 1.1f else 0.7f, label = "zoom")
+                val alpha by animateFloatAsState(if (isSelected) 1f else 0.2f, label = "alpha")
+
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(dimensions.iconSizeLarge * 1.46f)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                this.alpha = alpha
+                            }
+                            .size(dimensions.profilePictureSize * 0.9f)
                             .clip(CircleShape)
-                            .background(
-                                if (isSelected)
-                                    Color(0xFF673AB7).copy(alpha = 0.1f)
-                                else
-                                    Color.Transparent
-                            )
+                            .background(if (isSelected) Color(0xFF673AB7).copy(0.1f) else Color.Transparent)
                             .border(
                                 width = if (isSelected) 3.dp else 1.dp,
-                                color = if (isSelected)
-                                    Color(0xFF673AB7)
-                                else
-                                    MaterialTheme.colorScheme.outline,  // ✅ DARK MODE: border adaptatif
+                                color = if (isSelected) Color(0xFF673AB7) else MaterialTheme.colorScheme.outline,
                                 shape = CircleShape
                             )
-                            .clickable { selectedAvatarResId = avatarId }
+                            .clickable { scope.launch { pagerState.animateScrollToPage(page) } },
+                        contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = avatarId),
@@ -177,11 +198,29 @@ private fun ProfileEditor(
                     }
                 }
             }
+
+            // Flèche Droite (Avancer avec boucle)
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        val targetPage = if (pagerState.currentPage < availableAvatars.size - 1) pagerState.currentPage + 1
+                        else 0
+                        pagerState.animateScrollToPage(targetPage)
+                    }
+                },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = null,
+                    tint = Color(0xFF673AB7)
+                )
+            }
         }
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
+        Spacer(Modifier.height(dimensions.itemSpacing * 2f))
 
-        // ✅ CHAMPS DE SAISIE - RESPONSIVE + DARK MODE
+        // --- FORMULAIRE ---
         CustomEditField(
             value = firstName,
             onValueChange = { firstName = it },
@@ -210,26 +249,18 @@ private fun ProfileEditor(
             dimensions = dimensions
         )
 
-        Spacer(Modifier.height(dimensions.itemSpacing * 3.33f))
+        Spacer(Modifier.height(32.dp))
 
-        // ✅ BOUTONS - RESPONSIVE + DARK MODE
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.33f)
+            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+            horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
         ) {
             OutlinedButton(
                 onClick = onCancel,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(dimensions.buttonHeight),
-                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)  // ✅ DARK MODE: border adaptatif
+                modifier = Modifier.weight(1f).height(dimensions.buttonHeight),
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge)
             ) {
-                Text(
-                    "Annuler",
-                    color = MaterialTheme.colorScheme.onSurface,  // ✅ DARK MODE: texte adaptatif
-                    fontSize = dimensions.bodyLarge
-                )
+                Text("Annuler", color = MaterialTheme.colorScheme.onSurface)
             }
 
             Button(
@@ -237,32 +268,18 @@ private fun ProfileEditor(
                     val redValue = redevance.toDoubleOrNull() ?: 0.0
                     onSave(firstName, lastName, selectedAvatarResId, redValue)
                 },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(dimensions.buttonHeight),
+                modifier = Modifier.weight(1f).height(dimensions.buttonHeight),
                 shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
-                enabled = !isLoading &&
-                        firstName.isNotBlank() &&
-                        lastName.isNotBlank() &&
-                        redevance.toDoubleOrNull() != null
+                enabled = !isLoading && firstName.isNotBlank() && lastName.isNotBlank() && redevance.toDoubleOrNull() != null
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(dimensions.iconSizeMedium),
-                        color = Color.White
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                 } else {
-                    Text(
-                        "Enregistrer",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = dimensions.bodyLarge
-                    )
+                    Text("Enregistrer", fontWeight = FontWeight.Bold)
                 }
             }
         }
-
-        Spacer(Modifier.height(dimensions.screenPaddingVertical * 2))
     }
 }
 
@@ -276,76 +293,41 @@ fun CustomEditField(
     keyboardType: KeyboardType = KeyboardType.Text,
     dimensions: ResponsiveDimensions
 ) {
-    Column(
-        modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.67f)
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(label, fontSize = dimensions.bodyMedium) },
-            leadingIcon = {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = Color(0xFF673AB7),  // Couleur de marque, on garde le violet
-                    modifier = Modifier.size(dimensions.iconSizeMedium)
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
-            isError = errorText.isNotEmpty(),
-            supportingText = {
-                if (errorText.isNotEmpty()) {
-                    Text(
-                        errorText,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = dimensions.bodySmall
-                    )
-                }
-            },
-            singleLine = true,
-            textStyle = LocalTextStyle.current.copy(
-                fontSize = dimensions.bodyLarge
-            ),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF673AB7),
-                focusedLabelColor = Color(0xFF673AB7),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline  // ✅ DARK MODE: border adaptatif
-            )
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        leadingIcon = { Icon(icon, null, tint = Color(0xFF673AB7)) },
+        modifier = Modifier.fillMaxWidth().padding(bottom = dimensions.itemSpacing),
+        shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
+        isError = errorText.isNotEmpty(),
+        supportingText = { if (errorText.isNotEmpty()) Text(errorText) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color(0xFF673AB7),
+            focusedLabelColor = Color(0xFF673AB7)
         )
-    }
+    )
 }
 
-// ✅ PREVIEWS MULTI-TAILLES
-@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
 @Composable
 fun ProfileEditorPreview() {
     MaterialTheme {
-        val dimensions = rememberResponsiveDimensions()
+        val dims = rememberResponsiveDimensions()
         ProfileEditor(
             profile = com.miage.learnity.data.UserProfile(
                 firstName = "Axel",
                 lastName = "H",
-                email = "axel@learnity.fr",
                 photoUrl = "avatar_b1",
                 redevanceSoutienUnitaire = 1.0
             ),
-            availableAvatars = listOf(
-                R.drawable.avatar_b1, R.drawable.avatar_b2, R.drawable.avatar_b3,
-                R.drawable.avatar_o1, R.drawable.avatar_o2, R.drawable.avatar_o3,
-                R.drawable.avatar_v1, R.drawable.avatar_v2, R.drawable.avatar_v3,
-                R.drawable.avatar_r1, R.drawable.avatar_r2, R.drawable.avatar_r3,
-                R.drawable.avatar_vivi1
-            ),
+            availableAvatars = listOf(R.drawable.avatar_b1, R.drawable.avatar_b2, R.drawable.avatar_b3),
             onSave = { _, _, _, _ -> },
             onCancel = {},
             isLoading = false,
-            viewModel = viewModel(),
-            dimensions = dimensions
+            dimensions = dims
         )
     }
 }

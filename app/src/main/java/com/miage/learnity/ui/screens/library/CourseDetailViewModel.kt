@@ -2,6 +2,7 @@ package com.miage.learnity.ui.screens.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.miage.learnity.data.Chapter
 import com.miage.learnity.data.Course
 import com.miage.learnity.data.CourseProgress
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -20,8 +22,10 @@ import kotlinx.coroutines.launch
 class CourseDetailViewModel(
     private val courseRepository: CourseRepository = CourseRepository(),
     private val progressRepository: UserProgressRepository = UserProgressRepository(),
-    private val quizRepository: QuizRepository = QuizRepository() // ✅ Ajouté pour l'historique
+    private val quizRepository: QuizRepository = QuizRepository()
 ) : ViewModel() {
+
+    private val auth = FirebaseAuth.getInstance()
 
     private val _course = MutableStateFlow<Course?>(null)
     val course: StateFlow<Course?> = _course.asStateFlow()
@@ -29,7 +33,6 @@ class CourseDetailViewModel(
     private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
     val chapters: StateFlow<List<Chapter>> = _chapters.asStateFlow()
 
-    // ⭐ État pour l'historique des Examens Blancs
     private val _examHistory = MutableStateFlow<List<QuizHistory>>(emptyList())
     val examHistory: StateFlow<List<QuizHistory>> = _examHistory.asStateFlow()
 
@@ -42,7 +45,6 @@ class CourseDetailViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // Calcul de la progression en temps réel
     val courseProgress: StateFlow<CourseProgress> = _chapters.map { list ->
         val completed = list.count { it.isQuizCompleted }
         CourseProgress(completedChapters = completed, totalChapters = list.size)
@@ -51,32 +53,94 @@ class CourseDetailViewModel(
     private var baseChapters: List<Chapter> = emptyList()
 
     fun loadCourse(courseId: String) {
+        val userId = auth.currentUser?.uid
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
-            // 1. Charger les détails du cours
-            courseRepository.getCourse(courseId).onSuccess { _course.value = it }
-                .onFailure { _error.value = it.message ?: "Erreur chargement cours" }
+            // 1. Charger les détails du cours (avec favori)
+            courseRepository.getCourse(courseId, userId).onSuccess {
+                _course.value = it
+            }.onFailure {
+                _error.value = "Erreur cours: ${it.message}"
+            }
 
-            // 2. Charger les chapitres
-            courseRepository.getChapters(courseId).onSuccess { chapters ->
+            // 2. Charger les chapitres (avec favoris)
+            courseRepository.getChapters(courseId, userId).onSuccess { chapters ->
                 baseChapters = chapters
                 _chapters.value = chapters
                 startProgressListener(courseId)
-            }.onFailure { _error.value = it.message ?: "Erreur chargement chapitres" }
+            }.onFailure {
+                _error.value = "Erreur chapitres: ${it.message}"
+            }
 
-            // 3. Charger l'historique des examens blancs de cette UE
             loadExamHistory(courseId)
-
             _isLoading.value = false
         }
     }
 
+    // ============================================
+    // ⭐ GESTION DES FAVORIS (UE & CHAPITRES)
+    // ============================================
+
     /**
-     * ✅ RÉCUPÉRATION DE L'HISTORIQUE DES EXAMENS BLANCS
-     * On filtre sur "ALL_CHAPTERS" pour isoler les tentatives d'UE
+     * Alterne le favori de l'UE actuelle
      */
+    fun toggleCourseFavorite() {
+        val currentCourse = _course.value ?: return
+        val nextState = !currentCourse.isFavorite
+
+        viewModelScope.launch {
+            // ✅ On passe l'objet 'currentCourse' complet au lieu de juste l'ID
+            progressRepository.toggleCourseFavorite(
+                course = currentCourse,
+                isFavorite = nextState
+            ).onSuccess {
+                // Mise à jour de l'UI locale pour que le cœur change instantanément
+                _course.value = currentCourse.copy(isFavorite = nextState)
+                println("✅ Matière mise à jour dans les favoris : ${currentCourse.title}")
+            }.onFailure { e ->
+                println("❌ Erreur toggle matière : ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Alterne le favori d'un chapitre spécifique
+     */
+    fun toggleChapterFavorite(chapterId: String, nextState: Boolean) {
+        val courseId = _course.value?.id ?: return
+
+        // ⭐ On récupère l'objet chapitre complet avant de lancer le launch
+        val chapterToUpdate = _chapters.value.find { it.chapterId == chapterId } ?: return
+
+        viewModelScope.launch {
+            // ✅ On passe maintenant l'objet chapitre complet au repository
+            progressRepository.toggleChapterFavorite(
+                courseId = courseId,
+                chapter = chapterToUpdate,
+                isFavorite = nextState
+            ).onSuccess {
+                // Mise à jour de la liste locale pour l'UI
+                _chapters.value = _chapters.value.map {
+                    if (it.chapterId == chapterId) it.copy(isFavorite = nextState) else it
+                }
+                // Mise à jour de la base de référence pour le listener
+                baseChapters = baseChapters.map {
+                    if (it.chapterId == chapterId) it.copy(isFavorite = nextState) else it
+                }
+                println("✅ Chapitre '${chapterToUpdate.title}' mis à jour dans les favoris")
+            }.onFailure { e ->
+                println("❌ Erreur lors du toggle favori : ${e.message}")
+            }
+        }
+
+    }
+
+    // ============================================
+    // LOGIQUE DE PROGRESSION & HISTORIQUE
+    // ============================================
+
     private fun loadExamHistory(courseId: String) {
         viewModelScope.launch {
             quizRepository.getQuizHistory(courseId, "ALL_CHAPTERS").onSuccess { history ->
@@ -87,10 +151,6 @@ class CourseDetailViewModel(
         }
     }
 
-    /**
-     * ✅ ÉCOUTEUR TEMPS RÉEL : Met à jour l'UI dès que l'utilisateur
-     * finit un support ou un Quiz.
-     */
     private fun startProgressListener(courseId: String) {
         viewModelScope.launch {
             progressRepository.observeCourseProgress(courseId)
@@ -108,18 +168,40 @@ class CourseDetailViewModel(
                             isVideoWatched = progress?.isVideoWatched ?: false,
                             isQuizCompleted = isQuizDone,
                             bestScore = progress?.bestScore ?: 0,
-                            // Déblocage Quiz : Si au moins un support est lu
+                            isFavorite = progress?.isFavorite ?: chapter.isFavorite, // ⭐ Persistance favori
                             isQuizUnlocked = isCoursRead || isFdrRead
                         )
                     }
 
                     _chapters.value = updatedChapters
-
-                    // ✅ Déblocage de l'examen si tous les quiz de chapitres sont faits
                     _isExamUnlocked.value = updatedChapters.isNotEmpty() &&
                             updatedChapters.all { it.isQuizCompleted }
                 }
         }
+    }
+    enum class ChapterSortOrder {
+        ORIGINAL,
+        FAVORITES,
+        INCOMPLETE_FIRST
+    }
+
+    // 2. Ajouter les States
+    private val _sortOrder = MutableStateFlow(ChapterSortOrder.ORIGINAL)
+    val sortOrder: StateFlow<ChapterSortOrder> = _sortOrder.asStateFlow()
+
+    // 3. Modifier la façon dont les chapitres sont exposés
+// On utilise 'combine' pour trier dès que les chapitres OU l'ordre changent
+    val sortedChapters: StateFlow<List<Chapter>> = combine(_chapters, _sortOrder) { list, order ->
+        when (order) {
+            ChapterSortOrder.ORIGINAL -> list.sortedBy { it.order }
+            ChapterSortOrder.FAVORITES -> list.sortedWith(compareByDescending<Chapter> { it.isFavorite }.thenBy { it.order })
+            ChapterSortOrder.INCOMPLETE_FIRST -> list.sortedWith(compareBy<Chapter> { it.isQuizCompleted }.thenBy { it.order })
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // 4. Fonction pour changer l'ordre
+    fun updateSortOrder(order: ChapterSortOrder) {
+        _sortOrder.value = order
     }
 
     fun refresh(courseId: String) { loadCourse(courseId) }

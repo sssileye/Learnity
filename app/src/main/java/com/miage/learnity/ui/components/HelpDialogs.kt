@@ -494,10 +494,9 @@ fun UnityPointsHelpDialog(onDismiss: () -> Unit) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "Multiplicateur de régularité :\n\n" +
-                                    "- 3 jours consécutifs : x1.1\n" +
-                                    "- 7 jours : x1.2\n" +
-                                    "- 15 jours : x1.5\n" +
-                                    "- 30+ jours : x2.0 \n\n" +
+                                    "- 10 jours consécutifs : x2.0\n" +
+                                    "- 20 jours : x3.0\n" +
+                                    "- 30+ jours : x4.0 \n\n" +
                                     "⚠️ 1 jour manqué = retour à zéro",
                             fontSize = 13.sp,
                             lineHeight = 20.sp

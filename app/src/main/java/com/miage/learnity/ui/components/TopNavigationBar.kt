@@ -198,10 +198,9 @@ fun StreakHelpDialog(
                 Text("Barème des bonus (Quiz du Jour) :", fontWeight = FontWeight.Bold)
 
                 val bareme = listOf(
-                    "3 jours" to "x1.1",
-                    "7 jours" to "x1.2",
-                    "15 jours" to "x1.5",
-                    "30 jours" to "x2.0"
+                    "10 jours" to "x2.0",
+                    "20 jours" to "x3.0",
+                    "30 jours" to "x4.0"
                 )
 
                 bareme.forEach { (jours, mult) ->

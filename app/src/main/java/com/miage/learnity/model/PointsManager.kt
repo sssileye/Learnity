@@ -34,18 +34,17 @@ object PointsManager {
                 return QuizResult(0, 0, 0.0, isPerfect, 1.0)
             }
 
-            // Au 1er essai, on donne des points pour chaque bonne réponse
-            // Barème suggéré : 2 points par bonne réponse * multiplicateur
-            val basePoints = score * 2
-            val bonusPerfect = if (isPerfect) 5 else 0
+            val progressionPoints = (score * multiplier).roundToInt()
+
+            val bonusGained = if (isPerfect) 5 else 0
 
             val errors = totalQuestions - score
             val costPerError = (profile.redevanceSoutienUnitaire ?: 1.0) / totalQuestions.toDouble()
             val debt = costPerError * errors
 
             return QuizResult(
-                progressionPoints = (basePoints * multiplier).roundToInt(),
-                bonusGained = (bonusPerfect * multiplier).roundToInt(),
+                progressionPoints = progressionPoints,
+                bonusGained = bonusGained,
                 debtAdded = debt,
                 isPerfect = isPerfect,
                 multiplierUsed = multiplier
@@ -72,10 +71,9 @@ object PointsManager {
 
     fun getStreakMultiplier(streak: Int): Double {
         return when {
-            streak >= 30 -> 2.0
-            streak >= 15 -> 1.5
-            streak >= 7 -> 1.2
-            streak >= 3 -> 1.1
+            streak >= 30 -> 4.0
+            streak >= 20 -> 3.0
+            streak >= 10 -> 2.0
             else -> 1.0
         }
     }

@@ -30,20 +30,16 @@ fun PdfViewerScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isMarkedAsRead by viewModel.isMarkedAsRead.collectAsState()
 
-    // Conversion du type String en Enum ContentType
     val typeEnum = remember(type) {
         when (type) {
             "fdr" -> UserProgressRepository.ContentType.FDR
             else -> UserProgressRepository.ContentType.COURS
         }
     }
-
-    // Chargement initial du contenu
     LaunchedEffect(courseId, chapterId, type) {
         viewModel.loadContent(courseId, chapterId, typeEnum)
     }
 
-    // on définit les couleurs forcées: pour afficher le fond blanc au lieu de la couleur du thème quand c'est black
     val forcedLightColors = lightColorScheme(
         background = Color.White,
         surface = Color.White,
@@ -63,12 +59,11 @@ fun PdfViewerScreen(
                 )
             },
             bottomBar = {
-                // La barre de validation n'apparaît que si le contenu n'est pas déjà validé
                 PdfViewerBottomBar(
                     isMarkedAsRead = isMarkedAsRead,
                     onMarkComplete = {
                         viewModel.markAsReadOrWatched()
-                        onMarkComplete() // Retour à l'écran précédent via NavGraph
+                        onMarkComplete()
                     },
                     dimensions = dimensions
                 )
@@ -82,7 +77,6 @@ fun PdfViewerScreen(
                 when {
                     isLoading -> LoadingContent(dimensions)
                     contentUrl != null -> {
-                        // Utilisation de ton composable PdfViewer personnalisé
                         PdfViewer(
                             url = contentUrl!!,
                             onError = { error -> println("❌ Erreur PDF : $error") },
@@ -125,7 +119,7 @@ private fun PdfViewerBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(dimensions.screenPaddingHorizontal)
-                .navigationBarsPadding() // Évite les chevauchements avec la barre système
+                .navigationBarsPadding()
         ) {
             if (!isMarkedAsRead) {
                 Button(
@@ -140,7 +134,6 @@ private fun PdfViewerBottomBar(
                     Text(text = "J'ai terminé la lecture", fontSize = dimensions.bodyLarge)
                 }
             } else {
-                // État déjà lu : simple message de confirmation
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
