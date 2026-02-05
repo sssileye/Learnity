@@ -23,7 +23,7 @@ data class AuthUiState(
     val user: FirebaseUser? = FirebaseAuth.getInstance().currentUser,
     val error: String? = null,
     val resetPasswordSuccess: Boolean = false,
-    val accountDeleteSuccess: Boolean = false  // ✅ NOUVEAU
+    val accountDeleteSuccess: Boolean = false
 ) {
     val isAuthenticated: Boolean
         get() = user != null
@@ -37,7 +37,6 @@ class AuthViewModel : ViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
 
-    // ⭐ On déclare le repository une seule fois ici
     private val userRepository = UserRepository()
 
     private val _state = MutableStateFlow(AuthUiState())
@@ -63,15 +62,15 @@ class AuthViewModel : ViewModel() {
     // INSCRIPTION + CRÉATION PROFIL
     // ============================================
 
-    fun signUp(email: String, password: String, firstName: String, lastName: String) {
+    fun signUp(email: String, password: String, firstName: String, lastName: String, redevance: Double = 1.0) {
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null) {
-                        // ✅ Appel de la fonction de création de profil
-                        createUserProfile(user.uid, email, firstName, lastName)
+                        // ✅ Appel de la fonction de création de profil avec redevance
+                        createUserProfile(user.uid, email, firstName, lastName, redevance)
                     }
                     ok()
                 } else {
@@ -84,24 +83,24 @@ class AuthViewModel : ViewModel() {
         uid: String,
         email: String,
         firstName: String,
-        lastName: String
+        lastName: String,
+        redevance: Double
     ) {
-        // ⭐ Création de l'objet avec l'avatar par défaut "avatar_b1"
+        // ⭐ Création de l'objet avec l'avatar par défaut "avatar_b1" et la redevance choisie
         val newProfile = UserProfile(
             uid = uid,
             email = email,
             firstName = firstName,
             lastName = lastName,
-            photoUrl = "avatar_b1", // Garanti à la création
+            photoUrl = "avatar_b1",
             createdAt = System.currentTimeMillis(),
-            redevanceSoutienUnitaire = 1.0,
+            redevanceSoutienUnitaire = redevance, // ✅ Valeur choisie par l'utilisateur
             detteCumulee = 0.0,
             unityPoints = 0,
             currentStreak = 0,
             bestStreak = 0
         )
 
-        // ⭐ Utilisation du scope du ViewModel pour la coroutine
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.saveUserProfile(newProfile)
                 .onSuccess {
@@ -148,15 +147,9 @@ class AuthViewModel : ViewModel() {
     }
 
     // ============================================
-    // ✅ NOUVEAU : SUPPRESSION DE COMPTE
+    // SUPPRESSION DE COMPTE
     // ============================================
 
-    /**
-     * Supprime complètement le compte utilisateur et toutes ses données
-     * 1. Supprime les données Firestore (profil + progression)
-     * 2. Supprime le compte Firebase Auth
-     * 3. Déconnecte l'utilisateur
-     */
     fun deleteAccount() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -181,22 +174,17 @@ class AuthViewModel : ViewModel() {
                 println("✅ Document utilisateur supprimé")
 
                 // 2. Supprimer toute la progression dans user_progress/{uid}
-                // On doit d'abord récupérer toutes les sous-collections
                 val userProgressRef = firestore.collection("user_progress").document(uid)
 
-                // Supprimer la collection courses et ses sous-collections
                 val coursesSnapshot = userProgressRef.collection("courses").get().await()
                 for (courseDoc in coursesSnapshot.documents) {
-                    // Supprimer les chapitres de chaque cours
                     val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
                     for (chapterDoc in chaptersSnapshot.documents) {
                         chapterDoc.reference.delete().await()
                     }
-                    // Supprimer le document cours
                     courseDoc.reference.delete().await()
                 }
 
-                // Supprimer le document user_progress principal
                 userProgressRef.delete().await()
                 println("✅ Progression utilisateur supprimée")
 

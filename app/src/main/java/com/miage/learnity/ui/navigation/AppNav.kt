@@ -19,24 +19,8 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
 
     NavHost(
         navController = nav,
-        startDestination = Screen.Splash.route
+        startDestination = Screen.Authentication.route
     ) {
-        composable(Screen.Splash.route) {
-            SplashScreen(
-                onSplashFinished = {
-                    if (state.user != null) {
-                        nav.navigate(Screen.Homepage.route) {
-                            popUpTo(Screen.Splash.route) { inclusive = true }
-                        }
-                    } else {
-                        nav.navigate(Screen.Authentication.route) {
-                            popUpTo(Screen.Splash.route) { inclusive = true }
-                        }
-                    }
-                }
-            )
-        }
-
         composable(Screen.Authentication.route) {
             AuthScreen(
                 onLoginClick = { nav.navigate(Screen.SignIn.route) },
@@ -47,14 +31,14 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
         composable(Screen.Inscription.route) {
             Inscription(
                 onBackClick = { nav.popBackStack() },
-                onInscriptionSuccess = { email, password, firstName, lastName ->  // ✅ AJOUT
-                    vm.signUp(email, password, firstName, lastName)
+                onInscriptionSuccess = { email, password, firstName, lastName, redevance ->
+                    // ✅ CORRIGÉ : 5 paramètres (email, password, firstName, lastName, redevance)
+                    vm.signUp(email, password, firstName, lastName, redevance)
                 },
                 isLoading = state.isLoading,
                 error = state.error
             )
 
-            // Navigation automatique vers HomePage après inscription réussie
             LaunchedEffect(state.user) {
                 if (state.user != null) {
                     nav.navigate(Screen.Homepage.route) {
@@ -69,9 +53,7 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             SignInScreen(
                 onBackClick = { nav.popBackStack() },
                 onSignIn = { email, password -> vm.signIn(email, password) },
-                onForgotPassword = {  // ✅ CONNECTÉ
-                    nav.navigate(Screen.ResetPassword.route)
-                },
+                onForgotPassword = { /* TODO: Implémenter mot de passe oublié */ },
                 onNavigateToSignUp = { nav.navigate(Screen.Inscription.route) },
                 isLoading = state.isLoading,
                 error = state.error
@@ -79,23 +61,6 @@ fun AppNav(vm: AuthViewModel = viewModel()) {
             LaunchedEffect(state.user) {
                 if (state.user != null) goToHomepage(nav)
             }
-        }
-
-        // ✅ NOUVELLE ROUTE - Reset Password
-        composable(Screen.ResetPassword.route) {
-            ResetPasswordScreen(
-                onBackClick = { nav.popBackStack() },
-                onResetPassword = { email ->
-                    vm.resetPassword(email)
-                },
-                onResetSuccess = {
-                    vm.clearResetPasswordSuccess()
-                    nav.popBackStack()
-                },
-                isLoading = state.isLoading,
-                error = state.error,
-                success = state.resetPasswordSuccess
-            )
         }
 
         composable(Screen.Homepage.route) {
