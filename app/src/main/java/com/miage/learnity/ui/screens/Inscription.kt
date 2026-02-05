@@ -3,11 +3,10 @@ package com.miage.learnity.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,20 +16,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.*
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import com.miage.learnity.R
 import com.miage.learnity.ui.theme.*
+import com.miage.learnity.ui.utils.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,18 +42,27 @@ fun Inscription(
     isLoading: Boolean = false,
     error: String? = null
 ) {
+    val dimensions = rememberResponsiveDimensions()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val primaryColor = Color(0xFF635BFF)
 
+    // --- ÉTATS DES CHAMPS ---
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var redevance by remember { mutableStateOf("1.00") }
+
+    // --- ÉTATS UI ---
     var showPassword by remember { mutableStateOf(false) }
     var showConfirmPassword by remember { mutableStateOf(false) }
     var acceptCGU by remember { mutableStateOf(false) }
+    var showCGUDialog by remember { mutableStateOf(false) }
+    var showRedevanceDialog by remember { mutableStateOf(false) }
 
+    // --- ÉTATS D'ERREUR ---
     var firstNameError by remember { mutableStateOf("") }
     var lastNameError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
@@ -59,734 +70,319 @@ fun Inscription(
     var confirmPasswordError by remember { mutableStateOf("") }
     var redevanceError by remember { mutableStateOf("") }
 
-    // ✨ NOUVEAU : État pour le dialog explicatif
-    var showRedevanceDialog by remember { mutableStateOf(false) }
-
-    fun validateFirstName(name: String): Boolean {
-        return if (name.isBlank()) {
-            firstNameError = "Prénom requis"
-            false
-        } else {
-            firstNameError = ""
-            true
-        }
-    }
-
-    fun validateLastName(name: String): Boolean {
-        return if (name.isBlank()) {
-            lastNameError = "Nom requis"
-            false
-        } else {
-            lastNameError = ""
-            true
-        }
-    }
-
-    fun validateEmail(email: String): Boolean {
+    // --- FONCTIONS DE VALIDATION ---
+    fun validateFields(): Boolean {
         val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
-        return if (!email.matches(emailRegex)) {
-            emailError = "Format d'email invalide"
-            false
-        } else {
-            emailError = ""
-            true
-        }
-    }
+        firstNameError = if (firstName.isBlank()) "Prénom requis" else ""
+        lastNameError = if (lastName.isBlank()) "Nom requis" else ""
+        emailError = if (!email.matches(emailRegex)) "Email invalide" else ""
+        passwordError = if (password.length < 8) "8 caractères min" else ""
+        confirmPasswordError = if (password != confirmPassword) "Mots de passe différents" else ""
 
-    fun validatePassword(password: String): Boolean {
-        return when {
-            password.length < 8 -> {
-                passwordError = "Au moins 8 caractères"
-                false
-            }
-            !password.any { it.isDigit() } -> {
-                passwordError = "Au moins 1 chiffre"
-                false
-            }
-            else -> {
-                passwordError = ""
-                true
-            }
+        val redVal = redevance.toDoubleOrNull()
+        redevanceError = when {
+            redVal == null -> "Montant invalide"
+            redVal < 0.10 -> "Minimum 0.10€"
+            else -> ""
         }
-    }
-
-    fun validateConfirmPassword(password: String, confirmPassword: String): Boolean {
-        return if (password != confirmPassword) {
-            confirmPasswordError = "Les mots de passe diffèrent"
-            false
-        } else {
-            confirmPasswordError = ""
-            true
-        }
-    }
-
-    fun validateRedevance(redevance: String): Boolean {
-        val value = redevance.toDoubleOrNull()
-        return when {
-            value == null -> {
-                redevanceError = "Montant invalide"
-                false
-            }
-            value < 0.10 -> {
-                redevanceError = "Minimum 0.10€"
-                false
-            }
-            value > 100.0 -> {
-                redevanceError = "Maximum 100€"
-                false
-            }
-            else -> {
-                redevanceError = ""
-                true
-            }
-        }
+        return firstNameError.isEmpty() && lastNameError.isEmpty() && emailError.isEmpty() &&
+                passwordError.isEmpty() && confirmPasswordError.isEmpty() && redevanceError.isEmpty()
     }
 
     LaunchedEffect(error) {
-        error?.let {
-            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+        error?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Retour",
+                            tint = primaryColor,
+                            modifier = Modifier.size(dimensions.iconSizeMedium)
+                        )
+                    }
+                }
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = dimensions.screenPaddingHorizontal)
+                .responsiveMaxWidth(dimensions) // ✅ Application du MaxWidth responsive
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(dimensions.itemSpacing))
+
+            Image(
+                painter = painterResource(id = R.drawable.icon_learnity),
+                contentDescription = "Logo",
+                modifier = Modifier.size(dimensions.logoSize)
+            )
+
+            Text(
+                text = "Rejoignez-nous !",
+                fontSize = dimensions.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
+
+            // 📦 BLOC UNIQUE UNIFIÉ : RESPONSIVE
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(dimensions.cardPadding)) {
+                    // --- Identité ---
+                    FormSectionHeader(Icons.Default.Person, "Mes informations", primaryColor, dimensions)
+                    RegistrationTextField(firstName, { firstName = it }, "Prénom", firstNameError, dimensions, focusManager, accentColor = primaryColor)
+                    RegistrationTextField(lastName, { lastName = it }, "Nom", lastNameError, dimensions, focusManager, accentColor = primaryColor)
+
+                    // ✅ Séparateur Responsive
+                    Spacer(Modifier.height(dimensions.itemSpacing / 2))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                    Spacer(Modifier.height(dimensions.itemSpacing / 2))
+
+                    // --- Sécurité ---
+                    RegistrationTextField(email, { email = it }, "Email", emailError, dimensions, focusManager, KeyboardType.Email, accentColor = primaryColor)
+                    RegistrationTextField(password, { password = it }, "Mot de passe", passwordError, dimensions, focusManager, isPassword = true, isVisible = showPassword, onVisibilityChange = { showPassword = it }, accentColor = primaryColor)
+                    RegistrationTextField(confirmPassword, { confirmPassword = it }, "Confirmer le mot de passe", confirmPasswordError, dimensions, focusManager, isPassword = true, isVisible = showConfirmPassword, onVisibilityChange = { showConfirmPassword = it }, accentColor = primaryColor, imeAction = ImeAction.Next)
+
+                    // ✅ Séparateur Responsive
+                    Spacer(Modifier.height(dimensions.itemSpacing / 2))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                    Spacer(Modifier.height(dimensions.itemSpacing / 2))
+
+                    // --- Engagement ---
+                    FormSectionHeader(Icons.Default.Favorite, "Engagement solidaire (SYMBOLIQUE)", primaryColor, dimensions, onInfoClick = { showRedevanceDialog = true })
+                    RegistrationTextField(redevance, { redevance = it }, "Redevance unitaire (€)", redevanceError, dimensions, focusManager, KeyboardType.Decimal, imeAction = ImeAction.Done, accentColor = primaryColor)
+                }
+            }
+
+            Spacer(Modifier.height(dimensions.itemSpacing))
+
+            // --- CGU ---
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = acceptCGU,
+                    onCheckedChange = { acceptCGU = it },
+                    colors = CheckboxDefaults.colors(checkedColor = primaryColor)
+                )
+                TextButton(
+                    onClick = { showCGUDialog = true },
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        "J'accepte les CGU",
+                        textDecoration = TextDecoration.Underline,
+                        fontSize = dimensions.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(dimensions.itemSpacing))
+
+            // --- BOUTON FINAL ---
+            Button(
+                onClick = {
+                    if (validateFields()) {
+                        onInscriptionSuccess(
+                            email.trim(), password.trim(),
+                            firstName.trim().replaceFirstChar { it.uppercase() },
+                            lastName.trim().uppercase(), redevance.toDoubleOrNull() ?: 1.0
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(dimensions.buttonHeight),
+                enabled = acceptCGU && !isLoading,
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(dimensions.iconSizeMedium))
+                } else {
+                    Text(
+                        "S'inscrire",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = dimensions.bodyLarge
+                    )
+                }
+            }
+            Spacer(Modifier.height(dimensions.screenPaddingVertical))
         }
     }
 
-    val isButtonEnabled = firstName.isNotBlank() &&
-            lastName.isNotBlank() &&
-            email.isNotBlank() &&
-            password.isNotBlank() &&
-            confirmPassword.isNotBlank() &&
-            redevance.isNotBlank() &&
-            acceptCGU &&
-            !isLoading
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Scaffold(
-            topBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                                    MaterialTheme.colorScheme.background
-                                )
-                            )
-                        )
-                ) {
-                    TopAppBar(
-                        title = { },
-                        windowInsets = WindowInsets.statusBars,
-                        navigationIcon = {
-                            IconButton(
-                                onClick = onBackClick,
-                                modifier = Modifier
-                                    .padding(start = 8.dp)
-                                    .size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Retour",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier
-                                        .size(35.dp)
-                                        .background(
-                                            color = MaterialTheme.colorScheme.surfaceVariant,
-                                            shape = CircleShape
-                                        )
-                                        .padding(6.dp)
-                                )
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color.Transparent
-                        )
-                    )
+    // --- DIALOGS (VIOLETS) ---
+    if (showCGUDialog) {
+        AlertDialog(
+            onDismissRequest = { showCGUDialog = false },
+            title = { Text("CGU – LEARNITY", fontWeight = FontWeight.Bold, fontSize = dimensions.bodyLarge) },
+            text = {
+                Box(modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                    Text(stringResource(R.string.cguText), fontSize = dimensions.bodyMedium)
                 }
             },
-            containerColor = Color.Transparent
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 24.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Spacer(Modifier.height(16.dp))
-
-                Image(
-                    painter = painterResource(id = R.drawable.icon_learnity),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(120.dp)
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                Text(
-                    text = "Rejoignez-nous",
-                    fontSize = 28.sp,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.ExtraBold
-                )
-
-                Text(
-                    text = "Créez votre compte Learnity",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-                // 📝 INFORMATIONS PERSONNELLES
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color(0xFF673AB7),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Informations personnelles",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        // Prénom
-                        OutlinedTextField(
-                            value = firstName,
-                            onValueChange = {
-                                firstName = it
-                                if (firstNameError.isNotEmpty()) validateFirstName(it)
-                            },
-                            label = { Text("Prénom") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Badge, contentDescription = null)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            isError = firstNameError.isNotEmpty(),
-                            supportingText = {
-                                if (firstNameError.isNotEmpty()) Text(firstNameError)
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF673AB7),
-                                focusedLabelColor = Color(0xFF673AB7),
-                                focusedLeadingIconColor = Color(0xFF673AB7)
-                            )
-                        )
-
-                        Spacer(Modifier.height(12.dp))
-
-                        // Nom
-                        OutlinedTextField(
-                            value = lastName,
-                            onValueChange = {
-                                lastName = it
-                                if (lastNameError.isNotEmpty()) validateLastName(it)
-                            },
-                            label = { Text("Nom") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Badge, contentDescription = null)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            isError = lastNameError.isNotEmpty(),
-                            supportingText = {
-                                if (lastNameError.isNotEmpty()) Text(lastNameError)
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF673AB7),
-                                focusedLabelColor = Color(0xFF673AB7),
-                                focusedLeadingIconColor = Color(0xFF673AB7)
-                            )
-                        )
-                    }
+            confirmButton = {
+                TextButton(onClick = { showCGUDialog = false }) {
+                    Text("Fermer", color = primaryColor, fontWeight = FontWeight.Bold)
                 }
-
-                Spacer(Modifier.height(16.dp))
-
-                // 🔐 SÉCURITÉ
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = Color(0xFF673AB7),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Sécurité",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        // Email
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = {
-                                email = it
-                                if (emailError.isNotEmpty()) validateEmail(it)
-                            },
-                            label = { Text("Email") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Email, contentDescription = null)
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            isError = emailError.isNotEmpty(),
-                            supportingText = {
-                                if (emailError.isNotEmpty()) Text(emailError)
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF673AB7),
-                                focusedLabelColor = Color(0xFF673AB7),
-                                focusedLeadingIconColor = Color(0xFF673AB7)
-                            )
-                        )
-
-                        Spacer(Modifier.height(12.dp))
-
-                        // Password
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = {
-                                password = it
-                                if (passwordError.isNotEmpty()) validatePassword(it)
-                            },
-                            label = { Text("Mot de passe") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Lock, contentDescription = null)
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { showPassword = !showPassword }) {
-                                    Icon(
-                                        imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = null
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            isError = passwordError.isNotEmpty(),
-                            supportingText = {
-                                if (passwordError.isNotEmpty()) Text(passwordError)
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF673AB7),
-                                focusedLabelColor = Color(0xFF673AB7),
-                                focusedLeadingIconColor = Color(0xFF673AB7)
-                            )
-                        )
-
-                        Spacer(Modifier.height(12.dp))
-
-                        // Confirm Password
-                        OutlinedTextField(
-                            value = confirmPassword,
-                            onValueChange = {
-                                confirmPassword = it
-                                if (confirmPasswordError.isNotEmpty()) {
-                                    validateConfirmPassword(password, it)
-                                }
-                            },
-                            label = { Text("Confirmer le mot de passe") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Lock, contentDescription = null)
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                                    Icon(
-                                        imageVector = if (showConfirmPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = null
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            isError = confirmPasswordError.isNotEmpty(),
-                            supportingText = {
-                                if (confirmPasswordError.isNotEmpty()) Text(confirmPasswordError)
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF673AB7),
-                                focusedLabelColor = Color(0xFF673AB7),
-                                focusedLeadingIconColor = Color(0xFF673AB7)
-                            )
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                // 💰 REDEVANCE SOLIDAIRE (VERSION COMPACTE)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = null,
-                                tint = Color(0xFF4CAF50),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Engagement solidaire",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(Modifier.weight(1f))
-                            // ✨ ICÔNE INFO CLIQUABLE
-                            IconButton(
-                                onClick = { showRedevanceDialog = true },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = "En savoir plus",
-                                    tint = Color(0xFF4CAF50),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = redevance,
-                            onValueChange = {
-                                redevance = it
-                                if (redevanceError.isNotEmpty()) validateRedevance(it)
-                            },
-                            label = { Text("Redevance par erreur (€)") },
-                            leadingIcon = {
-                                Icon(Icons.Default.EuroSymbol, contentDescription = null)
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            isError = redevanceError.isNotEmpty(),
-                            supportingText = {
-                                if (redevanceError.isNotEmpty()) {
-                                    Text(redevanceError)
-                                } else {
-                                    Text(
-                                        "Suggéré : 1.00€",
-                                        color = Color(0xFF4CAF50)
-                                    )
-                                }
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF4CAF50),
-                                focusedLabelColor = Color(0xFF4CAF50),
-                                focusedLeadingIconColor = Color(0xFF4CAF50)
-                            )
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-
-                // Checkbox CGU
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                    ) {
-                        Checkbox(
-                            checked = acceptCGU,
-                            onCheckedChange = { acceptCGU = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF673AB7)
-                            )
-                        )
-                        Text(
-                            "J'accepte les conditions générales d'utilisation",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                // Sign Up Button
-                Button(
-                    onClick = {
-                        val isFirstNameValid = validateFirstName(firstName)
-                        val isLastNameValid = validateLastName(lastName)
-                        val isEmailValid = validateEmail(email)
-                        val isPasswordValid = validatePassword(password)
-                        val isConfirmValid = validateConfirmPassword(password, confirmPassword)
-                        val isRedevanceValid = validateRedevance(redevance)
-
-                        if (isFirstNameValid && isLastNameValid && isEmailValid &&
-                            isPasswordValid && isConfirmValid && isRedevanceValid) {
-                            val redevanceValue = redevance.toDoubleOrNull() ?: 1.0
-                            onInscriptionSuccess(
-                                email.trim(),
-                                password.trim(),
-                                firstName.trim(),
-                                lastName.trim(),
-                                redevanceValue
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = isButtonEnabled,
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.White,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = if (isButtonEnabled) {
-                                    Brush.horizontalGradient(
-                                        listOf(Color(0xFF673AB7), Color(0xFF9C27B0))
-                                    )
-                                } else {
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.surfaceVariant,
-                                            MaterialTheme.colorScheme.surfaceVariant
-                                        )
-                                    )
-                                },
-                                shape = RoundedCornerShape(28.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "Créer mon compte",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(40.dp))
             }
-        }
+        )
+    }
 
-        // ✨ DIALOG EXPLICATIF REDEVANCE
-        if (showRedevanceDialog) {
-            RedevanceExplanationDialog(
-                onDismiss = { showRedevanceDialog = false }
-            )
+    if (showRedevanceDialog) {
+        RedevanceExplanationDialog(
+            primaryColor = primaryColor,
+            dimensions = dimensions,
+            onDismiss = { showRedevanceDialog = false }
+        )
+    }
+}
+
+@Composable
+fun FormSectionHeader(
+    icon: ImageVector,
+    title: String,
+    color: Color,
+    dimensions: ResponsiveDimensions,
+    onInfoClick: (() -> Unit)? = null
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = dimensions.itemSpacing / 2)) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(dimensions.iconSizeSmall))
+        Spacer(Modifier.width(dimensions.itemSpacing / 2))
+        Text(
+            text = title,
+            fontWeight = FontWeight.Bold,
+            fontSize = dimensions.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (onInfoClick != null) {
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onInfoClick, modifier = Modifier.size(dimensions.iconSizeMedium)) {
+                Icon(Icons.Default.Info, null, tint = color, modifier = Modifier.size(dimensions.iconSizeSmall))
+            }
         }
     }
 }
 
-// ✨ NOUVEAU COMPOSANT : Dialog Explicatif
+@Composable
+fun RegistrationTextField(
+    value: String, onValueChange: (String) -> Unit, label: String, errorText: String,
+    dimensions: ResponsiveDimensions, focusManager: androidx.compose.ui.focus.FocusManager,
+    keyboardType: KeyboardType = KeyboardType.Text, isPassword: Boolean = false,
+    isVisible: Boolean = false, onVisibilityChange: (Boolean) -> Unit = {},
+    imeAction: ImeAction = ImeAction.Next, accentColor: Color
+) {
+    OutlinedTextField(
+        value = value, onValueChange = onValueChange,
+        label = { Text(label, fontSize = dimensions.bodySmall) },
+        modifier = Modifier.fillMaxWidth().padding(bottom = dimensions.itemSpacing / 4),
+        isError = errorText.isNotEmpty(),
+        supportingText = { if (errorText.isNotEmpty()) Text(errorText, fontSize = dimensions.bodySmall) },
+        singleLine = true,
+        textStyle = LocalTextStyle.current.copy(fontSize = dimensions.bodyLarge),
+        visualTransformation = if (isPassword && !isVisible) PasswordVisualTransformation() else VisualTransformation.None,
+        trailingIcon = {
+            if (isPassword) {
+                IconButton(onClick = { onVisibilityChange(!isVisible) }) {
+                    Icon(
+                        if (isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        null,
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
+                    )
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        keyboardActions = KeyboardActions(
+            onNext = { focusManager.moveFocus(FocusDirection.Down) },
+            onDone = { focusManager.clearFocus() }
+        ),
+        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, focusedLabelColor = accentColor)
+    )
+}
+
 @Composable
 fun RedevanceExplanationDialog(
+    primaryColor: Color,
+    dimensions: ResponsiveDimensions,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Favorite,
-                contentDescription = null,
-                tint = Color(0xFF4CAF50),
-                modifier = Modifier.size(32.dp)
-            )
-        },
+        icon = { Icon(Icons.Default.Favorite, null, tint = primaryColor, modifier = Modifier.size(dimensions.iconSizeLarge)) },
         title = {
             Text(
                 "Engagement solidaire",
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+                fontSize = dimensions.titleLarge * 0.8f
             )
         },
         text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing / 2)) {
                 Text(
-                    "Comment ça marche ?",
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp
+                    "Ce système est symbolique et pédagogique. Aucune information bancaire ne sera demandée.",
+                    fontWeight = FontWeight.Bold,
+                    color = primaryColor,
+                    textAlign = TextAlign.Center,
+                    fontSize = dimensions.bodyMedium
                 )
+                Text("• Erreur : Une fraction de votre redevance est ajoutée (Redevance ÷ Nb questions).", fontSize = dimensions.bodySmall)
+                Text("• Absentéisme : Si vous ratez votre Quiz du Jour, le montant total est ajouté.", fontSize = dimensions.bodySmall)
+
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Spacer(Modifier.height(4.dp))
 
                 Text(
-                    "À chaque mauvaise réponse dans un quiz, vous accumulez une petite dette virtuelle.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                )
-
-                Text(
-                    "Le montant que vous définissez ici sera reversé à l'association de votre choix.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.TrendingUp,
-                        contentDescription = null,
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Column {
-                        Text(
-                            "Exemple",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "1.00€ × 5 erreurs = 5€ reversés",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Text(
-                    "💡 Vous pouvez modifier ce montant à tout moment dans votre profil.",
-                    color = Color(0xFF4CAF50),
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
+                    "Cette dette est une jauge morale. Vous restez libre de verser ou non ce montant à l'association de votre choix. Learnity ne prélève rien.",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = dimensions.bodySmall * 0.9f
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF4CAF50)
-                ),
-                shape = RoundedCornerShape(12.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
             ) {
-                Text("J'ai compris")
+                Text("J'ai compris", fontSize = dimensions.bodyLarge)
             }
-        },
-        shape = RoundedCornerShape(20.dp),
-        containerColor = MaterialTheme.colorScheme.surface
+        }
     )
 }
 
-// ✅ PREVIEWS
-@Preview(name = "Light Mode", showBackground = true, showSystemUi = true)
+// --- PREVIEWS MULTI-TAILLES ---
+@Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
+@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
+@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
+@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
 @Composable
-fun InscriptionScreenPreview() {
-    MaterialTheme {
-        Inscription()
-    }
-}
-
-@Preview(name = "Dark Mode", showBackground = true, showSystemUi = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
-@Composable
-fun InscriptionScreenDarkPreview() {
-    MaterialTheme {
-        Inscription()
-    }
-}
-
-@Preview(name = "Dialog Preview", showBackground = true)
-@Composable
-fun RedevanceDialogPreview() {
-    MaterialTheme {
-        RedevanceExplanationDialog(onDismiss = {})
-    }
+fun InscriptionPreview() {
+    LearnityTheme { Inscription() }
 }
