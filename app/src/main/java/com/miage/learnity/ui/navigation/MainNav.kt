@@ -250,13 +250,7 @@ fun MainNav(onLogout: () -> Unit = {}) {
 
     // --- LOGIQUE DES DIALOGS (Identique à ton code original) ---
     if (showStreakDialog) {
-        val currentMultiplier = when {
-            currentStreak >= 30 -> 2.0
-            currentStreak >= 15 -> 1.5
-            currentStreak >= 7 -> 1.2
-            currentStreak >= 3 -> 1.1
-            else -> 1.0
-        }
+        val currentMultiplier = com.miage.learnity.model.PointsManager.getStreakMultiplier(currentStreak)
         StreakHelpDialog(
             currentStreak = currentStreak,
             multiplier = currentMultiplier,
