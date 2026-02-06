@@ -122,10 +122,10 @@ fun FavoriteChaptersModule(
                     title = chapter.title,
                     subtitle = "Chapitre",
                     dims = dims,
-                    // ✅ Utilisation du vrai courseId pour la navigation
+
                     onClick = { onNavigate(chapter.courseId, chapter.chapterId) },
                     trailingContent = {
-                        // Badge de progression ou indicateurs de contenu
+
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             if (chapter.hasCours) Icon(Icons.Default.Description, null, Modifier.size(dims.iconSizeSmall), tint = MaterialTheme.colorScheme.primary)
                             if (chapter.hasVideo) Icon(Icons.Default.PlayCircle, null, Modifier.size(dims.iconSizeSmall), tint = MaterialTheme.colorScheme.secondary)

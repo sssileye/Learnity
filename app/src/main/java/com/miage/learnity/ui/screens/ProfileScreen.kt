@@ -53,7 +53,7 @@ fun ProfileScreen(
     val isAlreadyDoneToday = uiState.dailyScore != null
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background // ✅ Adaptatif dark/light
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -120,20 +120,17 @@ private fun ProfileContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background) // ✅ Adaptatif
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = dimensions.screenPaddingHorizontal),
         verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.67f)
     ) {
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        // ========================================
-        // CARTE PROFIL (Avatar + Nom + Email)
-        // ========================================
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
-            color = MaterialTheme.colorScheme.surface, // ✅ Adaptatif
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp,
             tonalElevation = 0.dp
         ) {
@@ -144,10 +141,10 @@ private fun ProfileContent(
                         .padding(dimensions.cardPadding),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // AVATAR (à gauche)
+
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant, // ✅ Adaptatif
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         shadowElevation = 4.dp,
                         modifier = Modifier.size(dimensions.profilePictureSize * 0.75f)
                     ) {
@@ -164,7 +161,7 @@ private fun ProfileContent(
 
                     Spacer(modifier = Modifier.width(dimensions.itemSpacing * 1.5f))
 
-                    // NOM + EMAIL (à droite de la photo)
+
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
@@ -172,20 +169,20 @@ private fun ProfileContent(
                             text = "${profile.firstName} ${profile.lastName}",
                             fontSize = dimensions.titleMedium,
                             fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface // ✅ Adaptatif
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = profile.email,
                             fontSize = dimensions.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant // ✅ Adaptatif
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     Spacer(modifier = Modifier.width(dimensions.itemSpacing))
                 }
 
-                // BOUTON EDIT (en haut à droite de la carte)
+
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary,
@@ -199,7 +196,7 @@ private fun ProfileContent(
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Modifier",
-                        tint = MaterialTheme.colorScheme.onPrimary, // ✅ Adaptatif
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.padding(8.dp)
                     )
                 }
@@ -210,7 +207,7 @@ private fun ProfileContent(
         // TABLEAU DE BORD
         // ========================================
         Surface(
-            color = MaterialTheme.colorScheme.surface, // ✅ Adaptatif
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
             shadowElevation = 8.dp,
             tonalElevation = 0.dp
@@ -220,7 +217,7 @@ private fun ProfileContent(
                     "TABLEAU DE BORD",
                     fontSize = dimensions.bodySmall * 0.92f,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant // ✅ Adaptatif
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(dimensions.itemSpacing * 1.33f))
 
@@ -294,7 +291,7 @@ private fun ProfileContent(
         // PARAMETRES
         // ========================================
         Surface(
-            color = MaterialTheme.colorScheme.surface, // ✅ Adaptatif
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge * 1.5f),
             shadowElevation = 8.dp,
             tonalElevation = 0.dp
@@ -304,7 +301,7 @@ private fun ProfileContent(
                     "PARAMÈTRES",
                     fontSize = dimensions.bodySmall * 0.92f,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, // ✅ Adaptatif
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(
                         horizontal = dimensions.cardPadding,
                         vertical = dimensions.itemSpacing / 1.5f
@@ -338,7 +335,7 @@ private fun ProfileContent(
                         horizontal = dimensions.cardPadding,
                         vertical = dimensions.itemSpacing / 1.5f
                     ),
-                    color = MaterialTheme.colorScheme.outlineVariant // ✅ Adaptatif
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 MenuItemRow(
@@ -364,7 +361,7 @@ private fun ProgressionSection(readCount: Int, totalCount: Int, dimensions: Resp
                 "Ma progression",
                 fontWeight = FontWeight.Bold,
                 fontSize = dimensions.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface // ✅ Adaptatif
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.weight(1f))
             Text(
@@ -382,7 +379,7 @@ private fun ProgressionSection(readCount: Int, totalCount: Int, dimensions: Resp
                 .height(8.dp)
                 .clip(CircleShape),
             color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.outlineVariant // ✅ Adaptatif
+            trackColor = MaterialTheme.colorScheme.outlineVariant
         )
     }
 }
@@ -411,7 +408,7 @@ private fun QuizModeToggleRow(
                 color = if (!isDisabled && !isDiscoveryMode)
                     MaterialTheme.colorScheme.primaryContainer
                 else
-                    MaterialTheme.colorScheme.surfaceVariant, // ✅ Adaptatif
+                    MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .size(dimensions.iconSizeLarge * 0.83f)
                     .alpha(if (isDisabled) 0.5f else 1f)
@@ -423,7 +420,7 @@ private fun QuizModeToggleRow(
                         tint = if (!isDisabled && !isDiscoveryMode)
                             MaterialTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.onSurfaceVariant, // ✅ Adaptatif
+                            MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(dimensions.iconSizeSmall)
                     )
                 }
@@ -441,7 +438,7 @@ private fun QuizModeToggleRow(
                     "Mode Quiz",
                     fontSize = dimensions.bodyLarge * 0.94f,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface // ✅ Adaptatif
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     " : ${if (isDiscoveryMode) "Découverte" else "Révision"}",
@@ -501,7 +498,7 @@ private fun MenuItemRow(
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant, // ✅ Adaptatif
+            color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.size(dimensions.iconSizeLarge * 0.83f)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -517,13 +514,13 @@ private fun MenuItemRow(
             title,
             fontSize = dimensions.bodyLarge * 0.94f,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface, // ✅ Adaptatif
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
         Icon(
             painter = painterResource(R.drawable.arrow),
             null,
-            tint = MaterialTheme.colorScheme.outline, // ✅ Adaptatif
+            tint = MaterialTheme.colorScheme.outline,
             modifier = Modifier.size(dimensions.iconSizeMedium * 0.6f)
         )
     }

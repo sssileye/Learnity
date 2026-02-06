@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════════
-// 📊 UI STATE
+//  UI STATE
 // ═══════════════════════════════════════════════════════════════
 
 data class SettingsUiState(
@@ -22,14 +22,14 @@ data class SettingsUiState(
 )
 
 // ═══════════════════════════════════════════════════════════════
-// 🎯 VIEWMODEL
+//  VIEWMODEL
 // ═══════════════════════════════════════════════════════════════
 
 class SettingsViewModel(
     private val repository: SettingsRepository
 ) : ViewModel() {
 
-    // État UI exposé au composable
+
     val uiState: StateFlow<SettingsUiState> = repository.settingsFlow
         .map { settingsData ->
             SettingsUiState(
@@ -40,7 +40,7 @@ class SettingsViewModel(
             )
         }
         .catch { exception ->
-            // En cas d'erreur, émettre un état avec l'erreur
+
             emit(
                 SettingsUiState(
                     isLoading = false,
@@ -55,9 +55,7 @@ class SettingsViewModel(
             initialValue = SettingsUiState(isLoading = true)
         )
 
-    /**
-     * Toggle le mode sombre
-     */
+
     fun toggleDarkMode() {
         viewModelScope.launch {
             try {
@@ -66,14 +64,12 @@ class SettingsViewModel(
                 println("🌙 SettingsViewModel - Dark mode toggled: ${!currentValue}")
             } catch (e: Exception) {
                 println("❌ SettingsViewModel - Erreur toggle dark mode: ${e.message}")
-                // TODO: Gérer l'erreur dans l'UI si nécessaire
+
             }
         }
     }
 
-    /**
-     * Change la taille de police
-     */
+
     fun setFontSize(size: FontSize) {
         viewModelScope.launch {
             try {
@@ -81,14 +77,12 @@ class SettingsViewModel(
                 println("📏 SettingsViewModel - Font size changed: $size")
             } catch (e: Exception) {
                 println("❌ SettingsViewModel - Erreur set font size: ${e.message}")
-                // TODO: Gérer l'erreur dans l'UI si nécessaire
+
             }
         }
     }
 
-    /**
-     * Réinitialise les paramètres par défaut
-     */
+
     fun resetToDefaults() {
         viewModelScope.launch {
             try {
@@ -96,14 +90,12 @@ class SettingsViewModel(
                 println("🔄 SettingsViewModel - Reset to defaults")
             } catch (e: Exception) {
                 println("❌ SettingsViewModel - Erreur reset: ${e.message}")
-                // TODO: Gérer l'erreur dans l'UI si nécessaire
+
             }
         }
     }
 
-    /**
-     * Rafraîchit les paramètres (utile en cas d'erreur)
-     */
+
     fun refresh() {
         viewModelScope.launch {
             try {
@@ -117,7 +109,7 @@ class SettingsViewModel(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🏭 VIEWMODEL FACTORY
+//  VIEWMODEL FACTORY
 // ═══════════════════════════════════════════════════════════════
 
 class SettingsViewModelFactory(

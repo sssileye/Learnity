@@ -44,11 +44,11 @@ class ChapterContentViewModel(
             _isLoading.value = true
             _error.value = null
 
-            // 1. Charger les données du chapitre
+
             courseRepository.getChapter(courseId, chapterId, auth.currentUser?.uid)
                 .onSuccess { chapter ->
                     startProgressListener(courseId, chapterId, chapter)
-                    // 2. Charger l'historique pour le tableau
+
                     loadQuizHistory(courseId, chapterId)
                 }
                 .onFailure {
@@ -71,21 +71,18 @@ class ChapterContentViewModel(
         }
     }
 
-    /**
-     * Alterne le favori du chapitre actuel
-     */
     fun toggleFavorite() {
         val currentChapter = _chapter.value ?: return
         val nextState = !currentChapter.isFavorite
 
         viewModelScope.launch {
-            // ✅ On passe maintenant l'objet 'currentChapter' entier
+
             progressRepository.toggleChapterFavorite(
                 courseId = currentCourseId,
                 chapter = currentChapter,
                 isFavorite = nextState
             ).onSuccess {
-                // Mise à jour de l'UI locale (le petit cœur change de couleur)
+
                 _chapter.value = currentChapter.copy(isFavorite = nextState)
                 println("✅ Favori mis à jour : ${currentChapter.title} -> $nextState")
             }.onFailure { e ->
@@ -112,7 +109,7 @@ class ChapterContentViewModel(
                         isQuizUnlocked = canUnlock
                     )
 
-                    // ✅ Optionnel : Recharger l'historique si un nouveau quiz est complété
+
                     if (progress.isQuizCompleted) {
                         loadQuizHistory(courseId, chapterId)
                     }

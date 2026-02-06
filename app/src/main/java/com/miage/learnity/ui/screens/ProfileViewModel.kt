@@ -46,10 +46,7 @@ class ProfileViewModel(
         refreshProgressionStats()
     }
 
-    /**
-     * ⭐ CALCUL DE PROGRESSION SÉCURISÉ
-     * Parcourt user_progress pour compter les chapitres dont au moins un contenu est lu.
-     */
+
     fun refreshProgressionStats() {
         val userId = userRepository.getCurrentUserId() ?: return
 
@@ -75,7 +72,7 @@ class ProfileViewModel(
                     }
                 }
 
-                // 2. Scan du catalogue global (Total disponible)
+
                 val globalCoursesSnapshot = firestore.collection("courses").get().await()
                 var totalCount = 0
                 for (courseDoc in globalCoursesSnapshot.documents) {

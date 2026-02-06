@@ -28,10 +28,10 @@ fun HomeScreen(
 ) {
     val dimensions = rememberResponsiveDimensions()
 
-    // 1. On observe l'état global du UserViewModel
+
     val userUiState by userViewModel.uiState.collectAsState()
 
-    // --- 🚀 GESTION DES NOTIFICATIONS ---
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -40,7 +40,6 @@ fun HomeScreen(
         }
     }
 
-    // 2. Logique de lancement
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -52,8 +51,8 @@ fun HomeScreen(
         userViewModel.refreshProgressionStats()
     }
 
-    // --- 🛡️ GESTION DE LA POPUP DE PÉNALITÉ ---
-    // Si un message de pénalité est présent dans l'état, on affiche la boîte de dialogue
+
+
     userUiState.penaltyMessage?.let { message ->
         AlertDialog(
             onDismissRequest = { userViewModel.dismissPenaltyPopup() },
@@ -81,7 +80,7 @@ fun HomeScreen(
         )
     }
 
-    // 3. Source de vérité extraite de l'état UI
+
     val currentQuizMode = userUiState.profile?.quizMode ?: "DISCOVERY"
     val isDiscoveryMode = currentQuizMode == "DISCOVERY"
 
@@ -96,7 +95,7 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(dimensions.screenPaddingVertical))
 
-        // 🔍 Quiz du Jour
+
         DailyQuizCard(
             dimensions = dimensions,
             isDiscoveryMode = isDiscoveryMode,
@@ -107,7 +106,7 @@ fun HomeScreen(
             }
         )
 
-        // 💰 Dette Virtuelle
+
         userUiState.profile?.let { profile ->
             VirtualDebtCard(
                 debtAmount = profile.detteCumulee,
@@ -116,7 +115,7 @@ fun HomeScreen(
             )
         }
 
-        // ✨ Unity Points
+
         userUiState.profile?.let { profile ->
             UnityPointsCard(
                 currentPoints = profile.unityPoints,

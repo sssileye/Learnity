@@ -23,7 +23,7 @@ data class AuthUiState(
     val user: FirebaseUser? = FirebaseAuth.getInstance().currentUser,
     val error: String? = null,
     val resetPasswordSuccess: Boolean = false,
-    val accountDeleteSuccess: Boolean = false  // ✅ NOUVEAU
+    val accountDeleteSuccess: Boolean = false
 ) {
     val isAuthenticated: Boolean
         get() = user != null
@@ -37,7 +37,7 @@ class AuthViewModel : ViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
 
-    // ⭐ On déclare le repository une seule fois ici
+
     private val userRepository = UserRepository()
 
     private val _state = MutableStateFlow(AuthUiState())
@@ -70,7 +70,7 @@ class AuthViewModel : ViewModel() {
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null) {
-                        // ✅ Appel de la fonction de création de profil
+
                         createUserProfile(user.uid, email, firstName, lastName)
                     }
                     ok()
@@ -86,13 +86,13 @@ class AuthViewModel : ViewModel() {
         firstName: String,
         lastName: String
     ) {
-        // ⭐ Création de l'objet avec l'avatar par défaut "avatar_b1"
+
         val newProfile = UserProfile(
             uid = uid,
             email = email,
             firstName = firstName,
             lastName = lastName,
-            photoUrl = "avatar_b1", // Garanti à la création
+            photoUrl = "avatar_b1",
             createdAt = System.currentTimeMillis(),
             redevanceSoutienUnitaire = 1.0,
             detteCumulee = 0.0,
@@ -101,7 +101,7 @@ class AuthViewModel : ViewModel() {
             bestStreak = 0
         )
 
-        // ⭐ Utilisation du scope du ViewModel pour la coroutine
+
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.saveUserProfile(newProfile)
                 .onSuccess {
@@ -148,15 +148,9 @@ class AuthViewModel : ViewModel() {
     }
 
     // ============================================
-    // ✅ NOUVEAU : SUPPRESSION DE COMPTE
+    //  NOUVEAU : SUPPRESSION DE COMPTE
     // ============================================
 
-    /**
-     * Supprime complètement le compte utilisateur et toutes ses données
-     * 1. Supprime les données Firestore (profil + progression)
-     * 2. Supprime le compte Firebase Auth
-     * 3. Déconnecte l'utilisateur
-     */
     fun deleteAccount() {
         val currentUser = auth.currentUser
         if (currentUser == null) {

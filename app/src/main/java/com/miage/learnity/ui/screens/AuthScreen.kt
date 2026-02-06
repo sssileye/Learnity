@@ -24,7 +24,7 @@ fun AuthScreen(
     onLoginClick: () -> Unit,
     onSignupClick: () -> Unit
 ) {
-    // ðŸŽ¨ Dimensions responsives
+
     val dimensions = rememberResponsiveDimensions()
 
     Box(
@@ -40,7 +40,7 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo - taille responsive
+
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo Learnity",
@@ -50,7 +50,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(dimensions.itemSpacing * 2)) // âœ… Spacing adaptatif
 
-            // Titre - typographie responsive
+
             Text(
                 text = "LEARNITY",
                 fontSize = dimensions.displayLarge, // âœ… 40.ssp()
@@ -61,7 +61,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(dimensions.itemSpacing * 4))
 
-            // Bouton Connexion - hauteur responsive
+
             Button(
                 onClick = onLoginClick,
                 modifier = Modifier
@@ -82,7 +82,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-            // Bouton Inscription
+
             OutlinedButton(
                 onClick = onSignupClick,
                 modifier = Modifier

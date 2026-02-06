@@ -58,14 +58,14 @@ class CourseDetailViewModel(
             _isLoading.value = true
             _error.value = null
 
-            // 1. Charger les détails du cours (avec favori)
+
             courseRepository.getCourse(courseId, userId).onSuccess {
                 _course.value = it
             }.onFailure {
                 _error.value = "Erreur cours: ${it.message}"
             }
 
-            // 2. Charger les chapitres (avec favoris)
+
             courseRepository.getChapters(courseId, userId).onSuccess { chapters ->
                 baseChapters = chapters
                 _chapters.value = chapters
@@ -80,23 +80,20 @@ class CourseDetailViewModel(
     }
 
     // ============================================
-    // ⭐ GESTION DES FAVORIS (UE & CHAPITRES)
+    //  GESTION DES FAVORIS (UE & CHAPITRES)
     // ============================================
 
-    /**
-     * Alterne le favori de l'UE actuelle
-     */
     fun toggleCourseFavorite() {
         val currentCourse = _course.value ?: return
         val nextState = !currentCourse.isFavorite
 
         viewModelScope.launch {
-            // ✅ On passe l'objet 'currentCourse' complet au lieu de juste l'ID
+
             progressRepository.toggleCourseFavorite(
                 course = currentCourse,
                 isFavorite = nextState
             ).onSuccess {
-                // Mise à jour de l'UI locale pour que le cœur change instantanément
+
                 _course.value = currentCourse.copy(isFavorite = nextState)
                 println("✅ Matière mise à jour dans les favoris : ${currentCourse.title}")
             }.onFailure { e ->
@@ -105,23 +102,20 @@ class CourseDetailViewModel(
         }
     }
 
-    /**
-     * Alterne le favori d'un chapitre spécifique
-     */
+
     fun toggleChapterFavorite(chapterId: String, nextState: Boolean) {
         val courseId = _course.value?.id ?: return
 
-        // ⭐ On récupère l'objet chapitre complet avant de lancer le launch
         val chapterToUpdate = _chapters.value.find { it.chapterId == chapterId } ?: return
 
         viewModelScope.launch {
-            // ✅ On passe maintenant l'objet chapitre complet au repository
+
             progressRepository.toggleChapterFavorite(
                 courseId = courseId,
                 chapter = chapterToUpdate,
                 isFavorite = nextState
             ).onSuccess {
-                // Mise à jour de la liste locale pour l'UI
+
                 _chapters.value = _chapters.value.map {
                     if (it.chapterId == chapterId) it.copy(isFavorite = nextState) else it
                 }
@@ -168,7 +162,7 @@ class CourseDetailViewModel(
                             isVideoWatched = progress?.isVideoWatched ?: false,
                             isQuizCompleted = isQuizDone,
                             bestScore = progress?.bestScore ?: 0,
-                            isFavorite = progress?.isFavorite ?: chapter.isFavorite, // ⭐ Persistance favori
+                            isFavorite = progress?.isFavorite ?: chapter.isFavorite,
                             isQuizUnlocked = isCoursRead || isFdrRead
                         )
                     }
@@ -185,12 +179,10 @@ class CourseDetailViewModel(
         INCOMPLETE_FIRST
     }
 
-    // 2. Ajouter les States
     private val _sortOrder = MutableStateFlow(ChapterSortOrder.ORIGINAL)
     val sortOrder: StateFlow<ChapterSortOrder> = _sortOrder.asStateFlow()
 
-    // 3. Modifier la façon dont les chapitres sont exposés
-// On utilise 'combine' pour trier dès que les chapitres OU l'ordre changent
+
     val sortedChapters: StateFlow<List<Chapter>> = combine(_chapters, _sortOrder) { list, order ->
         when (order) {
             ChapterSortOrder.ORIGINAL -> list.sortedBy { it.order }
@@ -199,7 +191,6 @@ class CourseDetailViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 4. Fonction pour changer l'ordre
     fun updateSortOrder(order: ChapterSortOrder) {
         _sortOrder.value = order
     }

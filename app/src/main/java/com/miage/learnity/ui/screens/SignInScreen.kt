@@ -42,7 +42,7 @@ fun SignInScreen(
     isLoading: Boolean = false,
     error: String? = null
 ) {
-    // … DIMENSIONS RESPONSIVES
+
     val dimensions = rememberResponsiveDimensions()
     val context = LocalContext.current
 
@@ -97,33 +97,32 @@ fun SignInScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = dimensions.screenPaddingHorizontal)  // … Responsive
-                .responsiveMaxWidth(dimensions)  // … Limite largeur sur tablettes
+                .padding(horizontal = dimensions.screenPaddingHorizontal)
+                .responsiveMaxWidth(dimensions)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(dimensions.screenPaddingVertical))  // … Responsive
+            Spacer(Modifier.height(dimensions.screenPaddingVertical))
 
-            // Logo réduit - RESPONSIVE
+
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo",
-                modifier = Modifier.size(dimensions.logoSize)  // … 100.sdp()
+                modifier = Modifier.size(dimensions.logoSize)
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // Titre - RESPONSIVE
             Text(
                 text = "Connexion",
-                fontSize = dimensions.titleLarge,  // … 28.ssp()
+                fontSize = dimensions.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.ExtraBold
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
 
-            // Email Field - RESPONSIVE
+
             OutlinedTextField(
                 value = email,
                 onValueChange = {
@@ -133,19 +132,19 @@ fun SignInScreen(
                 label = { Text("Email") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // … 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 isError = emailError.isNotEmpty(),
                 supportingText = {
                     if (emailError.isNotEmpty()) {
                         Text(
                             text = emailError,
-                            fontSize = dimensions.bodySmall  // … 12.ssp()
+                            fontSize = dimensions.bodySmall
                         )
                     }
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // … 16.ssp()
+                    fontSize = dimensions.bodyLarge
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -153,9 +152,9 @@ fun SignInScreen(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // Password Field - RESPONSIVE
+
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -175,15 +174,15 @@ fun SignInScreen(
                                 Icons.Default.VisibilityOff
                             },
                             contentDescription = null,
-                            modifier = Modifier.size(dimensions.iconSizeMedium)  // … 24.sdp()
+                            modifier = Modifier.size(dimensions.iconSizeMedium)
                         )
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),  // … 12.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyLarge  // … 16.ssp()
+                    fontSize = dimensions.bodyLarge
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF635BFF),
@@ -191,11 +190,11 @@ fun SignInScreen(
                 )
             )
 
-            // Mot de passe oublié - RESPONSIVE
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = dimensions.itemSpacing / 2)  // … Responsive
+                    .padding(top = dimensions.itemSpacing / 2)
             ) {
                 TextButton(
                     onClick = onForgotPassword,
@@ -205,14 +204,14 @@ fun SignInScreen(
                         text = "Mot de passe oublié ?",
                         color = Color(0xFF635BFF),
                         fontWeight = FontWeight.Medium,
-                        fontSize = dimensions.bodyMedium  // … 14.ssp()
+                        fontSize = dimensions.bodyMedium
                     )
                 }
             }
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
-            // Bouton Connexion - RESPONSIVE
+
             Button(
                 onClick = {
                     val isEmailValid = validateEmail(email)
@@ -222,9 +221,9 @@ fun SignInScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(dimensions.buttonHeight),  // … 56.sdp()
+                    .height(dimensions.buttonHeight),
                 enabled = isButtonEnabled,
-                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),  // … 16.dp
+                shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF635BFF),
                     disabledContainerColor = Color.LightGray
@@ -233,21 +232,20 @@ fun SignInScreen(
                 if (isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(dimensions.iconSizeMedium)  // … 24.sdp()
+                        modifier = Modifier.size(dimensions.iconSizeMedium)
                     )
                 } else {
                     Text(
                         "Se connecter",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = dimensions.bodyLarge  // … 16.ssp()
+                        fontSize = dimensions.bodyLarge
                     )
                 }
             }
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
 
-            // Lien vers inscription - RESPONSIVE
             val annotated = buildAnnotatedString {
                 append("Pas encore de compte ? ")
                 pushStringAnnotation(tag = "signup", annotation = "signup")
@@ -273,15 +271,15 @@ fun SignInScreen(
                     }
                 },
                 style = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyMedium  // … 14.ssp()
+                    fontSize = dimensions.bodyMedium
                 ),
-                modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.5f)  // … Responsive
+                modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.5f)
             )
         }
     }
 }
 
-// … PREVIEWS MULTI-TAILLES
+
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
 @Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)

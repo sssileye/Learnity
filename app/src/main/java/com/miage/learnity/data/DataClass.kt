@@ -71,25 +71,19 @@ data class Chapter(
     val quizId: String? = null,
     val bestScore: Int = 0,
 
-    // === ÉTATS DE PROGRESSION (Modifiables via .copy()) ===
     val isVideoWatched: Boolean = false,
     val isCoursRead: Boolean = false,
     val isFdrRead: Boolean = false,
     val isQuizCompleted: Boolean = false,
 
-    // ⭐ CORRECTION : Passé en paramètre du constructeur pour être reconnu par le ViewModel
+
     val isQuizUnlocked: Boolean = false
 ) {
-    /**
-     * ✅ Chapitre 100% complété
-     * (Cours lu ET Quiz fait. La vidéo est bonus selon ta règle)
-     */
+
     val isCompleted: Boolean
         get() = isCoursRead && isQuizCompleted
 
-    /**
-     * ✅ Progression en pourcentage (0.0 à 1.0)
-     */
+
     val progressPercentage: Float
         get() {
             var completed = 0f
@@ -103,9 +97,6 @@ data class Chapter(
             return if (total > 0) completed / total else 0f
         }
 
-    /**
-     * ✅ Helper pour savoir si le contenu minimal (Cours) est fini
-     */
     val isContentCompleted: Boolean get() = isCoursRead
 
     // Helpers rapides

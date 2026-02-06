@@ -73,7 +73,7 @@ private fun CoursesList(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
 
-        // --- BARRE DE TRI RESPONSIVE ---
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -105,8 +105,6 @@ private fun CoursesList(
                 )
             }
         }
-
-        // --- LISTE DES COURS ---
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(
@@ -176,7 +174,6 @@ fun CourseLibraryCard(
                 .padding(dimensions.cardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // --- ICÔNE FIXE (Icons.Default.School) ---
             Surface(
                 modifier = Modifier.size(dimensions.iconSizeMedium * 1.4f),
                 shape = RoundedCornerShape(dimensions.cornerRadiusSmall),
@@ -194,7 +191,6 @@ fun CourseLibraryCard(
 
             Spacer(modifier = Modifier.width(dimensions.itemSpacing))
 
-            // --- TITRE OPTIMISÉ (Responsive & Taille réduite) ---
             Text(
                 text = course.title,
                 // Taille réduite à 85% de la taille de base pour éviter les coupures
@@ -202,13 +198,13 @@ fun CourseLibraryCard(
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
-                // Interlignage compact
+
                 lineHeight = (dimensions.titleMedium.value * 1.0).sp,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
 
-            // --- BOUTON FAVORIS ---
+
             IconButton(
                 onClick = onFavoriteToggle,
                 modifier = Modifier.size(dimensions.iconSizeMedium * 1.2f)

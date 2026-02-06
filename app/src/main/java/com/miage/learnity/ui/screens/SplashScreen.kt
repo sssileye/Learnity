@@ -25,13 +25,13 @@ import kotlinx.coroutines.launch
 fun SplashScreen(
     onSplashFinished: () -> Unit
 ) {
-    // Animations
+
     val logoScale = remember { Animatable(0f) }
     val logoAlpha = remember { Animatable(0f) }
     val textAlpha = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        // Animation du logo (scale + fade)
+
         launch {
             logoScale.animateTo(
                 targetValue = 1f,
@@ -51,7 +51,7 @@ fun SplashScreen(
             )
         }
 
-        // Animation du texte (fade décalé)
+
         delay(300) // Léger décalage
         textAlpha.animateTo(
             targetValue = 1f,
@@ -61,7 +61,7 @@ fun SplashScreen(
             )
         )
 
-        // Attendre 2 secondes puis naviguer
+
         delay(1500)
         onSplashFinished()
     }
@@ -69,14 +69,14 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background), // ✅ Adaptatif
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo avec animation
+
             Image(
                 painter = painterResource(id = R.drawable.icon_learnity),
                 contentDescription = "Logo Learnity",
@@ -88,29 +88,29 @@ fun SplashScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Texte avec fade-in décalé
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.alpha(textAlpha.value)
             ) {
-                // Titre "LEARNITY"
+
                 Text(
                     text = "LEARNITY",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onBackground, // ✅ Adaptatif
+                    color = MaterialTheme.colorScheme.onBackground,
                     letterSpacing = 2.sp
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Slogan en italique
+
                 Text(
                     text = "Réviser pour soi, donner pour les autres",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, // ✅ Adaptatif
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 40.dp)
                 )

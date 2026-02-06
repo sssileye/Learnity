@@ -14,11 +14,11 @@ class LibraryFavoritesViewModel(
     private val repository: CourseRepository = CourseRepository()
 ) : ViewModel() {
 
-    // 📘 Module Chapitres
+
     private val _favoriteChapters = MutableStateFlow<List<Chapter>>(emptyList())
     val favoriteChapters = _favoriteChapters.asStateFlow()
 
-    // 🎓 Module Matières (Cours) - Ajouté pour tes onglets
+
     private val _favoriteCourses = MutableStateFlow<List<Course>>(emptyList())
     val favoriteCourses = _favoriteCourses.asStateFlow()
 
@@ -30,7 +30,7 @@ class LibraryFavoritesViewModel(
             _isLoading.value = true
             Log.d("DEBUG_FAV", "🚀 Chargement de la bibliothèque pour: $userId")
 
-            // 1. On charge les Chapitres favoris
+
             repository.getFavoriteChapters(userId)
                 .onSuccess { list ->
                     Log.d("DEBUG_FAV", "✅ Chapitres trouvés: ${list.size}")
@@ -40,7 +40,6 @@ class LibraryFavoritesViewModel(
                     Log.e("DEBUG_FAV", "❌ Erreur Chapitres: ${error.message}")
                 }
 
-            // 2. On charge les Matières favorites (Module Cours)
             repository.getFavoriteCourses(userId)
                 .onSuccess { list ->
                     Log.d("DEBUG_FAV", "✅ Matières trouvées: ${list.size}")

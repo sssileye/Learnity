@@ -59,17 +59,17 @@ fun Inscription(
     var showConfirmPassword by remember { mutableStateOf(false) }
     //var acceptCGU by remember { mutableStateOf(false) }
 
-    var acceptCGU by remember { mutableStateOf(false) } // État de la case à cocher [cite: 11]
-    var showCGUDialog by remember { mutableStateOf(false) } // État d'affichage de la popup [cite: 42]
+    var acceptCGU by remember { mutableStateOf(false) }
+    var showCGUDialog by remember { mutableStateOf(false) }
 
-    // états d'erreur
+
     var firstNameError by remember { mutableStateOf("") }
     var lastNameError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf("") }
 
-    // Fonctions de validation
+
     fun validateName(name: String, fieldName: String): Pair<Boolean, String> {
         return when {
             name.isBlank() -> false to "$fieldName requis"
@@ -183,7 +183,7 @@ fun Inscription(
 
             Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
-            // PRENOM
+
             OutlinedTextField(
                 value = firstName,
                 onValueChange = {
@@ -225,7 +225,7 @@ fun Inscription(
 
             Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // NOM
+
             OutlinedTextField(
                 value = lastName,
                 onValueChange = {
@@ -267,7 +267,6 @@ fun Inscription(
 
             Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // EMAIL
             OutlinedTextField(
                 value = email,
                 onValueChange = {
@@ -308,7 +307,7 @@ fun Inscription(
 
             Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // MOT DE PASSE
+
             OutlinedTextField(
                 value = password,
                 onValueChange = {
@@ -365,7 +364,7 @@ fun Inscription(
 
             Spacer(Modifier.height(dimensions.itemSpacing))
 
-            // CONFIRMATION MOT DE PASSE
+
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = {
@@ -416,8 +415,8 @@ fun Inscription(
 
             Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
 
-            // CHECKBOX CGU
-            // --- BLOC CGU ---
+
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -444,7 +443,7 @@ fun Inscription(
 
             Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
-            // BOUTON INSCRIPTION
+
             Button(
                 onClick = {
                     val (isFirstNameValid, firstNameErr) = validateName(firstName, "Prénom")
@@ -457,7 +456,7 @@ fun Inscription(
 
                     if (isFirstNameValid && isLastNameValid && isEmailValid &&
                         isPasswordValid && isConfirmValid) {
-                        // Formatage des noms
+
                         val formattedFirstName = firstName.trim()
                             .split(" ")
                             .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
@@ -522,9 +521,7 @@ fun Inscription(
 }
 
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
-//@Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
-//@Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)
-//@Preview(name = "Tablette (600dp)", widthDp = 600, heightDp = 960)
+
 @Composable
 fun InscriptionPreview() {
     LearnityTheme {

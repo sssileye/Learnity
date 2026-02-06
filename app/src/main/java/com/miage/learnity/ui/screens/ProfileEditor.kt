@@ -40,7 +40,7 @@ fun ProfileEditorScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
-    // ✅ DIMENSIONS RESPONSIVES
+
     val dimensions = rememberResponsiveDimensions()
 
     val uiState by viewModel.uiState.collectAsState()
@@ -80,12 +80,12 @@ private fun ProfileEditor(
 ) {
     val context = LocalContext.current
 
-    // États pour les champs
+
     var firstName by remember { mutableStateOf(profile.firstName) }
     var lastName by remember { mutableStateOf(profile.lastName) }
     var redevance by remember { mutableStateOf(profile.redevanceSoutienUnitaire.toString()) }
 
-    // État pour l'avatar sélectionné
+
     var selectedAvatarResId by remember {
         val currentId = context.resources.getIdentifier(
             profile.photoUrl,
@@ -106,7 +106,7 @@ private fun ProfileEditor(
     ) {
         Spacer(Modifier.height(dimensions.profilePictureSize * 0.63f))
 
-        // ✅ TITRE - RESPONSIVE + DARK MODE
+
         Text(
             text = "Modifier mon profil",
             style = MaterialTheme.typography.headlineMedium.copy(
@@ -125,7 +125,7 @@ private fun ProfileEditor(
 
         Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
 
-        // ✅ TITRE SECTION AVATARS - RESPONSIVE + DARK MODE
+
         Text(
             text = "Sélectionnez un avatar",
             style = MaterialTheme.typography.titleMedium.copy(
@@ -135,7 +135,7 @@ private fun ProfileEditor(
             modifier = Modifier.padding(bottom = dimensions.itemSpacing)
         )
 
-        // ✅ GRILLE D'AVATARS - RESPONSIVE + DARK MODE
+
         Box(
             modifier = Modifier.height(dimensions.profilePictureSize * 2.92f)
         ) {
@@ -181,7 +181,7 @@ private fun ProfileEditor(
 
         Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
 
-        // ✅ CHAMPS DE SAISIE - RESPONSIVE + DARK MODE
+
         CustomEditField(
             value = firstName,
             onValueChange = { firstName = it },
@@ -212,7 +212,7 @@ private fun ProfileEditor(
 
         Spacer(Modifier.height(dimensions.itemSpacing * 3.33f))
 
-        // ✅ BOUTONS - RESPONSIVE + DARK MODE
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(dimensions.itemSpacing * 1.33f)
@@ -317,7 +317,7 @@ fun CustomEditField(
     }
 }
 
-// ✅ PREVIEWS MULTI-TAILLES
+
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
 @Preview(name = "Grand (410dp)", widthDp = 410, heightDp = 820)

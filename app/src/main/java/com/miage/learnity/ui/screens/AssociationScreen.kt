@@ -39,43 +39,43 @@ fun AssociationScreen(
     var montantDon by remember { mutableStateOf("") }
     var isInputError by remember { mutableStateOf(false) }
 
-    // ✅ LISTE COMPLÈTE : 19 associations AVEC UNDERSCORES
+
     val allAssociations = remember {
         listOf(
-            // FRANCE (5)
+            // FRANCE
             Association("Fédération ATENA", "https://www.helloasso.com/associations/federation-atena/formulaires/1", "logo_atena", "Épicerie solidaire pour étudiants à Bordeaux."),
             Association("Les Restos du Cœur", "https://www.restosducoeur.org/faire-un-don-financier/", "logo_restosducoeur", "Aide alimentaire et accompagnement social en France."),
             Association("Secours Populaire", "https://www.secourspopulaire.fr/don", "logo_secours_populaire_francais", "Lutte contre la pauvreté et l'exclusion."),
             Association("Linkee", "https://www.helloasso.com/associations/linkee-bordeaux/formulaires/3", "logo_linkee", "Anti-gaspillage alimentaire, redistribution étudiants."),
             Association("M-Tech", "https://www.helloasso.com/associations/association-m-tech/formulaires/1", "logo_mtech", "Association technologique étudiante innovante."),
 
-            // SÉNÉGAL (3) - ✅ UNDERSCORES
+            // SÉNÉGAL
             Association("ENDA Pronat", "https://endapronat.org/", "logo_enda_senegal", "Agriculture durable et sécurité alimentaire au Sénégal."),
             Association("SOS Villages Sénégal", "https://www.sosve.org/senegal", "logo_sosenfantvillage_senegal", "Protection et éducation des enfants vulnérables."),
             Association("APAF Sénégal", "https://www.apaf-afrique.org/", "logo_apafsenegal", "Formation agricole pour jeunes sénégalais."),
 
-            // MALI (3) - ✅ UNDERSCORES
+            // MALI
             Association("UNICEF Mali", "https://www.unicef.org/mali/", "logo_unicefmali", "Protection et éducation des enfants maliens."),
             Association("Croix-Rouge Mali", "https://www.ifrc.org/our-network/national-societies/mali", "logo_croixrougemali", "Secours d'urgence et aide humanitaire au Mali."),
             Association("MSF Mali", "https://www.msf.org/mali", "logo_medecinsansfrontiere", "Soins médicaux d'urgence dans les zones de conflit."),
 
-            // RDC (3) - ✅ UNDERSCORES
+            // RDC
             Association("Caritas Congo", "https://www.caritas.org/where-caritas-work/africa/democratic-republic-of-congo/", "logo_caritascongo", "Aide humanitaire et développement communautaire en RDC."),
             Association("World Vision RDC", "https://www.worldvision.org/our-work/countries/democratic-republic-of-congo", "logo_worldvisoncongo", "Parrainage d'enfants et développement en RDC."),
             Association("PAM RDC", "https://www.wfp.org/countries/democratic-republic-congo", "logo_pamcongo", "Aide alimentaire d'urgence et lutte contre la faim."),
 
-            // MARTINIQUE (3) - ✅ UNDERSCORES
+            // MARTINIQUE
             Association("Secours Populaire 972", "https://www.secourspopulaire.fr/", "logo_secourspopulairemartinique", "Aide alimentaire et lutte contre l'exclusion en Martinique."),
             Association("Banque Alimentaire 972", "https://www.banquealimentaire.org/", "logo_banquealimentairemartinique", "Collecte et redistribution de denrées alimentaires."),
             Association("Secours Catholique 972", "https://www.secours-catholique.org/", "logo_secourscatholiquemartinique", "Solidarité et accompagnement des personnes en précarité."),
 
-            // MAROC (2) - ✅ UNDERSCORES
+            // MAROC
             Association("AMADE Maroc", "https://www.amade.ma/", "logo_amadmaroc", "Protection et éducation des enfants défavorisés au Maroc."),
             Association("Fondation Mohammed V", "https://fm5.ma/", "logo_fondationmaroc", "Solidarité sociale et aide aux démunis au Maroc.")
         )
     }
 
-    // ✅ FOND ADAPTATIF DARK MODE
+
     val backgroundGradient = Brush.verticalGradient(
         colors = listOf(
             MaterialTheme.colorScheme.primary.copy(alpha = 0.03f),
@@ -83,7 +83,7 @@ fun AssociationScreen(
         )
     )
 
-    // ✅ GRADIENT DETTE - Orange/Jaune
+
     val cardGradient = Brush.horizontalGradient(
         colors = listOf(Color(0xFFF2994A), Color(0xFFF2C94C))
     )
@@ -106,7 +106,7 @@ fun AssociationScreen(
                 verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
                 contentPadding = PaddingValues(vertical = dimensions.screenPaddingVertical)
             ) {
-                // Titre
+
                 item {
                     Text(
                         text = "Nos associations partenaires",
@@ -116,7 +116,7 @@ fun AssociationScreen(
                     )
                 }
 
-                // Dette Virtuelle
+
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -148,7 +148,7 @@ fun AssociationScreen(
                     }
                 }
 
-                // ✅ LISTE DES 19 ASSOCIATIONS AVEC CARDS SÉPARÉES
+
                 items(allAssociations) { asso ->
                     AssociationCardCustom(
                         asso = asso,
@@ -168,7 +168,7 @@ fun AssociationScreen(
             }
         }
 
-        // Dialog de don
+
         if (showDialog && selectedAsso != null) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },

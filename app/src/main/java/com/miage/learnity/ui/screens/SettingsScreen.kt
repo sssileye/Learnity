@@ -29,7 +29,7 @@ import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
 
 // ═══════════════════════════════════════════════════════════════
-// 🎯 SETTINGS SCREEN PRINCIPAL
+//  SETTINGS SCREEN PRINCIPAL
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -44,18 +44,17 @@ fun SettingsScreen(
     val dimensions = rememberResponsiveDimensions()
     val uiState by viewModel.uiState.collectAsState()
 
-    // ✅ NOUVEAU : États pour la suppression de compte
+
     val authState by authViewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteConfirmationText by remember { mutableStateOf("") }
 
-    // États pour les dialogs existants
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLegalDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
 
-    // ✅ NOUVEAU : Écoute du succès de suppression
+
     LaunchedEffect(authState.accountDeleteSuccess) {
         if (authState.accountDeleteSuccess) {
             authViewModel.clearAccountDeleteSuccess()
@@ -74,7 +73,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
         // ═══════════════════════════════════════════════════════════════
-        // 🎯 TITRE PRINCIPAL
+        //  TITRE PRINCIPAL
         // ═══════════════════════════════════════════════════════════════
         Text(
             text = "Paramètres",
@@ -86,7 +85,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
         // ═══════════════════════════════════════════════════════════════
-        // 🎨 SECTION AFFICHAGE
+        // 🎨SECTION AFFICHAGE
         // ═══════════════════════════════════════════════════════════════
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -125,7 +124,7 @@ fun SettingsScreen(
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 📞 SECTION SUPPORT
+        // SECTION SUPPORT
         // ═══════════════════════════════════════════════════════════════
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -181,7 +180,7 @@ fun SettingsScreen(
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 👤 SECTION COMPTE
+        // SECTION COMPTE
         // ═══════════════════════════════════════════════════════════════
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -225,7 +224,7 @@ fun SettingsScreen(
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 🔄 RÉINITIALISATION
+        //  RÉINITIALISATION
         // ═══════════════════════════════════════════════════════════════
         OutlinedButton(
             onClick = { viewModel.resetToDefaults() },
@@ -245,7 +244,7 @@ fun SettingsScreen(
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 🚨 NOUVELLE SECTION : ZONE DANGEREUSE
+        //  NOUVELLE SECTION : ZONE DANGEREUSE
         // ═══════════════════════════════════════════════════════════════
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
@@ -302,7 +301,7 @@ fun SettingsScreen(
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 📦 VERSION DE L'APP
+        //  VERSION DE L'APP
         // ═══════════════════════════════════════════════════════════════
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -356,7 +355,7 @@ fun SettingsScreen(
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // 📱 DIALOGS EXISTANTS
+    // DIALOGS EXISTANTS
     // ═══════════════════════════════════════════════════════════════
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false }, dimensions = dimensions)
@@ -375,7 +374,7 @@ fun SettingsScreen(
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // 🗑️ NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
+    // 🗑 NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
     // ═══════════════════════════════════════════════════════════════
     if (showDeleteDialog) {
         DeleteAccountDialog(
@@ -397,7 +396,7 @@ fun SettingsScreen(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🌙 DARK MODE TOGGLE
+//  DARK MODE TOGGLE
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -461,7 +460,7 @@ private fun DarkModeToggle(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🔤 FONT SIZE SELECTOR
+// FONT SIZE SELECTOR
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -581,7 +580,7 @@ private fun FontSizeChip(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🔧 MENU ITEM
+// MENU ITEM
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -646,7 +645,7 @@ private fun SettingsMenuItem(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🗑️ NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
+// NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -783,7 +782,7 @@ fun DeleteAccountDialog(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 📖 DIALOGS D'INFORMATION (EXISTANTS)
+// DIALOGS D'INFORMATION (EXISTANTS)
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -863,7 +862,7 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            // Ajout de fillMaxWidth pour permettre le centrage réel
+
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -878,13 +877,13 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
                     "À propos de Learnity",
                     fontSize = dimensions.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center // Sécurité supplémentaire
+                    textAlign = TextAlign.Center
                 )
             }
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(), // Centrage aussi pour le corps du texte
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -922,7 +921,7 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
             }
         },
         confirmButton = {
-            // Pour centrer aussi le bouton "Fermer", on peut le mettre dans une Box
+
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 TextButton(onClick = onDismiss) {
                     Text("Fermer", fontSize = dimensions.bodyMedium)

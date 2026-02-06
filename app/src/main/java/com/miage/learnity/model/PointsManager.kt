@@ -12,7 +12,7 @@ object PointsManager {
         val bonusGained: Int,
         val debtAdded: Double,
         val isPerfect: Boolean,
-        val multiplierUsed: Double // ⭐ Ajouté pour l'affichage UI
+        val multiplierUsed: Double
     )
 
     fun calculateResults(
@@ -22,14 +22,14 @@ object PointsManager {
         oldBestScore: Int,
         profile: UserProfile,
         wasAlreadyPerfect: Boolean = false,
-        isFirstAttemptToday: Boolean = true // ⭐ Nouveau paramètre
+        isFirstAttemptToday: Boolean = true
     ): QuizResult {
         val isPerfect = score == totalQuestions
         val multiplier = if (type == QuizType.DAILY) getStreakMultiplier(profile.currentStreak) else 1.0
 
-        // --- 1. CAS DU QUIZ DU JOUR (DAILY) ---
+
         if (type == QuizType.DAILY) {
-            // Si ce n'est pas le 1er essai, on ne donne rien (0 points, 0 dette)
+
             if (!isFirstAttemptToday) {
                 return QuizResult(0, 0, 0.0, isPerfect, 1.0)
             }
@@ -52,7 +52,7 @@ object PointsManager {
             )
         }
 
-        // --- 2. CAS DES CHAPITRES (Logic de record) ---
+
         val diff = score - oldBestScore
         val rawProgression = if (diff > 0) diff else 0
         var rawBonus = 0

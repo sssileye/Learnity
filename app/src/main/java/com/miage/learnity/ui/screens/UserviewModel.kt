@@ -18,17 +18,15 @@ import java.util.concurrent.TimeUnit
 import com.google.firebase.messaging.FirebaseMessaging
 
 
-/**
- * État UI enrichi pour le profil et la progression
- */
+
 data class UserUiState(
     val profile: UserProfile? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     val readChaptersCount: Int = 0,
     val totalChaptersCount: Int = 0,
-    val dailyScore: Pair<Int, Int>? = null,    // ⭐ Ajouté
-    val weeklyProgress: Pair<Int, Int>? = null, // ⭐ Ajouté
+    val dailyScore: Pair<Int, Int>? = null,
+    val weeklyProgress: Pair<Int, Int>? = null,
     val penaltyMessage: String? = null
 )
 
@@ -41,7 +39,7 @@ class UserViewModel(
     private val _uiState = MutableStateFlow(UserUiState())
     val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
 
-    // ⭐ Liste Dynamique des Associations récupérées de Firebase
+
     private val _associations = MutableStateFlow<List<Association>>(emptyList())
     val associations: StateFlow<List<Association>> = _associations.asStateFlow()
 
@@ -51,7 +49,7 @@ class UserViewModel(
         refreshProgressionStats()
         refreshDailyStats()
         firestore.clearPersistence()
-        // ⭐ Chargement immédiat des associations
+
         fetchAssociations()
 
     }
@@ -76,23 +74,19 @@ class UserViewModel(
         }
     }
 
-    /**
-     * SYNCHRONISATION GLOBALE
-     */
+
     fun refreshProgressionStats() {
         calculateReadChaptersCount()
         calculateTotalChaptersCount()
     }
 
-    /**
-     * 🔍 RÉCUPÉRATION DES ASSOCIATIONS DEPUIS FIREBASE
-     */
+
     private fun fetchAssociations() {
         viewModelScope.launch {
             try {
                 val snapshot = firestore.collection("Associations").get().await()
 
-                // ⭐ LE LOG RÉVÉLATEUR
+
                 if (snapshot.documents.isNotEmpty()) {
                     val firstDocPath = snapshot.documents[0].reference.path
                     Log.e("LearnityAssos", "📍 CHEMIN RÉEL DANS FIREBASE : $firstDocPath")
@@ -110,9 +104,7 @@ class UserViewModel(
         }
     }
 
-    /**
-     * Calcule le nombre de chapitres lus par l'utilisateur (via CollectionGroup)
-     */
+
     private fun calculateReadChaptersCount() {
         val userId = repository.getCurrentUserId() ?: return
         viewModelScope.launch {
@@ -133,9 +125,7 @@ class UserViewModel(
         }
     }
 
-    /**
-     * Calcule le nombre total de chapitres dans le catalogue
-     */
+
     private fun calculateTotalChaptersCount() {
         viewModelScope.launch {
             try {
@@ -164,59 +154,6 @@ class UserViewModel(
         }
     }
 
-//    fun processQuizResult( //A SUPPRIMER
-//        quizType: PointsManager.QuizType,
-//        score: Int,
-//        totalQuestions: Int,
-//        courseId: String,
-//        chapterId: String
-//    ) {
-//        val profile = _uiState.value.profile ?: return
-//        viewModelScope.launch {
-//            // --- ÉTAPE 1 : ENVOI ANALYTICS (AVANT LA SAUVEGARDE) ---
-//            // On log pour vérifier que le chapterId est bien détecté
-//            Log.d("LearnityAnalytics", "Tentative d'envoi pour chapterId: $chapterId")
-//
-//            if (chapterId == "REVIEW" || chapterId == "DISCOVERY") {
-//                Firebase.analytics.logEvent("qdj_completed_today") {
-//                    param("score", score.toLong())
-//                    param("mode", quizType.name)
-//                }
-//                Log.d("LearnityAnalytics", "✅ Signal QDJ envoyé à Firebase Analytics")
-//            }
-//
-//            // --- ÉTAPE 2 : LOGIQUE DE POINTS ET SAUVEGARDE FIRESTORE ---
-//            val progress = progressRepository.getChapterProgress(courseId, chapterId).getOrNull()
-//            val absoluteBestScore = progress?.bestScore ?: 0
-//            val wasAlreadyPerfect = absoluteBestScore >= totalQuestions
-//
-//            val result = PointsManager.calculateResults(
-//                type = quizType,
-//                score = score,
-//                totalQuestions = totalQuestions,
-//                oldBestScore = absoluteBestScore,
-//                profile = profile,
-//                wasAlreadyPerfect = wasAlreadyPerfect
-//            )
-//
-//            repository.updateStatsWithHighscore(
-//                courseId = courseId,
-//                chapterId = chapterId,
-//                newScore = score,
-//                totalQuestions = totalQuestions,
-//                quizType = quizType,
-//                pointsCalculated = result.progressionPoints,
-//                bonusCalculated = result.bonusGained,
-//                debtCalculated = result.debtAdded
-//            ).onSuccess {
-//                refreshProgressionStats()
-//                Log.d("LearnityAnalytics", "📊 Sauvegarde Firestore réussie")
-//            }.onFailure { e ->
-//                _uiState.update { it.copy(error = "Erreur sauvegarde : ${e.message}") }
-//                Log.e("LearnityAnalytics", "❌ Erreur sauvegarde Firestore : ${e.message}")
-//            }
-//        }
-//    }
 fun refreshDailyStats() {
     val quizRepo = com.miage.learnity.repository.QuizRepository()
     viewModelScope.launch {
@@ -231,7 +168,7 @@ fun refreshDailyStats() {
 
     fun checkAndApplyAttendancePenalty() {
         viewModelScope.launch {
-            // 1. Récupération du profil actuel
+
             val profile = repository.getUserProfile().getOrNull() ?: return@launch
             val lastDateStr = profile.lastDailyQuizDate ?: return@launch
 
@@ -248,28 +185,28 @@ fun refreshDailyStats() {
 
                 val lastDate = sdf.parse(lastDateStr) ?: return@launch
 
-                // Calcul de la différence brute en jours
+
                 val diffMillis = today.time - lastDate.time
                 val daysDiff = (diffMillis / (1000 * 60 * 60 * 24)).toInt()
 
-                // 3. Détection d'absence (si plus de 1 jour d'écart)
+
                 if (daysDiff > 1) {
                     val missedDays = daysDiff - 1
                     val redevance = profile.redevanceSoutienUnitaire ?: 1.0
 
                     android.util.Log.d("Learnity_Debug", "🕵️ Absence détectée : $missedDays jours.")
 
-                    // 4. Appel du Repository qui gère le bouclier et nous renvoie le bilan
+
                     repository.applyAbsenteeismPenalty(missedDays, redevance)
                         .onSuccess { messageBilan ->
                             android.util.Log.d("Learnity_Debug", "✅ Pénalité traitée : $messageBilan")
 
-                            // ⭐ MISE À JOUR DE L'UI : On stocke le message pour la PopUp
+
                             _uiState.update { it.copy(
                                 penaltyMessage = messageBilan
                             ) }
 
-                            // Rafraîchissement pour voir les points déduits sur l'écran
+
                             refreshProfile()
                         }
                         .onFailure { e ->
@@ -289,9 +226,9 @@ fun refreshDailyStats() {
 
     fun refreshProfile() {
         viewModelScope.launch {
-            // On demande au repository de reprendre le profil actuel
+
             repository.getUserProfile().onSuccess { profile ->
-                // On met à jour le StateFlow de l'UI
+
                 _uiState.update { it.copy(profile = profile) }
                 Log.d("UserViewModel", "Profil synchronisé après pénalité")
             }.onFailure { e ->
@@ -299,10 +236,7 @@ fun refreshDailyStats() {
             }
         }
     }
-    /**
-     * 🔥 GESTION DU TOKEN DE NOTIFICATION (FCM)
-     * Récupère l'identifiant unique du téléphone et le stocke dans Firestore
-     */
+
     fun updateFcmToken() {
         val userId = repository.getCurrentUserId() ?: return
 
@@ -316,7 +250,7 @@ fun refreshDailyStats() {
 
             viewModelScope.launch {
                 try {
-                    // On met à jour le champ fcmToken dans le document de l'utilisateur
+
                     firestore.collection("users").document(userId)
                         .update("fcmToken", token)
                         .await()
