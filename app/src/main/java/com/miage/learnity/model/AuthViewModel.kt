@@ -1,12 +1,14 @@
 package com.miage.learnity.model
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
@@ -150,12 +152,27 @@ class AuthViewModel : ViewModel() {
     }
 
     // ============================================
-    // SUPPRESSION DE COMPTE
+    // ✅ SUPPRESSION DE COMPTE AVEC RÉ-AUTHENTIFICATION (CORRIGÉ)
     // ============================================
 
-    fun deleteAccount() {
+    /**
+     * ✅ NOUVELLE VERSION : Supprime le compte avec ré-authentification obligatoire
+     * pour éviter le problème de page blanche.
+     *
+     * Cette fonction demande le mot de passe AVANT de commencer toute suppression,
+     * garantissant une session Firebase Auth fraîche et évitant la demande de
+     * ré-authentification en plein milieu du processus.
+     *
+     * @param password Mot de passe actuel de l'utilisateur
+     */
+    fun deleteAccountWithPassword(password: String) {
         val currentUser = auth.currentUser ?: run {
             _state.value = _state.value.copy(error = "Aucun utilisateur connecté")
+            return
+        }
+
+        val email = currentUser.email ?: run {
+            _state.value = _state.value.copy(error = "Email non disponible")
             return
         }
 
@@ -163,26 +180,29 @@ class AuthViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                Log.i("AccountDeletion", "🔐 Étape 1 : Ré-authentification")
+
+                // ============================================
+                // ÉTAPE 1 : RÉ-AUTHENTIFIER L'UTILISATEUR
+                // ============================================
+                // Cela garantit une session fraîche et évite FirebaseAuthRecentLoginRequiredException
+                val credential = EmailAuthProvider.getCredential(email, password)
+                currentUser.reauthenticate(credential).await()
+                Log.d("AccountDeletion", "✅ Ré-authentification réussie")
+
+                // ============================================
+                // ÉTAPE 2 : SUPPRIMER LES DONNÉES FIRESTORE
+                // ============================================
                 val uid = currentUser.uid
+                deleteFirestoreData(uid)
 
-                // 1. Supprimer le document utilisateur
-                firestore.collection("users").document(uid).delete().await()
-
-                // 2. Supprimer la progression (courses + chapters)
-                val userProgressRef = firestore.collection("user_progress").document(uid)
-                val coursesSnapshot = userProgressRef.collection("courses").get().await()
-
-                for (courseDoc in coursesSnapshot.documents) {
-                    val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
-                    for (chapterDoc in chaptersSnapshot.documents) {
-                        chapterDoc.reference.delete().await()
-                    }
-                    courseDoc.reference.delete().await()
-                }
-                userProgressRef.delete().await()
-
-                // 3. Supprimer Firebase Auth
+                // ============================================
+                // ÉTAPE 3 : SUPPRIMER LE COMPTE FIREBASE AUTH (EN DERNIER)
+                // ============================================
+                // Maintenant qu'on vient de se ré-authentifier, cette étape fonctionne toujours
+                Log.i("AccountDeletion", "🗑️ Étape 3 : Suppression Firebase Auth")
                 currentUser.delete().await()
+                Log.i("AccountDeletion", "✅ Compte supprimé avec succès")
 
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -190,13 +210,108 @@ class AuthViewModel : ViewModel() {
                     accountDeleteSuccess = true,
                     error = null
                 )
+
+            } catch (e: FirebaseAuthInvalidCredentialsException) {
+                // Mot de passe incorrect
+                Log.e("AccountDeletion", "❌ Mot de passe incorrect")
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = "Mot de passe incorrect"
+                )
+            } catch (e: FirebaseAuthRecentLoginRequiredException) {
+                // Normalement, ça ne devrait jamais arriver car on vient de se ré-authentifier
+                Log.e("AccountDeletion", "❌ Erreur inattendue : ré-authentification requise")
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = "Erreur inattendue. Veuillez réessayer."
+                )
+            } catch (e: FirebaseNetworkException) {
+                Log.e("AccountDeletion", "❌ Erreur réseau")
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = "Erreur réseau : Vérifiez votre connexion"
+                )
             } catch (e: Exception) {
+                Log.e("AccountDeletion", "❌ Erreur lors de la suppression", e)
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Échec de la suppression : ${e.localizedMessage}"
                 )
             }
         }
+    }
+
+    /**
+     * Supprime toutes les données Firestore de l'utilisateur.
+     *
+     * Collections supprimées :
+     * 1. users/{uid} - Document principal de l'utilisateur
+     * 2. user_progress/{uid}/courses/{courseId}/chapters/{chapterId} - Progression complète
+     * 3. quiz_results/{uid}/history - Historique des quiz
+     *
+     * @param uid ID de l'utilisateur
+     */
+    private suspend fun deleteFirestoreData(uid: String) {
+        Log.i("AccountDeletion", "🗑️ Étape 2 : Suppression des données Firestore")
+
+        // ============================================
+        // 1. SUPPRIMER LE DOCUMENT UTILISATEUR PRINCIPAL
+        // ============================================
+        firestore.collection("users").document(uid).delete().await()
+        Log.d("AccountDeletion", "✅ Document utilisateur supprimé")
+
+        // ============================================
+        // 2. SUPPRIMER LA PROGRESSION (COURSES + CHAPTERS)
+        // ============================================
+        val userProgressRef = firestore.collection("user_progress").document(uid)
+        val coursesSnapshot = userProgressRef.collection("courses").get().await()
+
+        var chaptersDeleted = 0
+        var coursesDeleted = 0
+
+        for (courseDoc in coursesSnapshot.documents) {
+            // Supprimer tous les chapitres du cours
+            val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
+            for (chapterDoc in chaptersSnapshot.documents) {
+                chapterDoc.reference.delete().await()
+                chaptersDeleted++
+            }
+
+            // Supprimer le document du cours
+            courseDoc.reference.delete().await()
+            coursesDeleted++
+        }
+
+        // Supprimer le document user_progress principal
+        userProgressRef.delete().await()
+        Log.d("AccountDeletion", "✅ Progression supprimée : $coursesDeleted cours, $chaptersDeleted chapitres")
+
+        // ============================================
+        // 3. ✅ SUPPRIMER L'HISTORIQUE DES QUIZ (CORRECTION IMPORTANTE)
+        // ============================================
+        val quizResultsRef = firestore.collection("quiz_results").document(uid)
+        val historySnapshot = quizResultsRef.collection("history").get().await()
+
+        var quizResultsDeleted = 0
+        for (historyDoc in historySnapshot.documents) {
+            historyDoc.reference.delete().await()
+            quizResultsDeleted++
+        }
+
+        // Supprimer le document quiz_results principal
+        quizResultsRef.delete().await()
+        Log.d("AccountDeletion", "✅ Historique quiz supprimé : $quizResultsDeleted résultats")
+
+        // ============================================
+        // LOG RÉCAPITULATIF
+        // ============================================
+        Log.i("AccountDeletion", """
+            📊 Récapitulatif Firestore :
+            - User document: ✅
+            - Cours : $coursesDeleted
+            - Chapitres : $chaptersDeleted
+            - Résultats quiz : $quizResultsDeleted
+        """.trimIndent())
     }
 
     fun clearAccountDeleteSuccess() {

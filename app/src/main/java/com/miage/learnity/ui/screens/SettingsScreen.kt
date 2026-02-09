@@ -9,7 +9,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,9 +22,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miage.learnity.R
 import com.miage.learnity.data.FontSize
@@ -28,14 +37,10 @@ import com.miage.learnity.model.AuthViewModel
 import com.miage.learnity.ui.theme.LearnityTheme
 import com.miage.learnity.ui.utils.*
 
-// ═══════════════════════════════════════════════════════════════
-// 🎯 SETTINGS SCREEN PRINCIPAL
-// ═══════════════════════════════════════════════════════════════
-
 @Composable
 fun SettingsScreen(
-    authViewModel: AuthViewModel = viewModel(),  // ✅ NOUVEAU
-    onAccountDeleted: () -> Unit = {}  // ✅ NOUVEAU
+    authViewModel: AuthViewModel = viewModel(),
+    onAccountDeleted: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val viewModel: SettingsViewModel = viewModel(
@@ -44,18 +49,16 @@ fun SettingsScreen(
     val dimensions = rememberResponsiveDimensions()
     val uiState by viewModel.uiState.collectAsState()
 
-    // ✅ NOUVEAU : États pour la suppression de compte
     val authState by authViewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteConfirmationText by remember { mutableStateOf("") }
+    var deletePassword by remember { mutableStateOf("") }
 
-    // États pour les dialogs existants
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLegalDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
 
-    // ✅ NOUVEAU : Écoute du succès de suppression
     LaunchedEffect(authState.accountDeleteSuccess) {
         if (authState.accountDeleteSuccess) {
             authViewModel.clearAccountDeleteSuccess()
@@ -73,9 +76,6 @@ fun SettingsScreen(
     ) {
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        // ═══════════════════════════════════════════════════════════════
-        // 🎯 TITRE PRINCIPAL
-        // ═══════════════════════════════════════════════════════════════
         Text(
             text = "Paramètres",
             fontSize = dimensions.titleLarge,
@@ -85,9 +85,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
-        // ═══════════════════════════════════════════════════════════════
-        // 🎨 SECTION AFFICHAGE
-        // ═══════════════════════════════════════════════════════════════
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
@@ -124,9 +121,6 @@ fun SettingsScreen(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // 📞 SECTION SUPPORT
-        // ═══════════════════════════════════════════════════════════════
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
@@ -180,9 +174,6 @@ fun SettingsScreen(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // 👤 SECTION COMPTE
-        // ═══════════════════════════════════════════════════════════════
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
@@ -224,9 +215,6 @@ fun SettingsScreen(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // 🔄 RÉINITIALISATION
-        // ═══════════════════════════════════════════════════════════════
         OutlinedButton(
             onClick = { viewModel.resetToDefaults() },
             modifier = Modifier
@@ -243,10 +231,6 @@ fun SettingsScreen(
                 fontWeight = FontWeight.Medium
             )
         }
-
-        // ═══════════════════════════════════════════════════════════════
-        // 🚨 NOUVELLE SECTION : ZONE DANGEREUSE
-        // ═══════════════════════════════════════════════════════════════
 
         Spacer(modifier = Modifier.height(dimensions.itemSpacing))
 
@@ -301,9 +285,6 @@ fun SettingsScreen(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // 📦 VERSION DE L'APP
-        // ═══════════════════════════════════════════════════════════════
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(dimensions.cornerRadiusLarge),
@@ -355,9 +336,6 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(dimensions.bottomNavHeight))
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // 📱 DIALOGS EXISTANTS
-    // ═══════════════════════════════════════════════════════════════
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false }, dimensions = dimensions)
     }
@@ -374,31 +352,27 @@ fun SettingsScreen(
         PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false }, dimensions = dimensions)
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // 🗑️ NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
-    // ═══════════════════════════════════════════════════════════════
     if (showDeleteDialog) {
-        DeleteAccountDialog(
+        DeleteAccountDialogWithPassword(
             confirmationText = deleteConfirmationText,
             onConfirmationTextChange = { deleteConfirmationText = it },
+            password = deletePassword,
+            onPasswordChange = { deletePassword = it },
             isLoading = authState.isLoading,
             error = authState.error,
             onDismiss = {
                 showDeleteDialog = false
                 deleteConfirmationText = ""
+                deletePassword = ""
                 authViewModel.clearError()
             },
-            onConfirmDelete = {
-                authViewModel.deleteAccount()
+            onConfirmDelete = { password ->
+                authViewModel.deleteAccountWithPassword(password)
             },
             dimensions = dimensions
         )
     }
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 🌙 DARK MODE TOGGLE
-// ═══════════════════════════════════════════════════════════════
 
 @Composable
 private fun DarkModeToggle(
@@ -459,10 +433,6 @@ private fun DarkModeToggle(
         )
     }
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 🔤 FONT SIZE SELECTOR
-// ═══════════════════════════════════════════════════════════════
 
 @Composable
 private fun FontSizeSelector(
@@ -579,11 +549,6 @@ private fun FontSizeChip(
         )
     )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 🔧 MENU ITEM
-// ═══════════════════════════════════════════════════════════════
-
 @Composable
 private fun SettingsMenuItem(
     icon: Int,
@@ -644,21 +609,20 @@ private fun SettingsMenuItem(
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 🗑️ NOUVEAU : DIALOG DE SUPPRESSION DE COMPTE
-// ═══════════════════════════════════════════════════════════════
-
 @Composable
-fun DeleteAccountDialog(
+fun DeleteAccountDialogWithPassword(
     confirmationText: String,
     onConfirmationTextChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
     isLoading: Boolean,
     error: String?,
     onDismiss: () -> Unit,
-    onConfirmDelete: () -> Unit,
+    onConfirmDelete: (String) -> Unit,
     dimensions: ResponsiveDimensions
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -732,20 +696,84 @@ fun DeleteAccountDialog(
                     shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
                 )
 
+                Spacer(Modifier.height(dimensions.itemSpacing / 2))
+
+                Text(
+                    "Entrez votre mot de passe actuel :",
+                    fontSize = dimensions.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = onPasswordChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Mot de passe") },
+                    singleLine = true,
+                    enabled = !isLoading,
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (confirmationText == "SUPPRIMER" && password.isNotBlank()) {
+                                onConfirmDelete(password)
+                            }
+                        }
+                    ),
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { passwordVisible = !passwordVisible },
+                            enabled = !isLoading
+                        ) {
+                            Icon(
+                                imageVector = if (passwordVisible) {
+                                    Icons.Filled.Visibility
+                                } else {
+                                    Icons.Filled.VisibilityOff
+                                },
+                                contentDescription = if (passwordVisible) {
+                                    "Masquer le mot de passe"
+                                } else {
+                                    "Afficher le mot de passe"
+                                }
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(dimensions.cornerRadiusMedium)
+                )
+
                 if (error != null) {
-                    Text(
-                        error,
-                        fontSize = dimensions.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = dimensions.itemSpacing / 4)
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(dimensions.cornerRadiusMedium),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            error,
+                            fontSize = dimensions.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(dimensions.itemSpacing / 2)
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = onConfirmDelete,
-                enabled = confirmationText == "SUPPRIMER" && !isLoading,
+                onClick = { onConfirmDelete(password) },
+                enabled = confirmationText == "SUPPRIMER" && password.isNotBlank() && !isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -781,11 +809,6 @@ fun DeleteAccountDialog(
         }
     )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 📖 DIALOGS D'INFORMATION (EXISTANTS)
-// ═══════════════════════════════════════════════════════════════
-
 @Composable
 fun HelpDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
     AlertDialog(
@@ -1116,10 +1139,6 @@ fun PrivacyPolicyDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions)
         }
     )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 🎨 PREVIEWS
-// ═══════════════════════════════════════════════════════════════
 
 @Preview(name = "Petit (320dp)", widthDp = 320, heightDp = 640)
 @Preview(name = "Moyen (360dp)", widthDp = 360, heightDp = 720)
