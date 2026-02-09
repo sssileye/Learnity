@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import com.miage.learnity.R
@@ -97,12 +98,12 @@ fun SignInScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = dimensions.screenPaddingHorizontal)  // … Responsive
+                .padding(horizontal = dimensions.screenPaddingHorizontal)
                 .responsiveMaxWidth(dimensions)  // … Limite largeur sur tablettes
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(dimensions.screenPaddingVertical))  // … Responsive
+            Spacer(Modifier.height(dimensions.screenPaddingVertical))
 
             // Logo réduit - RESPONSIVE
             Image(
@@ -111,7 +112,7 @@ fun SignInScreen(
                 modifier = Modifier.size(dimensions.logoSize)  // … 100.sdp()
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
             // Titre - RESPONSIVE
             Text(
@@ -121,7 +122,7 @@ fun SignInScreen(
                 fontWeight = FontWeight.ExtraBold
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2.5f))
 
             // Email Field - RESPONSIVE
             OutlinedTextField(
@@ -153,7 +154,7 @@ fun SignInScreen(
                 )
             )
 
-            Spacer(Modifier.height(dimensions.itemSpacing))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing))
 
             // Password Field - RESPONSIVE
             OutlinedTextField(
@@ -195,7 +196,7 @@ fun SignInScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = dimensions.itemSpacing / 2)  // … Responsive
+                    .padding(top = dimensions.itemSpacing / 2)
             ) {
                 TextButton(
                     onClick = onForgotPassword,
@@ -210,7 +211,7 @@ fun SignInScreen(
                 }
             }
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 2))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 2))
 
             // Bouton Connexion - RESPONSIVE
             Button(
@@ -245,11 +246,12 @@ fun SignInScreen(
                 }
             }
 
-            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))  // … Responsive
+            Spacer(Modifier.height(dimensions.itemSpacing * 1.5f))
 
-            // Lien vers inscription - RESPONSIVE
             val annotated = buildAnnotatedString {
-                append("Pas encore de compte ? ")
+                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                    append("Pas encore de compte ? ")
+                }
                 pushStringAnnotation(tag = "signup", annotation = "signup")
                 withStyle(
                     SpanStyle(
@@ -261,21 +263,19 @@ fun SignInScreen(
                 }
                 pop()
             }
+
             ClickableText(
                 text = annotated,
                 onClick = { offset ->
-                    annotated.getStringAnnotations(
-                        tag = "signup",
-                        start = offset,
-                        end = offset
-                    ).firstOrNull()?.let {
-                        onNavigateToSignUp()
-                    }
+                    annotated.getStringAnnotations(tag = "signup", start = offset, end = offset)
+                        .firstOrNull()?.let { onNavigateToSignUp() }
                 },
                 style = LocalTextStyle.current.copy(
-                    fontSize = dimensions.bodyMedium  // … 14.ssp()
+                    fontSize = dimensions.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
-                modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.5f)  // … Responsive
+                modifier = Modifier.padding(bottom = dimensions.itemSpacing * 1.5f)
             )
         }
     }
