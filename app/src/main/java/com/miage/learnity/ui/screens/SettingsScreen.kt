@@ -57,7 +57,7 @@ fun SettingsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLegalDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
-    var showHelpDialog by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(authState.accountDeleteSuccess) {
         if (authState.accountDeleteSuccess) {
@@ -136,26 +136,6 @@ fun SettingsScreen(
                         horizontal = dimensions.cardPadding,
                         vertical = dimensions.itemSpacing / 2
                     )
-                )
-
-                SettingsMenuItem(
-                    icon = R.drawable.ic_settings_1,
-                    title = "Aide",
-                    onClick = { showHelpDialog = true },
-                    dimensions = dimensions
-                )
-
-                SettingsMenuItem(
-                    icon = R.drawable.ic_settings_1,
-                    title = "Signaler un bug",
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:support@learnity.fr")
-                            putExtra(Intent.EXTRA_SUBJECT, "Signalement de bug - Learnity")
-                        }
-                        context.startActivity(intent)
-                    },
-                    dimensions = dimensions
                 )
 
                 SettingsMenuItem(
@@ -334,10 +314,6 @@ fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(dimensions.bottomNavHeight))
-    }
-
-    if (showHelpDialog) {
-        HelpDialog(onDismiss = { showHelpDialog = false }, dimensions = dimensions)
     }
 
     if (showAboutDialog) {
@@ -810,83 +786,10 @@ fun DeleteAccountDialogWithPassword(
     )
 }
 @Composable
-fun HelpDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                "Centre d'aide",
-                fontSize = dimensions.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 400.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(dimensions.itemSpacing)
-            ) {
-                Text(
-                    "COMMENT UTILISER LEARNITY ?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimensions.bodyMedium
-                )
-                Text(
-                    """
-                    1. Explorez les cours disponibles dans la bibliothèque
-                    2. Lisez les contenus et regardez les vidéos
-                    3. Complétez les quiz pour gagner des Unity Points
-                    4. Suivez votre progression et votre streak
-                    5. Choisissez une association à soutenir
-                    """.trimIndent(),
-                    fontSize = dimensions.bodySmall
-                )
-
-                HorizontalDivider()
-
-                Text(
-                    "SYSTEM DE DETTE VIRTUELLE",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimensions.bodyMedium
-                )
-                Text(
-                    """
-                    Chaque semaine, vous devez compléter un quiz.
-                    Si vous manquez l'objectif, une dette virtuelle s'accumule.
-                    À la fin du mois, vous pouvez faire un don correspondant.
-                    """.trimIndent(),
-                    fontSize = dimensions.bodySmall
-                )
-
-                HorizontalDivider()
-
-                Text(
-                    "BESOIN D'AIDE ?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimensions.bodyMedium
-                )
-                Text(
-                    "Contactez-nous à support@learnity.fr",
-                    fontSize = dimensions.bodySmall
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Fermer", fontSize = dimensions.bodyMedium)
-            }
-        }
-    )
-}
-
-@Composable
 fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            // Ajout de fillMaxWidth pour permettre le centrage réel
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -932,7 +835,7 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
                     """
                     Learnity est une application mobile d'apprentissage qui combine éducation et solidarité.
                     
-                    Chaque quiz complété vous rapporte des Unity Points et diminue votre dette virtuelle.
+                    Chaque quiz complété vous rapporte des Unity Points.
                     
                     Votre engagement profite aux associations partenaires.
                     
@@ -945,7 +848,6 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
             }
         },
         confirmButton = {
-            // Pour centrer aussi le bouton "Fermer", on peut le mettre dans une Box
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 TextButton(onClick = onDismiss) {
                     Text("Fermer", fontSize = dimensions.bodyMedium)

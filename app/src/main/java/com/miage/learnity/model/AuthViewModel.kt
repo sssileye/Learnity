@@ -43,10 +43,6 @@ class AuthViewModel : ViewModel() {
     private val _state = MutableStateFlow(AuthUiState())
     val state: StateFlow<AuthUiState> = _state
 
-    // ============================================
-    // CONNEXION
-    // ============================================
-
     fun signIn(email: String, password: String) {
         setLoading()
         auth.signInWithEmailAndPassword(email, password)
@@ -59,14 +55,6 @@ class AuthViewModel : ViewModel() {
             }
     }
 
-    // ============================================
-    // INSCRIPTION + CRÉATION PROFIL
-    // ============================================
-
-    /**
-     * Inscription simplifiée : La redevance est fixée par défaut (ex: 1.0).
-     * Le flag isFirstLogin est mis à TRUE pour déclencher l'onboarding en Home.
-     */
     fun signUp(email: String, password: String, firstName: String, lastName: String, redevance: Double = 1.0) {
         setLoading()
         auth.createUserWithEmailAndPassword(email, password)
@@ -74,7 +62,6 @@ class AuthViewModel : ViewModel() {
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null) {
-                        // ✅ Création du profil avec le flag isFirstLogin à true
                         createUserProfile(user.uid, email, firstName, lastName, redevance, isFirstLogin = true)
                     }
                     ok()
@@ -100,7 +87,7 @@ class AuthViewModel : ViewModel() {
             photoUrl = "avatar_b1",
             createdAt = System.currentTimeMillis(),
             redevanceSoutienUnitaire = redevance,
-            isFirstLogin = isFirstLogin, // ✅ Nouveau flag pour l'onboarding
+            isFirstLogin = isFirstLogin,
             detteCumulee = 0.0,
             unityPoints = 0,
             currentStreak = 0,
@@ -110,17 +97,13 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.saveUserProfile(newProfile)
                 .onSuccess {
-                    println("✅ AuthViewModel - Profil créé (First Login: $isFirstLogin)")
+                    println("AuthViewModel - Profil créé (First Login: $isFirstLogin)")
                 }
                 .onFailure { e ->
-                    println("❌ AuthViewModel - Échec création profil : ${e.message}")
+                    println("AuthViewModel - Échec création profil : ${e.message}")
                 }
         }
     }
-
-    // ============================================
-    // RÉINITIALISATION MOT DE PASSE
-    // ============================================
 
     fun resetPassword(email: String) {
         setLoading()
@@ -141,30 +124,11 @@ class AuthViewModel : ViewModel() {
     fun clearResetPasswordSuccess() {
         _state.value = _state.value.copy(resetPasswordSuccess = false)
     }
-
-    // ============================================
-    // DÉCONNEXION
-    // ============================================
-
     fun signOut() {
         auth.signOut()
         _state.value = _state.value.copy(user = null)
     }
 
-    // ============================================
-    // ✅ SUPPRESSION DE COMPTE AVEC RÉ-AUTHENTIFICATION (CORRIGÉ)
-    // ============================================
-
-    /**
-     * ✅ NOUVELLE VERSION : Supprime le compte avec ré-authentification obligatoire
-     * pour éviter le problème de page blanche.
-     *
-     * Cette fonction demande le mot de passe AVANT de commencer toute suppression,
-     * garantissant une session Firebase Auth fraîche et évitant la demande de
-     * ré-authentification en plein milieu du processus.
-     *
-     * @param password Mot de passe actuel de l'utilisateur
-     */
     fun deleteAccountWithPassword(password: String) {
         val currentUser = auth.currentUser ?: run {
             _state.value = _state.value.copy(error = "Aucun utilisateur connecté")
@@ -180,29 +144,18 @@ class AuthViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                Log.i("AccountDeletion", "🔐 Étape 1 : Ré-authentification")
+                Log.i("AccountDeletion", "Étape 1 : Ré-authentification")
 
-                // ============================================
-                // ÉTAPE 1 : RÉ-AUTHENTIFIER L'UTILISATEUR
-                // ============================================
-                // Cela garantit une session fraîche et évite FirebaseAuthRecentLoginRequiredException
                 val credential = EmailAuthProvider.getCredential(email, password)
                 currentUser.reauthenticate(credential).await()
-                Log.d("AccountDeletion", "✅ Ré-authentification réussie")
+                Log.d("AccountDeletion", "Ré-authentification réussie")
 
-                // ============================================
-                // ÉTAPE 2 : SUPPRIMER LES DONNÉES FIRESTORE
-                // ============================================
                 val uid = currentUser.uid
                 deleteFirestoreData(uid)
 
-                // ============================================
-                // ÉTAPE 3 : SUPPRIMER LE COMPTE FIREBASE AUTH (EN DERNIER)
-                // ============================================
-                // Maintenant qu'on vient de se ré-authentifier, cette étape fonctionne toujours
-                Log.i("AccountDeletion", "🗑️ Étape 3 : Suppression Firebase Auth")
+                Log.i("AccountDeletion", "Étape 3 : Suppression Firebase Auth")
                 currentUser.delete().await()
-                Log.i("AccountDeletion", "✅ Compte supprimé avec succès")
+                Log.i("AccountDeletion", "Compte supprimé avec succès")
 
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -212,27 +165,25 @@ class AuthViewModel : ViewModel() {
                 )
 
             } catch (e: FirebaseAuthInvalidCredentialsException) {
-                // Mot de passe incorrect
-                Log.e("AccountDeletion", "❌ Mot de passe incorrect")
+                Log.e("AccountDeletion", "Mot de passe incorrect")
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Mot de passe incorrect"
                 )
             } catch (e: FirebaseAuthRecentLoginRequiredException) {
-                // Normalement, ça ne devrait jamais arriver car on vient de se ré-authentifier
-                Log.e("AccountDeletion", "❌ Erreur inattendue : ré-authentification requise")
+                Log.e("AccountDeletion", "Erreur inattendue : ré-authentification requise")
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Erreur inattendue. Veuillez réessayer."
                 )
             } catch (e: FirebaseNetworkException) {
-                Log.e("AccountDeletion", "❌ Erreur réseau")
+                Log.e("AccountDeletion", "Erreur réseau")
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Erreur réseau : Vérifiez votre connexion"
                 )
             } catch (e: Exception) {
-                Log.e("AccountDeletion", "❌ Erreur lors de la suppression", e)
+                Log.e("AccountDeletion", "Erreur lors de la suppression", e)
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Échec de la suppression : ${e.localizedMessage}"
@@ -241,28 +192,12 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Supprime toutes les données Firestore de l'utilisateur.
-     *
-     * Collections supprimées :
-     * 1. users/{uid} - Document principal de l'utilisateur
-     * 2. user_progress/{uid}/courses/{courseId}/chapters/{chapterId} - Progression complète
-     * 3. quiz_results/{uid}/history - Historique des quiz
-     *
-     * @param uid ID de l'utilisateur
-     */
     private suspend fun deleteFirestoreData(uid: String) {
-        Log.i("AccountDeletion", "🗑️ Étape 2 : Suppression des données Firestore")
+        Log.i("AccountDeletion", " Étape 2 : Suppression des données Firestore")
 
-        // ============================================
-        // 1. SUPPRIMER LE DOCUMENT UTILISATEUR PRINCIPAL
-        // ============================================
         firestore.collection("users").document(uid).delete().await()
-        Log.d("AccountDeletion", "✅ Document utilisateur supprimé")
+        Log.d("AccountDeletion", " Document utilisateur supprimé")
 
-        // ============================================
-        // 2. SUPPRIMER LA PROGRESSION (COURSES + CHAPTERS)
-        // ============================================
         val userProgressRef = firestore.collection("user_progress").document(uid)
         val coursesSnapshot = userProgressRef.collection("courses").get().await()
 
@@ -270,25 +205,19 @@ class AuthViewModel : ViewModel() {
         var coursesDeleted = 0
 
         for (courseDoc in coursesSnapshot.documents) {
-            // Supprimer tous les chapitres du cours
             val chaptersSnapshot = courseDoc.reference.collection("chapters").get().await()
             for (chapterDoc in chaptersSnapshot.documents) {
                 chapterDoc.reference.delete().await()
                 chaptersDeleted++
             }
 
-            // Supprimer le document du cours
             courseDoc.reference.delete().await()
             coursesDeleted++
         }
 
-        // Supprimer le document user_progress principal
         userProgressRef.delete().await()
-        Log.d("AccountDeletion", "✅ Progression supprimée : $coursesDeleted cours, $chaptersDeleted chapitres")
+        Log.d("AccountDeletion", "Progression supprimée : $coursesDeleted cours, $chaptersDeleted chapitres")
 
-        // ============================================
-        // 3. ✅ SUPPRIMER L'HISTORIQUE DES QUIZ (CORRECTION IMPORTANTE)
-        // ============================================
         val quizResultsRef = firestore.collection("quiz_results").document(uid)
         val historySnapshot = quizResultsRef.collection("history").get().await()
 
@@ -298,13 +227,9 @@ class AuthViewModel : ViewModel() {
             quizResultsDeleted++
         }
 
-        // Supprimer le document quiz_results principal
         quizResultsRef.delete().await()
-        Log.d("AccountDeletion", "✅ Historique quiz supprimé : $quizResultsDeleted résultats")
+        Log.d("AccountDeletion", "Historique quiz supprimé : $quizResultsDeleted résultats")
 
-        // ============================================
-        // LOG RÉCAPITULATIF
-        // ============================================
         Log.i("AccountDeletion", """
             📊 Récapitulatif Firestore :
             - User document: ✅
@@ -317,10 +242,6 @@ class AuthViewModel : ViewModel() {
     fun clearAccountDeleteSuccess() {
         _state.value = _state.value.copy(accountDeleteSuccess = false)
     }
-
-    // ============================================
-    // GESTION ÉTATS & ERREURS
-    // ============================================
 
     fun clearError() {
         _state.value = _state.value.copy(error = null)
