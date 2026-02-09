@@ -34,8 +34,7 @@ class ProfileViewModel(
         R.drawable.avatar_b1, R.drawable.avatar_b2, R.drawable.avatar_b3,
         R.drawable.avatar_o1, R.drawable.avatar_o2, R.drawable.avatar_o3,
         R.drawable.avatar_v1, R.drawable.avatar_v2, R.drawable.avatar_v3,
-        R.drawable.avatar_r1, R.drawable.avatar_r2, R.drawable.avatar_r3,
-        R.drawable.avatar_vivi1
+        R.drawable.avatar_r1, R.drawable.avatar_r2, R.drawable.avatar_r3
     )
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -47,7 +46,7 @@ class ProfileViewModel(
     }
 
     /**
-     * ⭐ CALCUL DE PROGRESSION SÉCURISÉ
+     * CALCUL DE PROGRESSION SÉCURISÉ
      * Parcourt user_progress pour compter les chapitres dont au moins un contenu est lu.
      */
     fun refreshProgressionStats() {

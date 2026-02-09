@@ -840,6 +840,16 @@ fun AboutDialog(onDismiss: () -> Unit, dimensions: ResponsiveDimensions) {
                     Votre engagement profite aux associations partenaires.
                     
                     © 2026 - Projet M2 MIAGE Bordeaux
+                    
+                    Membres de l'équipe :
+                    
+                    - GERMANY Mathieu
+                    - HURE Axel
+                    - SOUMARE Sileye
+                    - TAMBWE Alain
+                    - DJIRE Halima
+                    - AKSANTI Vivien
+                    - MOUNDIR Narjis
                     """.trimIndent(),
                     fontSize = dimensions.bodySmall,
                     textAlign = TextAlign.Center,
